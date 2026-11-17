@@ -1,4 +1,4 @@
-FROM php:8.3-fpm-bookworm AS base
+FROM php:8.5-fpm-bookworm AS base
 RUN apt-get update && apt-get install -y --no-install-recommends libpq-dev libzip-dev libpng-dev libonig-dev libxml2-dev unzip git \
     && docker-php-ext-install pdo_pgsql zip gd mbstring dom opcache \
     && rm -rf /var/lib/apt/lists/*
