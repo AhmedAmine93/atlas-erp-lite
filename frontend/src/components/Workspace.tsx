@@ -1,88 +1,22 @@
 "use client";
+
+import { useEffect, useState } from "react";
 import {
-  useEffect,
-  useState,
-  useRef,
-  type FormEvent,
-  type ReactNode,
-} from "react";
-import {
-  LayoutDashboard,
-  Users,
-  Truck,
-  Package,
-  ArrowLeftRight,
-  FileText,
-  ShoppingBag,
-  Receipt,
-  ShieldCheck,
-  History,
-  Search,
-  Plus,
-  ArrowUpRight,
-  ArrowRight,
-  LogOut,
-  ChevronLeft,
-  ChevronRight,
-  X,
-  Menu,
-  SlidersHorizontal,
-  Check,
-  Download,
-  Pencil,
-  Trash2,
-  AlertTriangle,
-  Boxes,
-  Wallet,
-  TrendingUp,
+  LayoutDashboard, Users, Truck, Package, ArrowLeftRight, FileText,
+  ShoppingBag, Receipt, ShieldCheck, History, Plus, LogOut,
+  ChevronRight, X, Menu, Check,
 } from "lucide-react";
-import { api, send, all } from "@/lib/api";
-import type {
-  User,
-  Contact,
-  Product,
-  Sale,
-  Invoice,
-  Movement,
-  Audit,
-  Dashboard,
-  Page,
-  Role,
-} from "@/lib/types";
+import { api, send } from "@/lib/api";
+import type { User, Contact, Sale, Invoice } from "@/lib/types";
+import type { Row, Editor, View, DetailState } from "@/lib/erp-types";
+import { labels } from "@/lib/format";
 import Login from "@/components/auth/Login";
-import Badge from "@/components/ui/Badge";
-import Empty from "@/components/ui/Empty";
-
 import DashboardView from "@/components/dashboard/DashboardView";
-
 import ListView from "@/components/lists/ListView";
-import type { Row, Editor } from "@/lib/erp-types";
 import EditorForm from "@/components/forms/EditorForm";
-// const euro = (n: number) =>
-//   new Intl.NumberFormat("fr-FR", {
-//     style: "currency",
-//     currency: "EUR",
-//     maximumFractionDigits: 2,
-//   }).format(Number(n) / 100);
-// const date = (s: string) =>
-//   new Date(s).toLocaleDateString("fr-FR", {
-//     day: "2-digit",
-//     month: "short",
-//     year: "numeric",
-//   });
-// const labels: Record<string, string> = {
-//   draft: "Brouillon",
-//   converted: "Converti",
-//   validated: "Validée",
-//   issued: "Émise",
-//   paid: "Payée",
-//   cancelled: "Annulée",
-//   admin: "Administrateur",
-//   commercial: "Commercial",
-//   stock: "Stock",
-//   reader: "Lecture seule",
-// };
-import { euro, date, labels } from "@/lib/format";
+import Detail from "@/components/details/Detail";
+import Modal from "@/components/ui/Modal";
+
 const nav = [
   { id: "dashboard", label: "Vue d’ensemble", icon: LayoutDashboard },
   { id: "customers", label: "Clients", icon: Users },
@@ -94,90 +28,8 @@ const nav = [
   { id: "invoices", label: "Factures", icon: Receipt },
   { id: "users", label: "Utilisateurs", icon: ShieldCheck },
   { id: "audit-logs", label: "Journal d’activité", icon: History },
-];
-type View = (typeof nav)[number]["id"];
+] as const;
 
-// function Badge({ status }: { status: string }) {
-//   return <span className={`badge ${status}`}>{labels[status] || status}</span>;
-// }
-// function Empty({ text = "Aucun résultat pour le moment." }: { text?: string }) {
-//   return (
-//     <div className="empty">
-//       <Boxes size={32} />
-//       <p>{text}</p>
-//     </div>
-//   );
-// }
-function Modal({
-  title,
-  children,
-  onClose,
-}: {
-  title: string;
-  children: ReactNode;
-  onClose: () => void;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const previous = document.activeElement as HTMLElement;
-    ref.current?.focus();
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-      if (e.key === "Tab") {
-        const items = ref.current?.querySelectorAll<HTMLElement>(
-          "button:not(:disabled),input,select,textarea,a[href]",
-        );
-        if (!items?.length) return;
-        const first = items[0],
-          last = items[items.length - 1];
-        if (
-          e.shiftKey &&
-          (document.activeElement === first ||
-            document.activeElement === ref.current)
-        ) {
-          e.preventDefault();
-          last.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
-          e.preventDefault();
-          first.focus();
-        }
-      }
-    };
-    document.addEventListener("keydown", handler);
-    const overflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", handler);
-      document.body.style.overflow = overflow;
-      previous?.focus();
-    };
-  }, [onClose]);
-  return (
-    <div
-      className="modal-backdrop"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div
-        className="modal"
-        ref={ref}
-        tabIndex={-1}
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-      >
-        <header>
-          <h2>{title}</h2>
-          <button className="icon-button" aria-label="Fermer" onClick={onClose}>
-            <X size={20} />
-          </button>
-        </header>
-        {children}
-      </div>
-    </div>
-  );
-}
 export default function Workspace() {
   const [user, setUser] = useState<User | null>(null),
     [checking, setChecking] = useState(true),
@@ -187,7 +39,7 @@ export default function Workspace() {
     [error, setError] = useState(""),
     [refresh, setRefresh] = useState(0),
     [editor, setEditor] = useState<Editor | null>(null),
-    [detail, setDetail] = useState<{ kind: string; row: Row } | null>(null),
+    [detail, setDetail] = useState<DetailState | null>(null),
     [busy, setBusy] = useState(false);
   useEffect(() => {
     api<User>("me")
@@ -232,10 +84,16 @@ export default function Workspace() {
       setBusy(false);
     }
   }
-  async function show(kind: string, row: Row) {
+  async function show(kind: View, row: { id: number }) {
     setError("");
     try {
-      setDetail({ kind, row: await api<Row>(`${kind}/${row.id}`) });
+      if (kind === "customers") {
+        setDetail({ kind, row: await api<Contact>(`${kind}/${row.id}`) });
+      } else if (kind === "invoices") {
+        setDetail({ kind, row: await api<Invoice>(`${kind}/${row.id}`) });
+      } else if (kind === "quotes" || kind === "orders") {
+        setDetail({ kind, row: await api<Sale>(`${kind}/${row.id}`) });
+      }
     } catch (e) {
       setError((e as Error).message);
     }
@@ -484,341 +342,17 @@ export default function Workspace() {
       )}
       {detail && (
         <Modal
-          title={(detail.row.number || detail.row.name || "Facture") as string}
+          title={detail.kind === "customers" ? detail.row.name : detail.row.number || "Facture"}
           onClose={() => setDetail(null)}
         >
           <Detail
-            kind={detail.kind}
-            row={detail.row}
+            {...detail}
             can={can(detail.kind)}
             busy={busy}
             action={action}
           />
         </Modal>
       )}
-    </div>
-  );
-}
-
-// function Login({ onLogin }: { onLogin: (u: User) => void }) {
-//   const [email, setEmail] = useState("admin@atlas.example"),
-//     [password, setPassword] = useState(""),
-//     [error, setError] = useState(""),
-//     [busy, setBusy] = useState(false);
-//   async function submit(e: FormEvent) {
-//     e.preventDefault();
-//     setError("");
-//     setBusy(true);
-//     try {
-//       onLogin(await send<User>("login", "POST", { email, password }));
-//     } catch (e) {
-//       setError((e as Error).message);
-//     } finally {
-//       setBusy(false);
-//     }
-//   }
-//   return (
-//     <div className="login-page">
-//       <section className="login-story">
-//         <div className="brand">
-//           <span className="brand-mark">A</span>
-//           <span>
-//             ATLAS<span className="brand-lite">ERP LITE</span>
-//           </span>
-//         </div>
-//         <div>
-//           <span className="demo-pill">L’ESSENTIEL, BIEN PENSÉ</span>
-//           <h1>
-//             Une vision claire.
-//             <br />
-//             Une activité
-//             <br />
-//             <em>qui avance.</em>
-//           </h1>
-//           <p>
-//             Clients, stocks, ventes et factures.
-//             <br />
-//             Tout se retrouve. Tout se suit.
-//           </p>
-//           <div className="login-art">
-//             <div className="art-orbit" />
-//             <div className="art-block one">
-//               Clients <Users />
-//             </div>
-//             <div className="art-block two">
-//               Ventes <TrendingUp />
-//             </div>
-//             <div className="art-block three">
-//               Stocks <Package />
-//             </div>
-//           </div>
-//         </div>
-//         <small>Projet portfolio · PHP / Next.js / PostgreSQL</small>
-//       </section>
-//       <section className="login-form">
-//         <div className="eyebrow">BIENVENUE DANS VOTRE ESPACE</div>
-//         <h2>Heureux de vous retrouver.</h2>
-//         <p>Connectez-vous pour garder le cap sur votre activité.</p>
-//         <form onSubmit={submit}>
-//           <label>
-//             Adresse e-mail
-//             <input
-//               type="email"
-//               autoComplete="username"
-//               required
-//               value={email}
-//               onChange={(e) => setEmail(e.target.value)}
-//             />
-//           </label>
-//           <label>
-//             Mot de passe
-//             <input
-//               type="password"
-//               autoComplete="current-password"
-//               required
-//               value={password}
-//               onChange={(e) => setPassword(e.target.value)}
-//             />
-//           </label>
-//           {error && (
-//             <div className="error" role="alert">
-//               {error}
-//             </div>
-//           )}
-//           <button className="button primary" disabled={busy}>
-//             {busy ? "Connexion…" : "Se connecter"}
-//             <ArrowRight size={18} />
-//           </button>
-//         </form>
-//         <p className="login-note">
-//           <ShieldCheck size={18} />
-//           Données fictives · Aucun paiement bancaire réel.
-//           <br />
-//           Les accès de démonstration sont dans le README.
-//         </p>
-//       </section>
-//     </div>
-//   );
-// }
-
-
-
-
-
-
-
-function Detail({
-  kind,
-  row,
-  can,
-  busy,
-  action,
-}: {
-  kind: string;
-  row: Row;
-  can: boolean;
-  busy: boolean;
-  action: (p: string, m?: string, d?: unknown) => Promise<Row | undefined>;
-}) {
-  const [error, setError] = useState("");
-  if (kind === "customers")
-    return (
-      <div className="detail-content">
-        <p>
-          {row.email}
-          <br />
-          {row.address}
-        </p>
-        <h3>Historique des commandes</h3>
-        {row.orders?.length ? (
-          <table>
-            <thead>
-              <tr>
-                <th>Commande</th>
-                <th>Date</th>
-                <th>Total TTC</th>
-                <th>Statut</th>
-              </tr>
-            </thead>
-            <tbody>
-              {row.orders.map((o) => (
-                <tr key={o.id}>
-                  <td>{o.number}</td>
-                  <td>{date(o.created_at)}</td>
-                  <td>{euro(o.total_cents)}</td>
-                  <td>
-                    <Badge status={o.status} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <Empty text="Ce client n’a pas encore de commande." />
-        )}
-        <p className="form-hint">Les 100 commandes les plus récentes.</p>
-      </div>
-    );
-  const invoice = kind === "invoices",
-    customer = invoice ? row.snapshot.customer : row.customer,
-    items = invoice ? row.snapshot.items : row.items;
-  async function download() {
-    setError("");
-    try {
-      const res = await fetch(`/api/invoices/${row.id}/pdf`, {
-        headers: { Accept: "application/pdf" },
-      });
-      if (!res.ok) throw new Error("La génération du PDF a échoué.");
-      const url = URL.createObjectURL(await res.blob());
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${row.number || "BROUILLON-" + row.id}.pdf`;
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-    } catch (e) {
-      setError((e as Error).message);
-    }
-  }
-  return (
-    <div className="detail-content">
-      <div className="document-summary">
-        <div>
-          <span className="eyebrow">CLIENT</span>
-          <h3>{customer.name}</h3>
-          <p>
-            {customer.email}
-            <br />
-            {customer.address}
-          </p>
-        </div>
-        <Badge status={row.status} />
-      </div>
-      <div className="table-scroll">
-        <table>
-          <thead>
-            <tr>
-              <th>Produit</th>
-              <th>Qté</th>
-              <th>Prix HT</th>
-              <th>TVA</th>
-              <th>Total HT</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items?.map((i, n) => (
-              <tr key={n}>
-                <td>
-                  {i.name}
-                  <small>{i.reference}</small>
-                </td>
-                <td>{i.quantity}</td>
-                <td>{euro(i.price_cents)}</td>
-                <td>{i.vat_bps / 100} %</td>
-                <td>{euro(i.subtotal_cents)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div className="totals">
-        <span>
-          Total HT<b>{euro(row.subtotal_cents)}</b>
-        </span>
-        <span>
-          TVA<b>{euro(row.tax_cents)}</b>
-        </span>
-        <strong>
-          Total TTC<b>{euro(row.total_cents)}</b>
-        </strong>
-      </div>
-      {row.notes && <p>{row.notes}</p>}
-      {invoice && (
-        <p className="form-hint">
-          Facture de démonstration. Le statut « Payée » est une déclaration
-          manuelle. L’annulation ne réintègre pas le stock.
-        </p>
-      )}
-      {error && (
-        <div className="error" role="alert">
-          {error}
-        </div>
-      )}
-      <div className="form-actions wrap">
-        {invoice && (
-          <button className="button secondary" onClick={download}>
-            <Download size={16} />
-            Télécharger le PDF
-          </button>
-        )}
-        {can && kind === "quotes" && row.status === "draft" && (
-          <button
-            className="button primary"
-            disabled={busy}
-            onClick={() => action(`quotes/${row.id}/convert`)}
-          >
-            Convertir en commande
-            <ArrowRight size={16} />
-          </button>
-        )}
-        {can && kind === "orders" && row.status === "draft" && (
-          <button
-            className="button primary"
-            disabled={busy}
-            onClick={() => action(`orders/${row.id}/validate`)}
-          >
-            Valider la commande
-            <Check size={16} />
-          </button>
-        )}
-        {can && kind === "orders" && row.status === "validated" && (
-          <button
-            className="button primary"
-            disabled={busy}
-            onClick={() => action("invoices", "POST", { order_id: row.id })}
-          >
-            Créer la facture
-            <Receipt size={16} />
-          </button>
-        )}
-        {can && invoice && row.status === "draft" && (
-          <button
-            className="button primary"
-            disabled={busy}
-            onClick={() =>
-              action(`invoices/${row.id}`, "PATCH", { status: "issued" })
-            }
-          >
-            Émettre la facture
-          </button>
-        )}
-        {can && invoice && row.status === "issued" && (
-          <button
-            className="button primary"
-            disabled={busy}
-            onClick={() =>
-              action(`invoices/${row.id}`, "PATCH", { status: "paid" })
-            }
-          >
-            Marquer comme payée
-          </button>
-        )}
-        {can && invoice && ["draft", "issued"].includes(row.status) && (
-          <button
-            className="button secondary danger"
-            disabled={busy}
-            onClick={() => {
-              if (
-                window.confirm(
-                  "Annuler cette facture ? Cette action est définitive et ne remet pas les produits en stock.",
-                )
-              )
-                action(`invoices/${row.id}`, "PATCH", { status: "cancelled" });
-            }}
-          >
-            Annuler la facture
-          </button>
-        )}
-      </div>
     </div>
   );
 }

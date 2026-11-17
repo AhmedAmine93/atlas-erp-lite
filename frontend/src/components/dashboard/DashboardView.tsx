@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 import { api } from "@/lib/api";
+import type { View } from "@/lib/erp-types";
 import type { Dashboard } from "@/lib/types";
 import { euro, date } from "@/lib/format";
 
@@ -26,7 +27,7 @@ export default function DashboardView({
   go,
 }: {
   refresh: number;
-  go: (view: string) => void;
+  go: (view: View) => void;
 }) {
   const localToday = () => {
     const d = new Date();
