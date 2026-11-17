@@ -7,6 +7,9 @@ services:
     profiles: [test]
     env_file: .env
     environment:
+      APP_ENV: testing
+      SESSION_DRIVER: array
+      CACHE_STORE: array
       DB_CONNECTION: pgsql
       DB_HOST: db
       DB_PORT: 5432
@@ -16,3 +19,4 @@ services:
     volumes: ["./reports:/reports"]
     depends_on:
       db: {condition: service_healthy}
+
