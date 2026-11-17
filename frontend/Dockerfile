@@ -1,4 +1,4 @@
-FROM node:24-alpine AS build
+FROM node:26-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --no-fund
@@ -8,7 +8,7 @@ ENV API_INTERNAL_URL=$API_INTERNAL_URL
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run typecheck && npm run build && npm prune --omit=dev
 
-FROM node:24-alpine
+FROM node:26-alpine
 LABEL org.opencontainers.image.source="https://github.com/AhmedAmine93/atlas-erp-lite"
 WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 API_INTERNAL_URL=http://api-web
