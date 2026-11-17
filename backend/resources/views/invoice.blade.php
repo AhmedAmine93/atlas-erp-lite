@@ -1,0 +1,11 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><style>
+body{font-family:DejaVu Sans,sans-serif;color:#172c36;font-size:11px;margin:20px}h1{font-size:28px;color:#13776c}table{border-collapse:collapse;width:100%;margin-top:25px}th{background:#eaf1ef;text-align:left}td,th{padding:10px 6px;border-bottom:1px solid #ddd}.right{text-align:right}.muted{color:#6b7d82}.total{font-size:17px;font-weight:bold}.footer{margin-top:35px;font-size:9px;color:#6b7d82}tr{page-break-inside:avoid}
+</style></head><body>
+<h1>ATLAS / FACTURE</h1><p>{{ $invoice->number ?? 'BROUILLON — '.$invoice->id }}</p>
+<p class="muted">Statut : {{ ['draft'=>'Brouillon','issued'=>'Émise','paid'=>'Payée','cancelled'=>'Annulée'][$invoice->status] }} · Date : {{ $invoice->issued_at?->format('d/m/Y') ?? 'Non émise' }}</p>
+<table><tr><td><b>{{ $invoice->snapshot['seller']['name'] }}</b><br>{{ $invoice->snapshot['seller']['address'] }}<br>{{ $invoice->snapshot['seller']['email'] }}</td><td><b>{{ $invoice->snapshot['customer']['name'] }}</b><br>{{ $invoice->snapshot['customer']['address'] }}<br>{{ $invoice->snapshot['customer']['email'] }}</td></tr></table>
+<p>Commande {{ $invoice->snapshot['order_number'] }} · Devise EUR</p>
+<table><thead><tr><th>Article</th><th>Qté</th><th class="right">Prix HT</th><th class="right">TVA</th><th class="right">Total HT</th></tr></thead><tbody>
+@foreach($invoice->snapshot['items'] as $item)<tr><td>{{ $item['name'] }}<br><small>{{ $item['reference'] }}</small></td><td>{{ $item['quantity'] }}</td><td class="right">{{ number_format($item['price_cents']/100,2,',',' ') }} €</td><td class="right">{{ $item['vat_bps']/100 }} %</td><td class="right">{{ number_format($item['subtotal_cents']/100,2,',',' ') }} €</td></tr>@endforeach
+</tbody></table><p class="right">Total HT : {{ number_format($invoice->subtotal_cents/100,2,',',' ') }} €</p><p class="right">TVA : {{ number_format($invoice->tax_cents/100,2,',',' ') }} €</p><p class="right total">Total TTC : {{ number_format($invoice->total_cents/100,2,',',' ') }} €</p>
+<p class="footer">DOCUMENT DE DÉMONSTRATION — sans valeur comptable. Société et données fictives. Aucun paiement bancaire réel. Annuler une facture ne remet pas les produits en stock.</p></body></html>

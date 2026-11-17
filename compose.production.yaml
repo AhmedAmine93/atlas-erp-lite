@@ -1,0 +1,59 @@
+name: atlas-prod
+x-env: &app-env
+  APP_ENV: production
+  APP_DEBUG: 'false'
+  SESSION_SECURE_COOKIE: 'true'
+  DB_CONNECTION: pgsql
+  DB_HOST: db
+  DB_PORT: 5432
+  DB_DATABASE: atlas
+  DB_USERNAME: atlas
+  DB_PASSWORD: ${DB_PASSWORD:?Missing server DB_PASSWORD}
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: atlas
+      POSTGRES_USER: atlas
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Missing server DB_PASSWORD}
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U atlas -d atlas"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+  migrate:
+    image: ${BACKEND_IMAGE:?Missing tested backend digest}
+    profiles: [tools]
+    env_file: ${ATLAS_ENV_FILE:-/opt/atlas/.env}
+    environment: *app-env
+    command: ["php", "artisan", "migrate", "--force"]
+  backend:
+    image: ${BACKEND_IMAGE:?Missing tested backend digest}
+    env_file: ${ATLAS_ENV_FILE:-/opt/atlas/.env}
+    environment: *app-env
+    restart: unless-stopped
+  api-web:
+    image: nginx:1.28-alpine
+    volumes: ["./infra/nginx/api.conf:/etc/nginx/conf.d/default.conf:ro"]
+    depends_on: [backend]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/up"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+  frontend:
+    image: ${FRONTEND_IMAGE:?Missing tested frontend digest}
+    ports: ["127.0.0.1:${WEB_PORT:-3100}:3000"]
+    depends_on:
+      api-web: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+    restart: unless-stopped
+volumes:
+  pgdata:

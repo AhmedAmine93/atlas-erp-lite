@@ -1,0 +1,18 @@
+services:
+  tests:
+    image: atlas-erp-lite-tests:local
+    build:
+      context: ./backend
+      target: test
+    profiles: [test]
+    env_file: .env
+    environment:
+      DB_CONNECTION: pgsql
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_DATABASE: atlas_test
+      DB_USERNAME: atlas
+      DB_PASSWORD: ${DB_PASSWORD:?Run setup first}
+    volumes: ["./reports:/reports"]
+    depends_on:
+      db: {condition: service_healthy}

@@ -1,0 +1,24 @@
+---
+- name: Prepare an Ubuntu 24.04 demonstration host
+  hosts: atlas
+  become: true
+  tasks:
+    - name: Install operating system packages
+      ansible.builtin.apt:
+        name: [docker.io, docker-compose-v2, git, ca-certificates, ufw]
+        state: present
+        update_cache: true
+    - name: Enable Docker
+      ansible.builtin.service:
+        name: docker
+        enabled: true
+        state: started
+    - name: Create application directory
+      ansible.builtin.file:
+        path: /opt/atlas
+        state: directory
+        owner: "{{ ansible_user }}"
+        mode: '0750'
+    - name: Display next steps
+      ansible.builtin.debug:
+        msg: "Copy the repository to /opt/atlas, create .env with private values and run sudo docker compose up --build -d. Ports are bound to loopback; access via SSH tunnel. Firewall and public HTTPS exposure are deliberately separate deployment steps."

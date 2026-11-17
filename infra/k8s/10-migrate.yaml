@@ -1,0 +1,21 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: atlas-migrate
+  namespace: atlas
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: atlas-erp-lite-backend:local
+          imagePullPolicy: IfNotPresent
+          command: [sh, -c, "php artisan migrate --force && php artisan db:seed --force"]
+          envFrom:
+            - configMapRef: {name: atlas-config}
+            - secretRef: {name: atlas-secrets}
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {cpu: "1", memory: 512Mi}

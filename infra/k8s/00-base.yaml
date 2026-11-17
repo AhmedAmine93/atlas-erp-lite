@@ -1,0 +1,95 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: atlas
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: atlas-config
+  namespace: atlas
+data:
+  APP_NAME: ATLAS ERP Lite
+  APP_ENV: production
+  APP_DEBUG: "false"
+  APP_URL: http://localhost:3100
+  APP_LOCALE: fr
+  DB_CONNECTION: pgsql
+  DB_HOST: db
+  DB_PORT: "5432"
+  DB_DATABASE: atlas
+  DB_USERNAME: atlas
+  SESSION_DRIVER: database
+  SESSION_ENCRYPT: "true"
+  SESSION_SECURE_COOKIE: "false"
+  CACHE_STORE: database
+  QUEUE_CONNECTION: sync
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: atlas-nginx
+  namespace: atlas
+data:
+  default.conf: |
+    server {
+      listen 8080;
+      server_name _;
+      server_tokens off;
+      client_max_body_size 1m;
+      location / {
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME /var/www/html/public/index.php;
+        fastcgi_param SCRIPT_NAME /index.php;
+        fastcgi_param HTTP_PROXY "";
+        fastcgi_pass 127.0.0.1:9000;
+      }
+    }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: db
+  namespace: atlas
+spec:
+  selector: {app: atlas-db}
+  ports: [{port: 5432, targetPort: 5432}]
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: db
+  namespace: atlas
+spec:
+  serviceName: db
+  replicas: 1
+  selector:
+    matchLabels: {app: atlas-db}
+  template:
+    metadata:
+      labels: {app: atlas-db}
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:17-alpine
+          env:
+            - {name: POSTGRES_DB, value: atlas}
+            - {name: POSTGRES_USER, value: atlas}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef: {name: atlas-secrets, key: DB_PASSWORD}
+          ports: [{containerPort: 5432}]
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {cpu: "1", memory: 512Mi}
+          readinessProbe:
+            exec: {command: [pg_isready, -U, atlas, -d, atlas]}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          volumeMounts: [{name: data, mountPath: /var/lib/postgresql/data}]
+  volumeClaimTemplates:
+    - metadata: {name: data}
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests: {storage: 2Gi}
