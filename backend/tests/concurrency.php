@@ -1,9 +1,5 @@
 <?php
 
-// Integration test on a disposable PostgreSQL database ending in _test.
-require __DIR__.'/../vendor/autoload.php';
-$app = require __DIR__.'/../bootstrap/app.php';
-$app->make(Kernel::class)->bootstrap();
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Product;
@@ -15,6 +11,11 @@ use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
+
+// Integration test on a disposable PostgreSQL database ending in _test.
+require __DIR__.'/../vendor/autoload.php';
+$app = require __DIR__.'/../bootstrap/app.php';
+$app->make(Kernel::class)->bootstrap();
 
 if (config('database.default') !== 'pgsql' || ! str_ends_with(config('database.connections.pgsql.database'), '_test')) {
     fwrite(STDERR, "Use a disposable PostgreSQL database ending in _test.\n");
