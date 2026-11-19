@@ -227,7 +227,7 @@ export default function SupportIncidents() {
               <div className="form-actions">
                 <button className="button secondary" onClick={() => setSelected(null)}>Fermer</button>
                 {nextStatus[selected.status] && <button className="button primary" disabled={saving} onClick={transition}>
-                  <Wrench size={16} /> Passer à : {statusLabels[nextStatus[selected.status]]}
+                  <Wrench size={16} /> Passer à : {statusLabels[nextStatus[selected.status]!]}
                 </button>}
               </div>
             </div>
