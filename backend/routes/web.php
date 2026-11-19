@@ -8,6 +8,8 @@ use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\MetricsController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\SalesController;
+use App\Http\Controllers\SupportIncidentController;
+use App\Http\Controllers\SupportIncidentController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -19,6 +21,10 @@ Route::prefix('api')->group(function () {
         Route::get('me', fn (Request $r) => $r->user()->load('role'));
         Route::post('logout', [AuthController::class, 'logout']);
         Route::get('dashboard', DashboardController::class);
+        Route::get('support/incidents', [SupportIncidentController::class, 'index']);
+        Route::post('support/incidents', [SupportIncidentController::class, 'store']);
+        Route::get('support/incidents/{id}', [SupportIncidentController::class, 'show'])->whereNumber('id');
+        Route::patch('support/incidents/{id}', [SupportIncidentController::class, 'transition'])->whereNumber('id');
         Route::get('stock-movements', [ProductController::class, 'movements']);
         Route::get('products', [ProductController::class, 'index']);
         Route::post('products', [ProductController::class, 'save']);
@@ -46,5 +52,9 @@ Route::prefix('api')->group(function () {
         Route::put('users/{id}', [AdminController::class, 'save'])->whereNumber('id');
         Route::delete('users/{id}', [AdminController::class, 'destroy'])->whereNumber('id');
         Route::get('audit-logs',[AdminController::class, 'audit']);
+        Route::get('support/incidents', [SupportIncidentController::class, 'index']);
+        Route::post('support/incidents', [SupportIncidentController::class, 'store']);
+        Route::get('support/incidents/{id}', [SupportIncidentController::class, 'show'])->whereNumber('id');
+        Route::patch('support/incidents/{id}', [SupportIncidentController::class, 'transition'])->whereNumber('id');
     });
 });

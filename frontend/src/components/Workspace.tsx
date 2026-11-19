@@ -35,8 +35,10 @@ import {
   Boxes,
   Wallet,
   TrendingUp,
+  LifeBuoy,
 } from "lucide-react";
 import { api, send, all } from "@/lib/api";
+import SupportIncidents from "@/components/SupportIncidents";
 import type {
   User,
   Contact,
@@ -85,6 +87,7 @@ const nav = [
   { id: "invoices", label: "Factures", icon: Receipt },
   { id: "users", label: "Utilisateurs", icon: ShieldCheck },
   { id: "audit-logs", label: "Journal d’activité", icon: History },
+  { id: "support", label: "Support N2/N3", icon: LifeBuoy },
 ];
 type View = (typeof nav)[number]["id"];
 type Row = Contact & Product & Sale & Invoice & Movement & Audit & User;
@@ -282,7 +285,7 @@ export default function Workspace() {
             .filter(
               (n) =>
                 user.role.name === "admin" ||
-                !["users", "audit-logs"].includes(n.id),
+                !["users", "audit-logs", "support"].includes(n.id),
             )
             .map((n, i) => (
               <div key={n.id}>
@@ -380,6 +383,7 @@ export default function Workspace() {
                           "Une facturation claire, du brouillon au règlement.",
                         users: "Les bonnes permissions pour chaque membre.",
                         "audit-logs": "La trace des opérations sensibles.",
+                        support: "Incidents, investigations et résolutions techniques.",
                       } as Record<string, string>
                     )[view]}
               </p>
@@ -390,6 +394,7 @@ export default function Workspace() {
                 "stock-movements",
                 "audit-logs",
                 "invoices",
+                "support",
               ].includes(view) && (
                 <button
                   className="button primary"
@@ -431,6 +436,8 @@ export default function Workspace() {
           )}
           {view === "dashboard" ? (
             <DashboardView refresh={refresh} go={go} />
+          ) : view === "support" ? (
+            <SupportIncidents />
           ) : (
             <ListView
               key={view}
