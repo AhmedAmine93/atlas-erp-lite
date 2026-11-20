@@ -65,6 +65,8 @@ class OrganizationTest extends TestCase
         $this->asRole('admin');
         $first = Company::create(['code' => 'A', 'name' => 'Entreprise A']);
         $second = Company::create(['code' => 'B', 'name' => 'Entreprise B']);
+        $first->users()->attach(auth()->id());
+        $second->users()->attach(auth()->id());
 
         $this->postJson('/api/companies', ['code' => 'a', 'name' => 'Doublon'])->assertUnprocessable();
         $this->postJson('/api/companies', ['code' => 'bad code', 'name' => 'Invalide'])->assertUnprocessable();
