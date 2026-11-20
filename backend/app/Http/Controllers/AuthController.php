@@ -16,6 +16,13 @@ class AuthController extends Controller
             throw ValidationException::withMessages(['email' => 'Identifiants incorrects.']);
         }
         $request->session()->regenerate();
+        $firstCompany = $request->user()->companies()->orderBy('companies.id')->value('companies.id');
+        if (! $firstCompany) {
+            Auth::logout();
+            throw ValidationException::withMessages(['email' => 'Aucune entreprise autorisée pour ce compte.']);
+        }
+        $request->session()->put('active_company_id', (int) $firstCompany);
+        $request->attributes->set('atlas_company_id', (int) $firstCompany);
         Audit::record('auth.login');
 
         return $request->user()->load('role');

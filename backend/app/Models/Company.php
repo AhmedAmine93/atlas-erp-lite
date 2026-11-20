@@ -9,6 +9,11 @@ class Company extends Model
 {
     protected $fillable = ['code', 'name', 'email', 'phone', 'address'];
 
+    public function users()
+    {
+        return $this->belongsToMany(User::class, 'company_user');
+    }
+
     public function establishments(): HasMany
     {
         return $this->hasMany(Establishment::class);

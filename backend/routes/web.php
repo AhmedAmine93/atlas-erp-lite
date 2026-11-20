@@ -9,6 +9,7 @@ use App\Http\Controllers\MetricsController;
 use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\SalesController;
+use App\Http\Controllers\TenantContextController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -16,8 +17,12 @@ Route::get('metrics', MetricsController::class)->middleware('throttle:60,1');
 Route::prefix('api')->group(function () {
     Route::get('csrf', fn () => response()->json(['token' => csrf_token()]));
     Route::post('login', [AuthController::class, 'login'])->middleware('throttle:login');
-    Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
-        Route::get('me', fn (Request $r) => $r->user()->load('role'));
+    Route::middleware(['auth:sanctum', 'throttle:api', 'tenant'])->group(function () {
+        Route::get('me', fn (Request $r) => array_merge($r->user()->load('role')->toArray(), [
+            'active_company_id' => (int) $r->attributes->get('atlas_company_id'),
+            'companies' => $r->user()->companies()->select('companies.id', 'companies.name', 'companies.code')->get(),
+        ]));
+        Route::post('tenant/switch', [TenantContextController::class, 'switch']);
         Route::post('logout', [AuthController::class, 'logout']);
         Route::get('dashboard', DashboardController::class);
         Route::get('stock-movements', [ProductController::class, 'movements']);

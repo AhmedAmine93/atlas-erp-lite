@@ -8,6 +8,8 @@ export type User = {
   email: string;
   role_id: number;
   role: Role;
+  active_company_id?: number;
+  companies?: { id: number; name: string; code: string }[];
 };
 export type Contact = {
   id: number;

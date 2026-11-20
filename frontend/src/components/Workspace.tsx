@@ -281,8 +281,30 @@ export default function Workspace() {
         </a>
         <div className="workspace-chip">
           <span className="workspace-avatar">A</span>
-          <div>
-            Atelier & Co.<small>Espace de démonstration</small>
+          <div className="tenant-picker">
+            <label htmlFor="active-company">Entreprise active</label>
+            <select
+              id="active-company"
+              value={user.active_company_id ?? ""}
+              aria-label="Entreprise active"
+              disabled={!user.companies?.length || busy}
+              onChange={async (event) => {
+                setBusy(true);
+                setError("");
+                try {
+                  await send("tenant/switch", "POST", { company_id: Number(event.target.value) });
+                  window.location.reload();
+                } catch (e) {
+                  setError((e as Error).message);
+                  setBusy(false);
+                }
+              }}
+            >
+              {(user.companies ?? []).map((company) => (
+                <option key={company.id} value={company.id}>{company.name}</option>
+              ))}
+            </select>
+            <small>Données isolées par entreprise</small>
           </div>
           <span className="online-dot" />
         </div>

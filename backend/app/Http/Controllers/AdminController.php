@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AuditLog;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\TenantContext;
 use App\Services\Audit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,7 +19,7 @@ class AdminController extends Controller
     {
         Gate::authorize('admin');
 
-        return User::orderBy('name')->paginate(20);
+        return User::whereHas('companies', fn ($query) => $query->whereKey(app(TenantContext::class)->requireId()))->orderBy('name')->paginate(20);
     }
 
     public function roles()
@@ -45,12 +46,20 @@ class AdminController extends Controller
         }
 
         return DB::transaction(function () use ($id, $data) {
+            $tenant = app(TenantContext::class)->requireId();
             $admin = Role::where('name', 'admin')->lockForUpdate()->firstOrFail();
-            $user = $id ? User::lockForUpdate()->findOrFail($id) : new User;
+            $user = $id ? User::whereHas('companies', fn ($query) => $query->whereKey($tenant))->lockForUpdate()->firstWhere('id', $id) : new User;
+            abort_if($id && ! $user, 404);
             if ($id && $user->role_id === $admin->id && (int) $data['role_id'] !== $admin->id) {
-                abort_if(User::where('role_id', $admin->id)->count() <= 1, 409, 'Le dernier administrateur doit être conservé.');
+                abort_if(User::where('role_id', $admin->id)->whereHas('companies', fn ($query) => $query->whereKey($tenant))->count() <= 1, 409, 'Le dernier administrateur doit être conservé.');
+            }
+            if ($id && $user->companies()->count() > 1 && (int) $data['role_id'] !== $user->role_id) {
+                abort(409, 'Les rôles des comptes multi-entreprises doivent être gérés par affiliation.');
             }
             $user->fill($data)->save();
+            if (! $id) {
+                $user->companies()->attach($tenant);
+            }
             if ($id) {
                 DB::table('sessions')->where('user_id', $id)->delete();
             }
@@ -66,12 +75,16 @@ class AdminController extends Controller
         abort_if($id === auth()->id(), 409, 'Vous ne pouvez pas supprimer votre propre compte.');
 
         return DB::transaction(function () use ($id) {
+            $tenant = app(TenantContext::class)->requireId();
             Role::where('name', 'admin')->lockForUpdate()->firstOrFail();
-            $user = User::findOrFail($id);
-            abort_if($user->role->name === 'admin' && User::where('role_id', $user->role_id)->count() <= 1, 409, 'Le dernier administrateur doit être conservé.');
+            $user = User::whereHas('companies', fn ($query) => $query->whereKey($tenant))->findOrFail($id);
+            abort_if($user->role->name === 'admin' && User::where('role_id', $user->role_id)->whereHas('companies', fn ($query) => $query->whereKey($tenant))->count() <= 1, 409, 'Le dernier administrateur doit être conservé.');
             DB::table('sessions')->where('user_id', $id)->delete();
-            $user->delete();
-            Audit::record('user.deleted', $user);
+            $user->companies()->detach($tenant);
+            if (! $user->companies()->exists()) {
+                $user->delete();
+            }
+            Audit::record('user.removed_from_company', $user);
 
             return response()->noContent();
         }, 3);
