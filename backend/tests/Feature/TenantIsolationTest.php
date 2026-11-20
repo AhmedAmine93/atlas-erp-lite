@@ -48,6 +48,7 @@ class TenantIsolationTest extends TestCase
         ])->assertCreated()->json('id');
 
         $this->actingAs($ub);
+        $this->withSession(['active_company_id' => $b->id]);
         $this->getJson('/api/customers')->assertOk()->assertJsonPath('total', 0);
         $this->getJson('/api/products')->assertOk()->assertJsonPath('total', 0);
         $this->getJson('/api/orders')->assertOk()->assertJsonPath('total', 0);
