@@ -22,6 +22,11 @@ class User extends Authenticatable
         return ['password' => 'hashed', 'email_verified_at' => 'datetime'];
     }
 
+    public function companies()
+    {
+        return $this->belongsToMany(Company::class, 'company_user');
+    }
+
     public function role()
     {
         return $this->belongsTo(Role::class);
