@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\AuditLog;
 use App\Models\Customer;
+use App\Models\Company;
 use App\Models\Invoice;
 use App\Models\Product;
 use App\Models\Role;
@@ -34,7 +35,10 @@ class ErpTest extends TestCase
 
     private function user(string $role): User
     {
-        return User::create(['name' => $role, 'email' => $role.'@test.example', 'password' => 'PasswordTest2026!', 'role_id' => Role::where('name', $role)->value('id')]);
+        $user = User::create(['name' => $role, 'email' => $role.'@test.example', 'password' => 'PasswordTest2026!', 'role_id' => Role::where('name', $role)->value('id')]);
+        $company = Company::where('code', 'ATLAS_DEMO')->firstOrFail();
+        $user->companies()->attach($company->id);
+        return $user;
     }
 
     private function order(int $quantity = 2): int
