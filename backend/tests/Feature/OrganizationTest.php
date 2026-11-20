@@ -22,6 +22,8 @@ class OrganizationTest extends TestCase
             'password' => 'PasswordTest2026!',
             'role_id' => Role::where('name', $role)->value('id'),
         ]);
+        $company = Company::where('code', 'ATLAS_DEMO')->firstOrFail();
+        $user->companies()->attach($company->id);
         $this->actingAs($user);
     }
 
@@ -32,7 +34,7 @@ class OrganizationTest extends TestCase
             'code' => 'atlas', 'name' => 'ATLAS Démo', 'email' => 'contact@atlas.example',
         ])->assertCreated()->assertJsonPath('code', 'ATLAS')->json('id');
 
-        $this->getJson('/api/companies')->assertOk()->assertJsonCount(1);
+        $this->getJson('/api/companies')->assertOk()->assertJsonCount(2);
 
         $establishment = $this->postJson('/api/establishments', [
             'company_id' => $company, 'code' => 'paris', 'name' => 'Agence Paris',
