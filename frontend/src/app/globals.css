@@ -1741,3 +1741,10 @@ label small {
 .org-form .org-checkbox input { width: auto; }
 .org-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
 @media (max-width: 1050px) { .org-grid { grid-template-columns: 1fr; } }
+
+/* Sélection de la société active */
+.tenant-picker { min-width: 0; flex: 1; }
+.tenant-picker label { display: block; font-size: 9px; color: #738069; margin-bottom: 4px; }
+.tenant-picker select { display: block; background: transparent; border: 1px solid transparent; padding: 2px 0; width: 100%; min-width: 0; font-size: 11px; font-weight: 650; text-overflow: ellipsis; }
+.tenant-picker select:focus-visible { border-color: #95bda9; }
+.tenant-picker small { display: block; font-size: 9px; color: #7d897d; margin-top: 4px; }
