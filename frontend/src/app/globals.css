@@ -1719,3 +1719,25 @@ label small {
   color: #7b877d;
   font-size: 12px;
 }
+
+/* Mission 02 — Référentiels entreprise et établissement */
+.org-workspace { display: grid; gap: 22px; }
+.org-scope { color: #68766b; line-height: 1.65; font-size: 12px; }
+.org-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+.org-tabs button { border: 1px solid var(--line); background: #fff; border-radius: 7px; padding: 10px 15px; font-size: 12px; }
+.org-tabs button.selected { background: #e7efe4; color: #316443; border-color: #afcbb4; font-weight: 700; }
+.org-grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 20px; align-items: start; }
+.org-panel { padding: 20px; }
+.org-panel h2 { font-size: 17px; margin-bottom: 20px; }
+.org-list { display: grid; gap: 10px; }
+.org-list-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--line); padding: 10px 0; }
+.org-list-row strong, .org-list-row small { display: block; }
+.org-list-row small { margin-top: 6px; color: #738069; font-size: 11px; }
+.org-list-row button, .org-actions > button:not(.primary) { background: transparent; border: 1px solid #d6e0d5; border-radius: 6px; padding: 9px 12px; }
+.org-form { display: grid; gap: 14px; }
+.org-form label { display: grid; gap: 6px; font-size: 12px; font-weight: 600; }
+.org-form input, .org-form select, .org-form textarea { width: 100%; padding: 10px; border: 1px solid #dbe3d9; border-radius: 6px; color: var(--ink); background: #fff; }
+.org-form .org-checkbox { display: flex; align-items: center; gap: 9px; }
+.org-form .org-checkbox input { width: auto; }
+.org-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+@media (max-width: 1050px) { .org-grid { grid-template-columns: 1fr; } }
