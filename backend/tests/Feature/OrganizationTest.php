@@ -85,6 +85,33 @@ class OrganizationTest extends TestCase
         ])->assertCreated();
     }
 
+    public function test_existing_but_unaffiliated_company_is_not_exposed(): void
+    {
+        $this->asRole('admin');
+        $owned = Company::where('code', 'ATLAS_DEMO')->firstOrFail();
+        $foreign = Company::create(['code' => 'PRIVATE', 'name' => 'Private company']);
+        $establishment = Establishment::create([
+            'company_id' => $owned->id, 'code' => 'OWNED', 'name' => 'Owned establishment',
+        ]);
+
+        // An existing but inaccessible company must remain hidden (404);
+        // an unknown company ID is a validation error (422).
+        $this->postJson('/api/establishments', [
+            'company_id' => $foreign->id, 'code' => 'HIDDEN', 'name' => 'Should not exist',
+        ])->assertNotFound();
+        $this->putJson('/api/establishments/'.$establishment->id, [
+            'company_id' => $foreign->id, 'code' => 'OWNED', 'name' => 'Moved without permission',
+        ])->assertNotFound();
+        $this->getJson('/api/establishments?company_id='.$foreign->id)->assertNotFound();
+
+        $this->assertDatabaseMissing('establishments', [
+            'company_id' => $foreign->id, 'code' => 'HIDDEN',
+        ]);
+        $this->assertDatabaseHas('establishments', [
+            'id' => $establishment->id, 'company_id' => $owned->id, 'name' => 'Owned establishment',
+        ]);
+    }
+
     public function test_only_admin_can_access_organization_endpoints(): void
     {
         $company = Company::create(['code' => 'TEST', 'name' => 'Entreprise test']);
