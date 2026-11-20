@@ -1648,3 +1648,74 @@ label small {
     min-width: 200px;
   }
 }
+
+
+/* Navigation modulaire ATLAS ERP : les écrans à venir sont non-interactifs. */
+.erp-sidebar-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 8px 14px;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: #748274;
+}
+.erp-sidebar-search input {
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  outline-offset: 3px;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  color: inherit;
+}
+.erp-module-nav .nav-group {
+  margin-bottom: 2px;
+}
+.erp-module-nav .nav-group-toggle {
+  padding: 10px 9px;
+  font-weight: 700;
+  color: #526455;
+  gap: 8px;
+}
+.erp-module-nav .nav-group-toggle span {
+  flex: 1;
+}
+.erp-module-nav .nav-group-toggle svg:last-child {
+  transition: transform 0.18s ease;
+  flex-shrink: 0;
+}
+.erp-module-nav .nav-group-toggle svg:last-child.expanded {
+  transform: rotate(90deg);
+}
+.erp-module-nav .nav-group-children {
+  padding: 0 0 7px 10px;
+}
+.erp-module-nav .nav-entry {
+  padding: 8px 7px 8px 14px;
+  gap: 6px;
+  font-size: 11px;
+}
+.erp-module-nav .nav-entry > span:first-child {
+  flex: 1;
+}
+.erp-module-nav .nav-entry:disabled {
+  opacity: 0.58;
+  cursor: not-allowed;
+}
+.erp-module-nav .nav-entry:disabled:hover {
+  background: transparent;
+}
+.erp-module-nav .nav-coming-soon {
+  font-size: 9px;
+  white-space: nowrap;
+  color: #7b877d;
+  font-weight: 500;
+}
+.erp-module-nav .nav-empty {
+  padding: 12px;
+  color: #7b877d;
+  font-size: 12px;
+}

@@ -37,6 +37,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { api, send, all } from "@/lib/api";
+import { nav, navigationSections, type View } from "@/lib/navigation";
 import type {
   User,
   Contact,
@@ -74,19 +75,7 @@ const labels: Record<string, string> = {
   stock: "Stock",
   reader: "Lecture seule",
 };
-const nav = [
-  { id: "dashboard", label: "Vue d’ensemble", icon: LayoutDashboard },
-  { id: "customers", label: "Clients", icon: Users },
-  { id: "suppliers", label: "Fournisseurs", icon: Truck },
-  { id: "products", label: "Produits & stocks", icon: Package },
-  { id: "stock-movements", label: "Mouvements", icon: ArrowLeftRight },
-  { id: "quotes", label: "Devis", icon: FileText },
-  { id: "orders", label: "Commandes", icon: ShoppingBag },
-  { id: "invoices", label: "Factures", icon: Receipt },
-  { id: "users", label: "Utilisateurs", icon: ShieldCheck },
-  { id: "audit-logs", label: "Journal d’activité", icon: History },
-];
-type View = (typeof nav)[number]["id"];
+
 type Row = Contact & Product & Sale & Invoice & Movement & Audit & User;
 type Editor = { kind: string; row?: Partial<Row> };
 function Badge({ status }: { status: string }) {
@@ -181,6 +170,12 @@ export default function Workspace() {
     [editor, setEditor] = useState<Editor | null>(null),
     [detail, setDetail] = useState<{ kind: string; row: Row } | null>(null),
     [busy, setBusy] = useState(false);
+  const [navSearch, setNavSearch] = useState("");
+  const [expandedSections, setExpandedSections] = useState<string[]>(() =>
+    navigationSections
+      .filter((section) => section.items.some((item) => item.ready))
+      .map((section) => section.id),
+  );
   useEffect(() => {
     api<User>("me")
       .then(setUser)
@@ -250,6 +245,20 @@ export default function Workspace() {
       />
     );
   const current = nav.find((n) => n.id === view)!;
+  const searchTerm = navSearch.trim().toLocaleLowerCase("fr");
+  const accessibleSections = navigationSections
+    .filter((section) => !section.adminOnly || user.role.name === "admin")
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((item) => {
+        const matches =
+          !searchTerm ||
+          section.label.toLocaleLowerCase("fr").includes(searchTerm) ||
+          item.label.toLocaleLowerCase("fr").includes(searchTerm);
+        return matches;
+      }),
+    }))
+    .filter((section) => section.items.length > 0);
   return (
     <div className="app-shell">
       {mobile && (
@@ -277,27 +286,71 @@ export default function Workspace() {
           <span className="online-dot" />
         </div>
         <div className="nav-caption">ESPACE DE TRAVAIL</div>
-        <nav aria-label="Navigation principale">
-          {nav
-            .filter(
-              (n) =>
-                user.role.name === "admin" ||
-                !["users", "audit-logs"].includes(n.id),
-            )
-            .map((n, i) => (
-              <div key={n.id}>
-                {[1, 5, 8].includes(i) && <div className="nav-separator" />}
+        <div className="erp-sidebar-search">
+          <Search size={15} aria-hidden="true" />
+          <input
+            type="search"
+            aria-label="Rechercher un menu"
+            placeholder="Rechercher un menu…"
+            value={navSearch}
+            onChange={(e) => setNavSearch(e.target.value)}
+          />
+        </div>
+        <nav aria-label="Navigation principale" className="erp-module-nav">
+          {accessibleSections.length === 0 && (
+            <p className="nav-empty">Aucun menu trouvé.</p>
+          )}
+          {accessibleSections.map((section) => {
+            const expanded =
+              searchTerm.length > 0 || expandedSections.includes(section.id);
+            return (
+              <div className="nav-group" key={section.id}>
                 <button
-                  onClick={() => go(n.id)}
-                  className={view === n.id ? "active" : ""}
-                  aria-current={view === n.id ? "page" : undefined}
+                  type="button"
+                  className="nav-group-toggle"
+                  aria-expanded={expanded}
+                  aria-controls={`erp-nav-${section.id}`}
+                  onClick={() =>
+                    setExpandedSections((previous) =>
+                      previous.includes(section.id)
+                        ? previous.filter((id) => id !== section.id)
+                        : [...previous, section.id],
+                    )
+                  }
                 >
-                  <n.icon size={18} />
-                  <span>{n.label}</span>
-                  {view === n.id && <span className="nav-active-dot" />}
+                  <section.icon size={17} aria-hidden="true" />
+                  <span>{section.label}</span>
+                  <ChevronRight
+                    size={14}
+                    aria-hidden="true"
+                    className={expanded ? "expanded" : ""}
+                  />
                 </button>
+                {expanded && (
+                  <div className="nav-group-children" id={`erp-nav-${section.id}`}>
+                    {section.items.map((item) => (
+                      <button
+                        type="button"
+                        key={item.id}
+                        disabled={!item.ready}
+                        className={`nav-entry ${view === item.id ? "active" : ""}`}
+                        aria-current={view === item.id ? "page" : undefined}
+                        onClick={() => item.ready && go(item.id as View)}
+                      >
+                        <span>{item.label}</span>
+                        {!item.ready && (
+                          <span className="nav-coming-soon">À venir</span>
+                        )}
+                        {view === item.id && (
+                          <span className="nav-active-dot" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-            ))}
+            );
+          })}
         </nav>
         <div className="sidebar-bottom">
           <div className="demo-card">
