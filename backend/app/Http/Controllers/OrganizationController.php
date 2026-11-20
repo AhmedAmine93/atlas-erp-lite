@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Company;
 use App\Models\Establishment;
 use App\Services\Audit;
+use App\Services\TenantContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -16,7 +17,7 @@ class OrganizationController extends Controller
     {
         Gate::authorize('admin');
 
-        return Company::withCount('establishments')->orderBy('name')->get();
+        return Company::whereHas('users', fn ($query) => $query->whereKey(auth()->id()))->withCount('establishments')->orderBy('name')->get();
     }
 
     public function saveCompany(Request $request, ?int $id = null)
@@ -32,8 +33,11 @@ class OrganizationController extends Controller
         ]);
 
         return DB::transaction(function () use ($id, $data) {
-            $company = $id ? Company::findOrFail($id) : new Company();
+            $company = $id ? Company::whereHas('users', fn ($q) => $q->whereKey(auth()->id()))->findOrFail($id) : new Company();
             $company->fill($data)->save();
+            if (! $id) {
+                $company->users()->attach(auth()->id());
+            }
             Audit::record($id ? 'company.updated' : 'company.created', $company);
 
             return response()->json($company->loadCount('establishments'), $id ? 200 : 201);
@@ -43,9 +47,12 @@ class OrganizationController extends Controller
     public function establishments(Request $request)
     {
         Gate::authorize('admin');
-        $filter = $request->validate(['company_id' => 'nullable|integer|exists:companies,id']);
+        $filter = $request->validate(['company_id' => 'nullable|integer']);
+        if (isset($filter['company_id'])) {
+            Company::whereHas('users', fn ($q) => $q->whereKey(auth()->id()))->findOrFail($filter['company_id']);
+        }
 
-        return Establishment::with('company:id,name,code')
+        return Establishment::whereHas('company.users', fn ($q) => $q->whereKey(auth()->id()))->with('company:id,name,code')
             ->when(isset($filter['company_id']), fn ($q) => $q->where('company_id', $filter['company_id']))
             ->orderBy('company_id')->orderBy('code')->get();
     }
@@ -55,6 +62,9 @@ class OrganizationController extends Controller
         Gate::authorize('admin');
         $request->merge(['code' => strtoupper(trim((string) $request->input('code', '')))]);
         $companyId = $request->input('company_id');
+        if (is_numeric($companyId)) {
+            Company::whereHas('users', fn ($q) => $q->whereKey(auth()->id()))->findOrFail((int) $companyId);
+        }
         $data = $request->validate([
             'company_id' => 'required|integer|exists:companies,id',
             'code' => [
@@ -69,7 +79,7 @@ class OrganizationController extends Controller
         ]);
 
         return DB::transaction(function () use ($id, $data) {
-            $establishment = $id ? Establishment::findOrFail($id) : new Establishment();
+            $establishment = $id ? Establishment::whereHas('company.users', fn ($q) => $q->whereKey(auth()->id()))->findOrFail($id) : new Establishment();
             $establishment->fill($data)->save();
             Audit::record($id ? 'establishment.updated' : 'establishment.created', $establishment, [
                 'company_id' => $establishment->company_id,
