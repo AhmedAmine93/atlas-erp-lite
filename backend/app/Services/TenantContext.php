@@ -18,7 +18,7 @@ class TenantContext
             return null;
         }
 
-        $selected = request()->session()->get('active_company_id');
+        $selected = request()->hasSession() ? request()->session()->get('active_company_id') : null;
         if ($selected && $user->companies()->whereKey((int) $selected)->exists()) {
             return (int) $selected;
         }
