@@ -38,6 +38,7 @@ import {
 } from "lucide-react";
 import { api, send, all } from "@/lib/api";
 import { nav, navigationSections, type View } from "@/lib/navigation";
+import OrganizationWorkspace from "@/components/OrganizationWorkspace";
 import type {
   User,
   Contact,
@@ -433,6 +434,7 @@ export default function Workspace() {
                           "Une facturation claire, du brouillon au règlement.",
                         users: "Les bonnes permissions pour chaque membre.",
                         "audit-logs": "La trace des opérations sensibles.",
+                        "admin-companies": "Gestion du référentiel des entreprises et établissements.",
                       } as Record<string, string>
                     )[view]}
               </p>
@@ -443,6 +445,7 @@ export default function Workspace() {
                 "stock-movements",
                 "audit-logs",
                 "invoices",
+                "admin-companies",
               ].includes(view) && (
                 <button
                   className="button primary"
@@ -484,6 +487,8 @@ export default function Workspace() {
           )}
           {view === "dashboard" ? (
             <DashboardView refresh={refresh} go={go} />
+          ) : view === "admin-companies" ? (
+            <OrganizationWorkspace />
           ) : (
             <ListView
               key={view}
