@@ -53,6 +53,9 @@ class AdminController extends Controller
             if ($id && $user->role_id === $admin->id && (int) $data['role_id'] !== $admin->id) {
                 abort_if(User::where('role_id', $admin->id)->whereHas('companies', fn ($query) => $query->whereKey($tenant))->count() <= 1, 409, 'Le dernier administrateur doit être conservé.');
             }
+            if ($id && $user->companies()->count() > 1 && (int) $data['role_id'] !== $user->role_id) {
+                abort(409, 'Les rôles des comptes multi-entreprises doivent être gérés par affiliation.');
+            }
             $user->fill($data)->save();
             if (! $id) {
                 $user->companies()->attach($tenant);
