@@ -61,10 +61,15 @@ class OrganizationController extends Controller
     {
         Gate::authorize('admin');
         $request->merge(['code' => strtoupper(trim((string) $request->input('code', '')))]);
-        $companyId = $request->input('company_id');
-        if (is_numeric($companyId)) {
-            Company::whereHas('users', fn ($q) => $q->whereKey(auth()->id()))->findOrFail((int) $companyId);
-        }
+        // Validate existence before checking tenant membership: malformed or unknown
+        // company IDs are input errors (422), not missing tenant resources.
+        // Membership is checked before validating establishment uniqueness to avoid
+        // exposing information about companies that the user cannot access.
+        $companyReference = $request->validate([
+            'company_id' => 'required|integer|exists:companies,id',
+        ]);
+        $companyId = (int) $companyReference['company_id'];
+        Company::whereHas('users', fn ($q) => $q->whereKey(auth()->id()))->findOrFail($companyId);
         $data = $request->validate([
             'company_id' => 'required|integer|exists:companies,id',
             'code' => [
