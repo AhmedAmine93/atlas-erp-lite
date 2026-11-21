@@ -124,6 +124,9 @@ class TenantAccountHardeningTest extends TestCase
         ]);
 
         auth('web')->logout();
+        // auth:sanctum sets the test application's default guard during the
+        // previous request. Reset it to the session guard before a new login.
+        \Illuminate\Support\Facades\Auth::shouldUse('web');
         $this->postJson('/api/login', [
             'email' => 'reader-last-f13@example.test',
             'password' => 'PasswordTest2026!',
