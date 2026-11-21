@@ -267,7 +267,7 @@ export default function Workspace() {
       const result = await send<Row>(path, method, data);
       setNotice("Opération enregistrée.");
       setRefresh((n) => n + 1);
-      setDetail(null);
+      if (detail) closeDetail();
       return result;
     } catch (e) {
       setError((e as Error).message);
@@ -342,6 +342,8 @@ export default function Workspace() {
         onLogout={async () => {
           try {
             await send("logout", "POST");
+            ++navigationRequest.current;
+            window.history.replaceState(null, "", "/");
             setUser(null);
           } catch (e) {
             setError((e as Error).message);
@@ -507,7 +509,7 @@ export default function Workspace() {
       {detail && (
         <Modal
           title={(detail.row.number || detail.row.name || "Facture") as string}
-          onClose={() => setDetail(null)}
+          onClose={closeDetail}
         >
           <Detail
             kind={detail.kind}
