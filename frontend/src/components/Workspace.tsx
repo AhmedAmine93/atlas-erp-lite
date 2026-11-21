@@ -39,7 +39,7 @@ import {
 } from "lucide-react";
 import { api, send, all } from "@/lib/api";
 import { nav, navigationSections, type View } from "@/lib/navigation";
-import { canOpenWorkspaceView, parseWorkspacePath, workspaceHref, type WorkspaceRoute } from "@/lib/workspaceRoutes";
+import { canEditWorkspaceView, canOpenWorkspaceView, parseWorkspacePath, workspaceHref, type WorkspaceRoute } from "@/lib/workspaceRoutes";
 import OrganizationWorkspace from "@/components/OrganizationWorkspace";
 import SupportIncidents from "@/components/SupportIncidents";
 import Login from "@/components/auth/Login";
@@ -199,13 +199,7 @@ export default function Workspace() {
     return () => clearTimeout(t);
   }, [notice]);
   const can = (kind: string) =>
-    user?.role.name === "admin" ||
-    (["customers", "suppliers", "quotes", "orders", "invoices"].includes(
-      kind,
-    ) &&
-      user?.role.name === "commercial") ||
-    (["products", "stock-movements"].includes(kind) &&
-      user?.role.name === "stock");
+    canEditWorkspaceView(kind as View, user?.role.name ?? "reader");
   const applyRoute = (route: WorkspaceRoute | null, profile: User) => {
     const sequence = ++navigationRequest.current;
     // Never show an admin/support view based on an untrusted URL alone.
