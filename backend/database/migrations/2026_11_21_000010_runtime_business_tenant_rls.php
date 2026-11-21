@@ -81,14 +81,16 @@ SQL);
         DB::statement('REVOKE ALL ON FUNCTION public.atlas_f20_global_metrics() FROM PUBLIC');
         DB::statement('GRANT EXECUTE ON FUNCTION public.atlas_f20_global_metrics() TO atlas_app_runtime');
 
-        $policies = DB::selectOne(<<<'SQL'
-SELECT COUNT(*)::int AS n
-FROM pg_policies
-WHERE schemaname = 'public'
-  AND policyname = 'atlas_f20_runtime_tenant_policy'
-  AND 'atlas_app_runtime' = ANY(roles)
-SQL);
-        if ((int) $policies->n !== count(self::TENANT_TABLES)) {
+        // Verify exactly the tables F20 owns. Later additive migrations may
+        // install the same policy name on additional V5 tables; do not treat
+        // those valid policies as duplicates or as an incomplete migration.
+        $policyCount = DB::table('pg_policies')
+            ->where('schemaname', 'public')
+            ->where('policyname', 'atlas_f20_runtime_tenant_policy')
+            ->whereRaw("'atlas_app_runtime' = ANY(roles)")
+            ->whereIn('tablename', self::TENANT_TABLES)
+            ->count();
+        if ((int) $policyCount !== count(self::TENANT_TABLES)) {
             throw new \RuntimeException('F20 runtime RLS policies are incomplete.');
         }
     }
