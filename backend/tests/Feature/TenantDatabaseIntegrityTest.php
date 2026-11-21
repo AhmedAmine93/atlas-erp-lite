@@ -136,6 +136,12 @@ class TenantDatabaseIntegrityTest extends TestCase
         $aRows = $this->base($actor, $a, 'A');
         $bRows = $this->base($actor, $b, 'B');
 
+        // Avoid unrelated single-column UNIQUE violations masking the
+        // composite foreign-key constraint under test. Reuse B's quote and
+        // order only after releasing their one-to-one references.
+        DB::table('invoices')->where('id', $bRows['invoice'])->delete();
+        DB::table('orders')->where('id', $bRows['order'])->update(['quote_id' => null]);
+
         $cases = [
             ['quotes', 'customer_id', 'quote', 'customer'],
             ['orders', 'customer_id', 'order', 'customer'],
