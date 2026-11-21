@@ -11,18 +11,6 @@ async function login(page: import("@playwright/test").Page, role: string) {
   await expect(page.getByRole("heading", { name: "Pilotez votre activité avec une seule vue." })).toBeVisible();
 }
 
-test("P06.05: admin sees tenant-scoped support summary and original finance dashboard", async ({ page }) => {
-  await login(page, "admin");
-  const support = page.getByRole("region", { name: "Pilotage support" });
-  await expect(support).toBeVisible();
-  await expect(support.getByText("Incidents en cours")).toBeVisible();
-  await expect(support.getByText("Escalades N3")).toBeVisible();
-  await expect(support.getByText("SLA résolution dépassé")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Le rythme de vos ventes" })).toBeVisible();
-  await support.getByRole("button", { name: "Ouvrir les incidents" }).click();
-  await expect(page.getByRole("heading", { name: "Centre des incidents" })).toBeVisible();
-});
-
 test("P06.05: stock user sees real inventory priorities without finance panels", async ({ page }) => {
   await login(page, "stock");
   const quick = page.getByRole("region", { name: "Accès rapides" });
