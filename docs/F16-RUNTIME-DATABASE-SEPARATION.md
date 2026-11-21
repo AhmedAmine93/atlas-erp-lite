@@ -81,8 +81,19 @@ not the main production DB.
    migration service retains the privileged owner and should execute only
    during controlled upgrades; isolate it from public networks.
 
-5. Run the full smoke and N3 tests. Check that the active identity is the
-   runtime role, and that DML works while ALTER/DROP are denied.
+5. From the running backend container, verify the **authenticated**
+   PostgreSQL identity and privileges. This command prints no secret and
+   refuses to succeed if the service is still using the schema owner:
+
+   ```sh
+   docker compose --env-file .env --env-file .env.staging \
+     -f compose.yaml -f compose.staging.yaml \
+     exec -T backend php artisan atlas:verify-runtime-db
+   ```
+
+   Then run the full ERP smoke and N3 tests against that staging stack.
+   These tests are required in addition to the SQL permissions simulated
+   in CI, and must confirm DML works while ALTER/DROP are denied.
 6. Stop the staging stack when finished. To disable the test login, use
    `ALTER ROLE atlas_app_runtime NOLOGIN;` and rotate/revoke the password.
 
