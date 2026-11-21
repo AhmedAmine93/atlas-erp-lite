@@ -29,6 +29,9 @@ ATLAS_STAGING_RUNTIME_PASSWORD=ci-config-only-not-a-real-password \
 "${dc[@]}" run --rm tests vendor/bin/phpunit --log-junit /reports/phpunit.xml
 bash scripts/rehearse-f14.sh
 bash scripts/verify-rc1.sh
+# F17: ephemeral authenticated runtime login and negative SQL privilege tests.
+# Following HTTP/browser tests now run against the restricted runtime service.
+bash scripts/verify-f17.sh
 "${dc[@]}" run --rm tests php tests/concurrency.php
 "${dc[@]}" run --rm tests composer validate --strict
 "${dc[@]}" run --rm tests composer audit --locked
