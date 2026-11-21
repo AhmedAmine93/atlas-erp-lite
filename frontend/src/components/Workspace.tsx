@@ -1402,49 +1402,50 @@ function EditorForm({
         </>
       ) : kind === "users" ? (
         <>
+          {row ? (
+            <p className="form-hint">
+              Compte partagé : {row.name} ({row.email}). Seul le rôle dans
+              l’entreprise active peut être modifié ici. Le nom, l’e-mail
+              et le mot de passe sont des informations globales protégées.
+            </p>
+          ) : (
+            <>
+              <label>
+                Nom
+                <input name="name" required maxLength={255} />
+              </label>
+              <label>
+                Adresse e-mail
+                <input name="email" type="email" required maxLength={255} />
+              </label>
+            </>
+          )}
           <label>
-            Nom
-            <input
-              name="name"
-              required
-              maxLength={255}
-              defaultValue={row?.name}
-            />
-          </label>
-          <label>
-            Adresse e-mail
-            <input
-              name="email"
-              type="email"
-              required
-              maxLength={255}
-              defaultValue={row?.email}
-            />
-          </label>
-          <label>
-            Rôle
+            Rôle dans l’entreprise active
             <select name="role_id" required defaultValue={row?.role_id || ""}>
               <option value="" disabled>
                 Sélectionner un rôle
               </option>
               {roles.map((r) => (
                 <option key={r.id} value={r.id}>
-                  {labels[r.name]}
+                  {labels[r.name] || r.name}
                 </option>
               ))}
             </select>
           </label>
-          <label>
-            {row ? "Nouveau mot de passe (facultatif)" : "Mot de passe"}
-            <input
-              name="password"
-              type="password"
-              autoComplete="new-password"
-              minLength={12}
-              required={!row}
-            />
-            <small>12 caractères minimum, avec lettres et chiffres.</small>
-          </label>
+          {!row && (
+            <label>
+              Mot de passe initial
+              <input
+                name="password"
+                type="password"
+                autoComplete="new-password"
+                minLength={12}
+                required
+              />
+              <small>12 caractères minimum, avec lettres et chiffres.</small>
+            </label>
+          )}
         </>
       ) : sale ? (
         <>
