@@ -39,6 +39,7 @@ import {
 } from "lucide-react";
 import { api, send, all } from "@/lib/api";
 import { nav, navigationSections, type View } from "@/lib/navigation";
+import { canOpenWorkspaceView, parseWorkspacePath, workspaceHref, type WorkspaceRoute } from "@/lib/workspaceRoutes";
 import OrganizationWorkspace from "@/components/OrganizationWorkspace";
 import SupportIncidents from "@/components/SupportIncidents";
 import Login from "@/components/auth/Login";
@@ -175,6 +176,7 @@ export default function Workspace() {
     [checking, setChecking] = useState(true),
     [view, setView] = useState<View>("dashboard"),
     [mobile, setMobile] = useState(false);
+  const navigationRequest = useRef(0);
   const [notice, setNotice] = useState(""),
     [error, setError] = useState(""),
     [refresh, setRefresh] = useState(0),
@@ -203,10 +205,59 @@ export default function Workspace() {
       user?.role.name === "commercial") ||
     (["products", "stock-movements"].includes(kind) &&
       user?.role.name === "stock");
+  const applyRoute = (route: WorkspaceRoute | null, profile: User) => {
+    const sequence = ++navigationRequest.current;
+    // Never show an admin/support view based on an untrusted URL alone.
+    const safeView = route && canOpenWorkspaceView(route.view, profile.role.name)
+      ? route.view : "dashboard";
+    if (!route || safeView !== route.view) {
+      window.history.replaceState(null, "", workspaceHref(safeView));
+    }
+    setView(safeView);
+    setMobile(false);
+    setError("");
+    setDetail(null);
+    setEditor(null);
+    if (safeView !== route?.view || !route?.detailId) return;
+    // A deep link cannot reuse an old tenant's record. Fetch and authorize
+    // again through Laravel after the authenticated profile is available.
+    api<Row>(`${safeView}/${route.detailId}`)
+      .then((row) => {
+        if (navigationRequest.current === sequence) {
+          setDetail({ kind: safeView, row });
+        }
+      })
+      .catch((e: Error) => {
+        if (navigationRequest.current === sequence) {
+          setError("Fiche indisponible ou accès refusé : " + e.message);
+          window.history.replaceState(null, "", workspaceHref(safeView));
+        }
+      });
+  };
+  useEffect(() => {
+    if (!user || checking) return;
+    applyRoute(parseWorkspacePath(window.location.pathname), user);
+    const onPopState = () => {
+      applyRoute(parseWorkspacePath(window.location.pathname), user);
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+    // Only re-evaluate navigation when verified identity or tenant changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, user?.active_company_id, user?.role.name, checking]);
   const go = (id: View) => {
+    if (!canOpenWorkspaceView(id, user?.role.name ?? "reader")) return;
+    ++navigationRequest.current;
+    window.history.pushState(null, "", workspaceHref(id));
     setView(id);
     setMobile(false);
     setError("");
+    setDetail(null);
+    setEditor(null);
+  };
+  const closeDetail = () => {
+    ++navigationRequest.current;
+    window.history.replaceState(null, "", workspaceHref(view));
     setDetail(null);
   };
   async function action(path: string, method = "POST", data?: unknown) {
@@ -225,11 +276,18 @@ export default function Workspace() {
     }
   }
   async function show(kind: string, row: Row) {
+    // Existing non-detail views keep their original dialog behavior.
+    const detailPath = workspaceHref(view, row.id);
+    const isDetailRoute = detailPath !== workspaceHref(view);
+    const sequence = ++navigationRequest.current;
     setError("");
     try {
-      setDetail({ kind, row: await api<Row>(`${kind}/${row.id}`) });
+      const loaded = await api<Row>(`${kind}/${row.id}`);
+      if (navigationRequest.current !== sequence) return;
+      if (isDetailRoute) window.history.pushState(null, "", detailPath);
+      setDetail({ kind, row: loaded });
     } catch (e) {
-      setError((e as Error).message);
+      if (navigationRequest.current === sequence) setError((e as Error).message);
     }
   }
   if (checking)
@@ -246,6 +304,8 @@ export default function Workspace() {
           setUser(u);
           setView("dashboard");
           setError("");
+          // Preserve a direct URL until /me confirms tenant membership.
+          // Authenticated route reconciliation happens in applyRoute().
           // The login response does not carry company memberships.
           // Hydrate the full tenant-aware profile before enabling tenant navigation.
           api<User>("me")
@@ -271,6 +331,8 @@ export default function Workspace() {
           setError("");
           try {
             await send("tenant/switch", "POST", { company_id: companyId });
+            // A company switch must drop any previous tenant's record URL.
+            window.history.replaceState(null, "", workspaceHref("dashboard"));
             window.location.reload();
           } catch (e) {
             setError((e as Error).message);
