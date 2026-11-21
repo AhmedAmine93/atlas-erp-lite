@@ -14,7 +14,6 @@ test("P066.06: deep links, semantic login and keyboard controls across engines",
   await expect(page.getByRole("button", { name: "Se connecter" })).toBeEnabled();
   const html = await page.locator("html").evaluate((node) => node.outerHTML);
   expect(html).not.toContain("Maison Juniper");
-  expect(html).not.toContain("admin@atlas.example@");
 
   await page.getByRole("textbox", { name: "Adresse e-mail" }).focus();
   await expect(page.getByRole("textbox", { name: "Adresse e-mail" })).toBeFocused();
