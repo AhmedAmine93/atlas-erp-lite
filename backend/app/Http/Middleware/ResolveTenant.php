@@ -30,6 +30,24 @@ class ResolveTenant
 
         $request->attributes->set('atlas_company_id', (int) $companyId);
 
+        // P066.05: a browser tab must not silently execute a pending write
+        // against a different company after another tab switches the session.
+        // Optional to preserve legacy API clients; the Next.js app always
+        // includes its last verified company ID on business requests.
+        // /me, /logout, and /tenant/switch can reconcile or change context.
+        if (! $request->is('api/me', 'api/logout', 'api/tenant/switch')) {
+            $expected = $request->header('X-Atlas-Expected-Company');
+            if ($expected !== null && (
+                ! is_string($expected)
+                || ! preg_match('/^[1-9][0-9]{0,17}$/D', $expected)
+                || (int) $expected !== (int) $companyId
+            )) {
+                return response()->json([
+                    'message' => 'Le contexte entreprise a changé. Rechargez votre espace.',
+                ], 409)->header('X-Atlas-Context-Stale', '1');
+            }
+        }
+
         return $next($request);
     }
 }
