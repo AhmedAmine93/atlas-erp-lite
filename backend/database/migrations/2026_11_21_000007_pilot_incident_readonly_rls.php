@@ -29,8 +29,31 @@ END
 $do$
 SQL);
 
+        // If the cluster-level role already exists, reject an unexpectedly
+        // privileged principal rather than assuming its name implies safety.
+        $role = DB::selectOne(<<<'SQL'
+SELECT (
+    rolcanlogin OR rolsuper OR rolbypassrls OR rolcreaterole OR
+    rolcreatedb OR rolreplication
+)::int AS unsafe
+FROM pg_roles WHERE rolname = 'atlas_f15_incident_reader'
+SQL);
+        if (! $role || (int) $role->unsafe !== 0) {
+            throw new \RuntimeException('F15 diagnostic role has unsafe PostgreSQL attributes.');
+        }
+
         DB::statement('GRANT USAGE ON SCHEMA public TO atlas_f15_incident_reader');
+        // Explicit privilege baseline even if this role was pre-provisioned.
+        DB::statement('REVOKE ALL ON TABLE public.support_incidents FROM atlas_f15_incident_reader');
         DB::statement('GRANT SELECT ON TABLE public.support_incidents TO atlas_f15_incident_reader');
+
+        $unexpected = DB::selectOne(<<<'SQL'
+SELECT has_table_privilege('atlas_f15_incident_reader', 'public.users', 'SELECT')::int AS user_read,
+       has_table_privilege('atlas_f15_incident_reader', 'public.support_incidents', 'INSERT')::int AS incident_write
+SQL);
+        if ((int) $unexpected->user_read !== 0 || (int) $unexpected->incident_write !== 0) {
+            throw new \RuntimeException('F15 diagnostic role has unexpected table privileges.');
+        }
 
         DB::statement('ALTER TABLE public.support_incidents ENABLE ROW LEVEL SECURITY');
         DB::statement(<<<'SQL'
