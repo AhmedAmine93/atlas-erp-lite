@@ -5,6 +5,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DataSourceCatalogController;
+use App\Http\Controllers\DataCanonicalSchemaController;
 use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\MetricsController;
@@ -31,6 +32,8 @@ Route::prefix('api')->group(function () {
         Route::get('dashboard', DashboardController::class);
         Route::get('data/sources', [DataSourceCatalogController::class, 'index']);
         Route::post('data/sources', [DataSourceCatalogController::class, 'store']);
+        Route::get('data/sources/{id}/schemas', [DataCanonicalSchemaController::class, 'index'])->whereNumber('id');
+        Route::post('data/sources/{id}/schemas', [DataCanonicalSchemaController::class, 'store'])->whereNumber('id');
         Route::get('search', GlobalSearchController::class);
         Route::get('stock-movements', [ProductController::class, 'movements']);
         Route::get('products', [ProductController::class, 'index']);
