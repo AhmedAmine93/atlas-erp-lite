@@ -37,7 +37,7 @@ import {
   Wallet,
   TrendingUp,
 } from "lucide-react";
-import { api, send, all, setVerifiedCompanyContext, resetTenantContext } from "@/lib/api";
+import { api, send, all, fetchTenantBlob, setVerifiedCompanyContext, resetTenantContext } from "@/lib/api";
 import { nav, navigationSections, type View } from "@/lib/navigation";
 import { canEditWorkspaceView, canOpenWorkspaceView, parseWorkspacePath, workspaceHref, type WorkspaceRoute } from "@/lib/workspaceRoutes";
 import OrganizationWorkspace from "@/components/OrganizationWorkspace";
@@ -1869,11 +1869,8 @@ function Detail({
   async function download() {
     setError("");
     try {
-      const res = await fetch(`/api/invoices/${row.id}/pdf`, {
-        headers: { Accept: "application/pdf" },
-      });
-      if (!res.ok) throw new Error("La génération du PDF a échoué.");
-      const url = URL.createObjectURL(await res.blob());
+      const blob = await fetchTenantBlob(`invoices/${row.id}/pdf`, "application/pdf");
+      const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       a.download = `${row.number || "BROUILLON-" + row.id}.pdf`;
