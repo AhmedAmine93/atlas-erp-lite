@@ -380,7 +380,10 @@ export default function Workspace() {
           {view === "dashboard" ? (
             <DashboardView refresh={refresh} go={go} />
           ) : view === "admin-companies" ? (
-            <OrganizationWorkspace onCompanySaved={async () => setUser(await api<User>("me"))} />
+            <OrganizationWorkspace
+              activeCompanyId={user.active_company_id ?? null}
+              onCompanySaved={async () => setUser(await api<User>("me"))}
+            />
           ) : (
             <ListView
               key={view}
