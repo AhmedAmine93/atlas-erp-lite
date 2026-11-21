@@ -37,7 +37,7 @@ class ErpTest extends TestCase
     {
         $user = User::create(['name' => $role, 'email' => $role.'@test.example', 'password' => 'PasswordTest2026!', 'role_id' => Role::where('name', $role)->value('id')]);
         $company = Company::where('code', 'ATLAS_DEMO')->firstOrFail();
-        $user->companies()->attach($company->id);
+        $user->companies()->attach($company->id, ['role_id' => Role::where('name', $role)->value('id')]);
         return $user;
     }
 
