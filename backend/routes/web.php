@@ -11,6 +11,7 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\SalesController;
 use App\Http\Controllers\TenantContextController;
 use App\Http\Controllers\SupportIncidentController;
+use App\Http\Controllers\SupportDiagnosticController;
 use App\Services\TenantRoles;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -48,6 +49,10 @@ Route::prefix('api')->group(function () {
         Route::patch('invoices/{id}', [InvoiceController::class, 'transition'])->whereNumber('id');
         Route::get('invoices/{id}/pdf', [InvoiceController::class, 'pdf'])->whereNumber('id');
         Route::get('support/incidents/summary', [SupportIncidentController::class, 'summary']);
+        Route::get('support/incidents/{id}/diagnostics', [SupportDiagnosticController::class, 'index'])->whereNumber('id')
+            ->middleware('throttle:support-diagnostics');
+        Route::post('support/incidents/{id}/diagnostics', [SupportDiagnosticController::class, 'run'])->whereNumber('id')
+            ->middleware('throttle:support-diagnostics');
         Route::get('support/incidents', [SupportIncidentController::class, 'index']);
         Route::post('support/incidents', [SupportIncidentController::class, 'store']);
         Route::get('support/incidents/{id}', [SupportIncidentController::class, 'show'])->whereNumber('id');

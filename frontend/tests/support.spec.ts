@@ -39,6 +39,14 @@ test("F07-F09: support incident, N3 escalation, comments and SLA", async ({ page
   await detail.getByRole("button", { name: "Escalader vers N3" }).click();
   await expect(detail.getByText("Niveau d'escalade : N3")).toBeVisible();
 
+  // F12: N3 predefined check is available only after escalation.
+  const diagnostics = detail.getByRole("region", { name: "Diagnostics N3" });
+  await expect(diagnostics).toBeVisible();
+  await diagnostics.getByRole("combobox", { name: "Contrôle N3" }).selectOption("database");
+  await diagnostics.getByRole("button", { name: "Exécuter le diagnostic" }).click();
+  await expect(diagnostics.getByText("Résultat du diagnostic : ok.", { exact: false })).toBeVisible();
+  await expect(diagnostics.getByText("database · ok", { exact: false })).toBeVisible();
+
   await detail.getByRole("button", { name: "Passer à : En investigation" }).click();
   await expect(detail.getByText("Statut : En investigation", { exact: false })).toBeVisible();
   await detail.getByLabel("Compte rendu de résolution").fill("Index et requête optimisés sur des données fictives.");

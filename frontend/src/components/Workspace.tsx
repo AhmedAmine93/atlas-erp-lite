@@ -383,7 +383,7 @@ export default function Workspace() {
           {view === "dashboard" ? (
             <DashboardView refresh={refresh} go={go} />
           ) : view === "support-incidents" ? (
-            <SupportIncidents />
+            <SupportIncidents canDiagnose={["admin", "support_n3"].includes(user.role.name)} />
           ) : view === "admin-companies" ? (
             <OrganizationWorkspace
               activeCompanyId={user.active_company_id ?? null}
