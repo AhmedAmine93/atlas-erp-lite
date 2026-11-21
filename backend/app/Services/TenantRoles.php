@@ -32,6 +32,7 @@ class TenantRoles
         abort_unless($role, 403, 'Aucun rôle autorisé pour cette entreprise.');
 
         return array_merge($user->toArray(), [
+            'role_id' => $role->id,
             'role' => $role->toArray(),
             'active_company_id' => $companyId,
             'companies' => $user->companies()
