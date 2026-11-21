@@ -36,4 +36,30 @@ test("P06: refreshed dashboard and modular navigation preserve real routes", asy
   await expect(page.getByRole("heading", { name: "Commandes." })).toBeVisible();
   await page.getByRole("button", { name: "Vue d’ensemble" }).click();
   await expect(page.getByRole("heading", { name: "Pilotez votre activité avec une seule vue." })).toBeVisible();
+
+  // Dashboard Builder: real widgets can be hidden, moved, and restored, with
+  // preferences kept on the same browser for this user and active company.
+  await page.getByRole("button", { name: "Personnaliser le tableau de bord" }).click();
+  let settings = page.getByRole("region", { name: "Personnalisation du tableau de bord" });
+  const chartToggle = settings.getByRole("checkbox", { name: "Le rythme de vos ventes" });
+  await expect(chartToggle).toBeChecked();
+  await chartToggle.uncheck();
+  await expect(page.getByRole("heading", { name: "Le rythme de vos ventes" })).toHaveCount(0);
+  await settings.getByRole("button", { name: "Monter Les dernières commandes" }).click();
+  await expect(page.locator(".dashboard-grid > section").first())
+    .toHaveAttribute("data-widget", "recent-orders");
+
+  // Same browser session; no additional login and no auth-rate-limit change.
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Pilotez votre activité avec une seule vue." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Le rythme de vos ventes" })).toHaveCount(0);
+  await expect(page.locator(".dashboard-grid > section").first())
+    .toHaveAttribute("data-widget", "recent-orders");
+
+  await page.getByRole("button", { name: "Personnaliser le tableau de bord" }).click();
+  settings = page.getByRole("region", { name: "Personnalisation du tableau de bord" });
+  await settings.getByRole("button", { name: "Réinitialiser" }).click();
+  await expect(page.getByRole("heading", { name: "Le rythme de vos ventes" })).toBeVisible();
+  await expect(page.locator(".dashboard-grid > section").first())
+    .toHaveAttribute("data-widget", "revenue-chart");
 });
