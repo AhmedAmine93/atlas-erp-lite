@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\MaintenanceAsset;
 use App\Models\MaintenanceRequest;
 use App\Services\Audit;
+use App\Services\TenantContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -19,7 +20,7 @@ final class MaintenanceRequestController extends Controller {
         Gate::authorize('admin');
         $data=$request->validate([
             'asset_id'=>'required|integer|min:1',
-            'reference'=>'required|string|max:60',
+            'reference'=>['required','string','max:60',Rule::unique('maintenance_requests')->where('company_id',app(TenantContext::class)->requireId())],
             'title'=>'required|string|max:180',
             'description'=>'nullable|string|max:2000',
             'priority'=>['required',Rule::in(['low','normal','high','critical'])],
