@@ -44,6 +44,8 @@ class StaleTenantContextTest extends TestCase
             ->assertHeader('X-Atlas-Context-Stale', '1');
         $this->getJson('/api/dashboard')->assertStatus(409)
             ->assertHeader('X-Atlas-Context-Stale', '1');
+        $this->get('/api/invoices/1/pdf')->assertStatus(409)
+            ->assertHeader('X-Atlas-Context-Stale', '1');
         $this->postJson('/api/customers', [
             'name' => 'SHOULD NOT EXIST', 'email' => 'cross-company@example.test',
         ])->assertStatus(409)->assertHeader('X-Atlas-Context-Stale', '1');
