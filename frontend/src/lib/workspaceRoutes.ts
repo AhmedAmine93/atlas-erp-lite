@@ -34,10 +34,26 @@ export function parseWorkspacePath(pathname: string): WorkspaceRoute | null {
   return { view, detailId };
 }
 
-/** Frontend guard is only UX; the API must still authorize every request. */
+/**
+ * Frontend visibility/interaction matrix mirrors Laravel's per-endpoint Gates.
+ * This is never an authorization boundary; every API request is checked again.
+ */
 export function canOpenWorkspaceView(view: View, role: Role["name"]): boolean {
+  if (!allowedViews.has(view)) return false;
+  if (view === "dashboard") return true;
   if (["users", "audit-logs", "admin-companies"].includes(view)) return role === "admin";
   if (view === "support-incidents") return ["admin", "support_n2", "support_n3"].includes(role);
-  if (role === "support_n2" || role === "support_n3") return view === "dashboard";
-  return true;
+  if (role === "admin") return true;
+  if (role === "commercial") return ["customers", "suppliers", "products", "quotes", "orders", "invoices"].includes(view);
+  if (role === "stock") return ["products", "stock-movements"].includes(view);
+  if (role === "reader") return ["customers", "suppliers", "products", "stock-movements", "quotes", "orders", "invoices"].includes(view);
+  return false;
+}
+
+/** Existing UI edit actions mirror Laravel's write Gates. */
+export function canEditWorkspaceView(view: View, role: Role["name"]): boolean {
+  if (role === "admin") return ["customers", "suppliers", "products", "quotes", "orders", "invoices", "users"].includes(view);
+  if (role === "commercial") return ["customers", "suppliers", "quotes", "orders", "invoices"].includes(view);
+  if (role === "stock") return view === "products";
+  return false;
 }
