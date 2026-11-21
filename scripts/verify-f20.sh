@@ -59,6 +59,20 @@ if [[ "$policy_count" != 14 ]]; then
   exit 1
 fi
 
+# Global Prometheus gauges are provided by a *fixed* owner-defined
+# SECURITY DEFINER aggregate, not by disabling RLS on business tables.
+expected_metrics="$(owner -tAX -c "SELECT
+  (SELECT count(*) FROM public.orders WHERE status='validated')::text || ':' ||
+  (SELECT coalesce(sum(total_cents),0) FROM public.invoices WHERE status='issued')::text || ':' ||
+  (SELECT count(*) FROM public.products WHERE stock <= alert_threshold)::text;")"
+actual_metrics="$(runtime -c "SELECT orders_validated::text || ':' ||
+  invoices_outstanding_cents::text || ':' || products_low_stock::text
+  FROM public.atlas_f20_global_metrics();")"
+if [[ "$actual_metrics" != "$expected_metrics" ]]; then
+  echo 'F20 BLOCKER: global metrics aggregate differs from owner totals.' >&2
+  exit 1
+fi
+
 # Prove lack of context fails closed and same authenticated TCP connection
 # sees only its own data in A and B, with no residue across COMMIT.
 out="$(runtime <<SQL
