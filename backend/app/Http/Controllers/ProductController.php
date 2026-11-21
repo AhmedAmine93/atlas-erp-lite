@@ -16,6 +16,7 @@ class ProductController extends Controller
 {
     public function index(Request $r)
     {
+        Gate::authorize('productsRead');
         $r->validate(['search' => 'nullable|string|max:100', 'category' => 'nullable|string|max:100', 'low_stock' => 'nullable|boolean']);
 
         return Product::query()->when($r->search, fn ($q) => $q->where(fn ($q) => $q->whereRaw('LOWER(name) LIKE ?', ['%'.mb_strtolower($r->search).'%'])->orWhereRaw('LOWER(reference) LIKE ?', ['%'.mb_strtolower($r->search).'%'])))
@@ -60,6 +61,7 @@ class ProductController extends Controller
 
     public function movements(Request $r)
     {
+        Gate::authorize('movementsRead');
         $r->validate(['product_id' => 'nullable|integer']);
 
         if ($r->product_id) {

@@ -6,13 +6,34 @@ use App\Models\Invoice;
 use App\Models\Order;
 use App\Models\Product;
 use App\Services\TenantContext;
+use App\Services\TenantRoles;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 class DashboardController extends Controller
 {
     public function __invoke(Request $r)
     {
+        Gate::authorize('dashboardRead');
+        // The Stock workspace needs real stock alerts, not financial values.
+        // Restrict the JSON itself: hidden frontend panels do not protect data.
+        $role = app(TenantRoles::class)->role($r->user())?->name;
+        if ($role === 'stock') {
+            return [
+                'from' => now()->startOfMonth()->toDateString(),
+                'to' => now()->toDateString(),
+                'revenue_cents' => 0,
+                'outstanding_cents' => 0,
+                'orders_count' => 0,
+                'low_stock_count' => Product::whereColumn('stock', '<=', 'alert_threshold')->count(),
+                'low_stock' => Product::whereColumn('stock', '<=', 'alert_threshold')
+                    ->orderBy('stock')->limit(10)->get(),
+                'daily_revenue' => [],
+                'top_products' => [],
+                'recent_orders' => [],
+            ];
+        }
         $d = $r->validate(['from' => 'nullable|date_format:Y-m-d', 'to' => 'nullable|date_format:Y-m-d|after_or_equal:from']);
         $from = $d['from'] ?? now()->startOfMonth()->toDateString();
         $to = $d['to'] ?? now()->toDateString();

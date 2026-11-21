@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Search, ChevronRight, LogOut } from "lucide-react";
 import { navigationSections, type View } from "@/lib/navigation";
+import { canOpenWorkspaceView } from "@/lib/workspaceRoutes";
 import type { User } from "@/lib/types";
 
 type SidebarProps = {
@@ -46,6 +47,7 @@ export default function WorkspaceSidebar({
       items: section.items.filter((item) => {
         // Keep the everyday workspace concise. A search still discovers
         // planned features, clearly disabled until their API exists.
+        if (item.ready && !canOpenWorkspaceView(item.id as View, user.role.name)) return false;
         if (!item.ready && !showPlanned && !searchTerm) return false;
         const matches =
           !searchTerm ||
