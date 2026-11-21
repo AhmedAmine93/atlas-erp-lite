@@ -39,6 +39,7 @@ import {
 import { api, send, all } from "@/lib/api";
 import { nav, navigationSections, type View } from "@/lib/navigation";
 import OrganizationWorkspace from "@/components/OrganizationWorkspace";
+import SupportIncidents from "@/components/SupportIncidents";
 import Login from "@/components/auth/Login";
 import WorkspaceSidebar from "@/components/layout/WorkspaceSidebar";
 import type {
@@ -327,6 +328,7 @@ export default function Workspace() {
                         users: "Les bonnes permissions pour chaque membre.",
                         "audit-logs": "La trace des opérations sensibles.",
                         "admin-companies": "Gestion du référentiel des entreprises et établissements.",
+                        "support-incidents": "Diagnostic, SLA, escalades N2/N3 et historique.",
                       } as Record<string, string>
                     )[view]}
               </p>
@@ -338,6 +340,7 @@ export default function Workspace() {
                 "audit-logs",
                 "invoices",
                 "admin-companies",
+                "support-incidents",
               ].includes(view) && (
                 <button
                   className="button primary"
@@ -379,6 +382,8 @@ export default function Workspace() {
           )}
           {view === "dashboard" ? (
             <DashboardView refresh={refresh} go={go} />
+          ) : view === "support-incidents" ? (
+            <SupportIncidents />
           ) : view === "admin-companies" ? (
             <OrganizationWorkspace
               activeCompanyId={user.active_company_id ?? null}
