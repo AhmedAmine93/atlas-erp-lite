@@ -21,3 +21,7 @@ images.tar
 release.env
 release/
 docs/facture-demo.pdf
+
+# Runtime credentials for local/disposable staging; never commit real values.
+.env.staging
+**/.env.staging
