@@ -21,7 +21,7 @@ return new class extends Migration
         // Migration A already validates document and product tenant ownership.
         // Backfill line ownership from the document; never infer ownership from
         // a product or an authenticated session during a historical migration.
-        foreach (self::LINES as [$table, $parentKey, $parent]) {
+        foreach (self::LINES as [$table, $parentKey, $parent, $fk]) {
             Schema::table($table, function (Blueprint $schema) {
                 $schema->foreignId('company_id')->nullable()->constrained('companies')->restrictOnDelete();
             });
@@ -66,13 +66,13 @@ return new class extends Migration
                      REFERENCES products (company_id, id) NOT VALID"
                 );
                 DB::statement(
-                    "ALTER TABLE {$table} ADD CONSTRAINT {$parent === 'quotes' ? 'f14_quote_items_quote_tenant_fk' : 'f14_order_items_order_tenant_fk'}
+                    "ALTER TABLE {$table} ADD CONSTRAINT {$fk}
                      FOREIGN KEY (company_id, {$parentKey})
                      REFERENCES {$parent} (company_id, id) NOT VALID"
                 );
                 DB::statement("ALTER TABLE {$table} VALIDATE CONSTRAINT f14_{$table}_product_tenant_fk");
                 DB::statement(
-                    "ALTER TABLE {$table} VALIDATE CONSTRAINT {$parent === 'quotes' ? 'f14_quote_items_quote_tenant_fk' : 'f14_order_items_order_tenant_fk'}"
+                    "ALTER TABLE {$table} VALIDATE CONSTRAINT {$fk}"
                 );
             }
         }
