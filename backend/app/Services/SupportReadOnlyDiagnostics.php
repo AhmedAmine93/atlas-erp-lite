@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Models\SupportIncident;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
@@ -65,14 +64,6 @@ final class SupportReadOnlyDiagnostics
 
     private function tenantIncidents(): array
     {
-        // Eloquent's fail-closed tenant scope remains active.
-        return [
-            'active_count' => SupportIncident::query()
-                ->whereIn('status', ['open', 'investigating'])->count(),
-            'resolution_sla_breached_count' => SupportIncident::query()
-                ->whereNotNull('resolution_due_at')->where('resolution_due_at', '<', now())
-                ->where(fn ($q) => $q->whereNull('resolved_at')
-                    ->orWhereColumn('resolved_at', '>', 'resolution_due_at'))->count(),
-        ];
+        return app(IncidentRlsReadProbe::class)->metrics();
     }
 }
