@@ -63,13 +63,20 @@ export function useDashboardLayout(user: User) {
     let active = true;
     const before = changes.current;
     let layout = DEFAULT_LAYOUT.map((x) => ({ ...x }));
+    let hasLocalPreference = false;
     try {
       const raw = window.localStorage.getItem(key);
-      if (raw && raw.length <= 4096) layout = normalizeLayout(JSON.parse(raw) as unknown);
+      if (raw && raw.length <= 4096) {
+        layout = normalizeLayout(JSON.parse(raw) as unknown);
+        hasLocalPreference = true;
+      }
     } catch {
       setStorageAvailable(false);
     }
     setState({ key, layout });
+    // The current builder is exposed to admin/commercial/reader only.
+    // Stock/support will get their own allowed widget sets in a later lot.
+    if (!["admin", "commercial", "reader"].includes(user.role.name)) return;
     // P071.02: remote preferences work across devices. Local storage is
     // retained only as an offline fallback and migration source.
     api<{ version: number; layout: DashboardLayout | null }>("dashboard/layout")
@@ -80,14 +87,14 @@ export function useDashboardLayout(user: User) {
           const normalized = normalizeLayout(remote.layout);
           setState({ key, layout: normalized });
           try { window.localStorage.setItem(key, JSON.stringify(normalized)); } catch {}
-        } else {
-          // Existing local preferences are migrated after a verified login.
+        } else if (hasLocalPreference) {
+          // Migrate only actual legacy local preferences, not defaults.
           void send("dashboard/layout", "PUT", { version: 1, layout }).catch(() => {});
         }
       })
       .catch(() => { /* Keep local fallback; no data is uploaded on failure. */ });
     return () => { active = false; };
-  }, [key]);
+  }, [key, user.role.name]);
 
   const layout = state?.key === key ? state.layout : DEFAULT_LAYOUT;
   const save = (next: DashboardLayout) => {
