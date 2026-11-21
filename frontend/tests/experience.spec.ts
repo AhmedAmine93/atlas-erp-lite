@@ -59,6 +59,18 @@ test("P06: refreshed dashboard and modular navigation preserve real routes", asy
   await expect(page.getByRole("heading", { name: "Clients." })).toBeVisible();
   await page.getByRole("button", { name: "Vue d’ensemble" }).click();
 
+  // P066.03 global search: reuse the authenticated administrator session.
+  await page.keyboard.press("Control+k");
+  const searchInput = page.getByRole("searchbox", { name: "Recherche globale" });
+  await expect(searchInput).toBeVisible();
+  await searchInput.fill("BUR-001");
+  const searchResults = page.getByRole("region", { name: "Résultats de recherche" });
+  await expect(searchResults.getByRole("button", { name: /BUR-001/ })).toBeVisible();
+  await searchResults.getByRole("button", { name: /BUR-001/ }).first().click();
+  await expect(page.getByRole("heading", { name: "Produits & stocks." })).toBeVisible();
+  await expect(page).toHaveURL(/\/workspace\/products$/);
+  await page.getByRole("button", { name: "Vue d’ensemble" }).click();
+
   // Dashboard Builder: real widgets can be hidden, moved, and restored, with
   // preferences kept on the same browser for this user and active company.
   await page.getByRole("button", { name: "Personnaliser le tableau de bord" }).click();
