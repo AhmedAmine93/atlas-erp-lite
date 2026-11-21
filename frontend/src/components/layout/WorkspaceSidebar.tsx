@@ -20,6 +20,8 @@ const roleLabels: Record<string, string> = {
   commercial: "Commercial",
   stock: "Stock",
   reader: "Lecture seule",
+  support_n2: "Support N2",
+  support_n3: "Support N3",
 };
 
 /** Sidebar owns menu-search/expansion state; authentication and tenant state live in Workspace. */
@@ -34,7 +36,10 @@ export default function WorkspaceSidebar({
   );
   const searchTerm = navSearch.trim().toLocaleLowerCase("fr");
   const accessibleSections = navigationSections
-    .filter((section) => !section.adminOnly || user.role.name === "admin")
+    .filter((section) =>
+      (!section.adminOnly || user.role.name === "admin") &&
+      (section.id !== "itsm" || ["admin", "support_n2", "support_n3"].includes(user.role.name))
+    )
     .map((section) => ({
       ...section,
       items: section.items.filter((item) => {
