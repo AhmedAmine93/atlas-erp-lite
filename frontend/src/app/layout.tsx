@@ -4,6 +4,7 @@ import "@fontsource-variable/manrope";
 import "./globals.css";
 import "./atlas-theme.css";
 import "./role-dashboard.css";
+import "./ui-components.css";
 export const metadata: Metadata = {
   title: "ATLAS ONE — Espace de travail",
   description: "ERP de démonstration : clients, stocks, ventes et facturation.",
