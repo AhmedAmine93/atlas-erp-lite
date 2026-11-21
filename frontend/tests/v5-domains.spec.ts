@@ -44,7 +44,7 @@ test("V5: création DI puis qualification et BT sans doublon", async ({ page }) 
 
   await page.getByRole("button", { name: "Sites et localisations" }).click();
   await page.getByRole("button", { name: "Nouvelle fiche" }).click();
-  await page.getByLabel("Code", { exact: true }).fill("SITE-"+suffix);
+  await page.getByLabel(/^Code/).fill("SITE-"+suffix);
   await page.getByLabel("Nom", { exact: true }).fill("Site de recette");
   await page.getByRole("button", { name: "Enregistrer" }).click();
   await expect(page.getByText("SITE-"+suffix)).toBeVisible();
@@ -52,7 +52,7 @@ test("V5: création DI puis qualification et BT sans doublon", async ({ page }) 
   await page.getByRole("button", { name: "Parc d’équipements" }).click();
   await page.getByRole("button", { name: "Nouvelle fiche" }).click();
   await page.getByLabel("Site", { exact: true }).selectOption({ label: "SITE-"+suffix+" · Site de recette" });
-  await page.getByLabel("Code", { exact: true }).fill("PUMP-"+suffix);
+  await page.getByLabel(/^Code/).fill("PUMP-"+suffix);
   await page.getByLabel("Nom", { exact: true }).fill("Pompe de démonstration");
   await page.getByRole("button", { name: "Enregistrer" }).click();
   await expect(page.getByText("PUMP-"+suffix)).toBeVisible();
