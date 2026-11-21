@@ -100,4 +100,35 @@ test("P06: refreshed dashboard and modular navigation preserve real routes", asy
   await expect(page.locator('.stats-grid > [data-widget="revenue"]')).toBeVisible();
   await expect(page.locator(".dashboard-grid > section").first())
     .toHaveAttribute("data-widget", "revenue-chart");
+
+  // P066.05: the active company is stored in the server-side session shared
+  // across tabs. A switch in this tab must invalidate the sibling tab without
+  // ever rendering its previous tenant's CRM screen again.
+  const activeSelect = page.getByRole("combobox", { name: "Entreprise active" });
+  const initialCompany = await activeSelect.inputValue();
+  await page.getByRole("button", { name: "Entreprises et établissements" }).click();
+  await expect(page.getByRole("heading", { name: "Entreprises et établissements." })).toBeVisible();
+  await page.getByLabel("Code entreprise").fill("TAB_ISOLATION_B");
+  await page.getByLabel("Raison sociale").fill("Entreprise de test multi-onglet");
+  await page.getByRole("button", { name: "Enregistrer l’entreprise" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Entreprise enregistrée." })).toBeVisible();
+  const nextCompany = await page.getByRole("combobox", { name: "Entreprise active" })
+    .locator("option", { hasText: "Entreprise de test multi-onglet" }).getAttribute("value");
+  expect(nextCompany).toBeTruthy();
+
+  const sibling = await page.context().newPage();
+  await sibling.goto("/workspace/customers");
+  await expect(sibling.getByRole("heading", { name: "Clients." })).toBeVisible();
+  await expect(sibling.getByText("Maison Juniper")).toBeVisible();
+
+  await activeSelect.selectOption(nextCompany!);
+  await expect(page.getByRole("combobox", { name: "Entreprise active" })).toHaveValue(nextCompany!);
+  await expect(sibling.getByRole("heading", { name: "Vue d’ensemble." })).toBeVisible();
+  await expect(sibling.getByRole("combobox", { name: "Entreprise active" })).toHaveValue(nextCompany!);
+  await expect(sibling.getByText("Maison Juniper")).toHaveCount(0);
+
+  // Both tabs must see the same verified company; switching back is symmetric.
+  await page.getByRole("combobox", { name: "Entreprise active" }).selectOption(initialCompany);
+  await expect(sibling.getByRole("combobox", { name: "Entreprise active" })).toHaveValue(initialCompany);
+  await sibling.close();
 });
