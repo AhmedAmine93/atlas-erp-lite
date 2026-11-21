@@ -23,7 +23,7 @@ class TenantIsolationTest extends TestCase
             'password' => 'PasswordTest2026!',
             'role_id' => Role::where('name', $role)->value('id'),
         ]);
-        $user->companies()->attach($company->id);
+        $user->companies()->attach($company->id, ['role_id' => Role::where('name', $role)->value('id')]);
 
         return $user;
     }
@@ -87,7 +87,7 @@ class TenantIsolationTest extends TestCase
         $b = Company::create(['code' => 'SECOND', 'name' => 'Second']);
         $forbidden = Company::create(['code' => 'PRIVATE', 'name' => 'Private']);
         $user = $this->makeUser('multi@example.test', 'admin', $a);
-        $user->companies()->attach($b->id);
+        $user->companies()->attach($b->id, ['role_id' => Role::where('name', 'admin')->value('id')]);
         $this->actingAs($user);
 
         $this->getJson('/api/me')->assertOk()->assertJsonPath('active_company_id', $a->id);
