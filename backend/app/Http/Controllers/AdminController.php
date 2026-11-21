@@ -58,15 +58,22 @@ class AdminController extends Controller
     public function save(Request $r, ?int $id = null)
     {
         Gate::authorize('admin');
-        $data = $r->validate([
-            'name' => 'required|string|max:255',
-            'email' => ['required', 'email', 'max:255', Rule::unique('users')->ignore($id)],
-            'role_id' => 'required|integer|exists:roles,id',
-            'password' => [$id ? 'nullable' : 'required', 'string', Password::min(12)->letters()->numbers()],
-        ]);
-        if (empty($data['password'])) {
-            unset($data['password']);
-        }
+        // Tenant administrators may create a user identity, but editing an
+        // existing user's GLOBAL identity belongs to a separate verified
+        // workflow. Avoid global email-existence probing via update validation.
+        $data = $id
+            ? $r->validate([
+                'name' => 'sometimes|required|string|max:255',
+                'email' => 'sometimes|required|email|max:255',
+                'role_id' => 'required|integer|exists:roles,id',
+                'password' => 'prohibited',
+            ])
+            : $r->validate([
+                'name' => 'required|string|max:255',
+                'email' => ['required', 'email', 'max:255', Rule::unique('users')],
+                'role_id' => 'required|integer|exists:roles,id',
+                'password' => ['required', 'string', Password::min(12)->letters()->numbers()],
+            ]);
 
         return DB::transaction(function () use ($id, $data) {
             $companyId = app(TenantContext::class)->requireId();
@@ -99,7 +106,8 @@ class AdminController extends Controller
                 // companies. A tenant admin may ONLY modify the membership
                 // role, even when the user currently has one affiliation.
                 // Identity edits require a separate verified self-service flow.
-                if ($data['name'] !== $user->name || $data['email'] !== $user->email || array_key_exists('password', $data)) {
+                if ((isset($data['name']) && $data['name'] !== $user->name)
+                    || (isset($data['email']) && $data['email'] !== $user->email)) {
                     throw \Illuminate\Validation\ValidationException::withMessages([
                         'identity' => 'Les informations du compte sont globales : seule l’affiliation à cette entreprise peut être modifiée.',
                     ]);
