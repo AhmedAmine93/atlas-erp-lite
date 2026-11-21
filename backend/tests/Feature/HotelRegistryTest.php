@@ -44,7 +44,7 @@ class HotelRegistryTest extends TestCase
         $this->become($b, 'admin', 'b');
         $this->getJson('/api/hotels')->assertOk()->assertJsonPath('total', 0);
         $this->postJson('/api/hotel-rooms', ['hotel_id'=>$hotelId,'room_number'=>'101','category'=>'Double'])->assertNotFound();
-        $h2 = $this->postJson('/api/hotels', ['code'=>'HOTEL-01','name'=>'Second Hotel','timezone'=>'Europe/Tunis'])->assertCreated()->json('id');
+        $h2 = $this->postJson('/api/hotels', ['code'=>'HOTEL-01','name'=>'Second Hotel','timezone'=>'Africa/Tunis'])->assertCreated()->json('id');
         $this->postJson('/api/hotel-rooms', ['hotel_id'=>$h2,'room_number'=>'101','category'=>'Twin'])->assertCreated();
         $this->getJson('/api/hotel-rooms')->assertOk()->assertJsonPath('total', 1);
     }
