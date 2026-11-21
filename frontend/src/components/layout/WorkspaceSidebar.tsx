@@ -30,7 +30,7 @@ export default function WorkspaceSidebar({
   user, view, mobile, busy, onNavigate, onTenantSwitch, onLogout,
 }: SidebarProps) {
   const [navSearch, setNavSearch] = useState("");
-  const [showPlanned, setShowPlanned] = useState(false);
+  const [showPlanned, setShowPlanned] = useState(true);
   const [expandedSections, setExpandedSections] = useState<string[]>(() =>
     navigationSections
       .filter((section) => section.items.some((item) => item.ready))
