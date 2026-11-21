@@ -15,6 +15,7 @@
 - The `ResolveTenant` middleware validates membership, then wraps authenticated API handling in a transaction. Tenant context is reset before the transaction completes. The reset also accommodates nested test transactions.
 - Authorized `tenant/switch` immediately rebinds the RLS context before recording its audit event. The public login endpoint opens its own small RLS-scoped transaction to write `auth.login` to `audit_logs` (it runs outside the tenant middleware).
 - `verify-f20.sh` authenticates as the real runtime role within the disposable F17 CI PostgreSQL stack, checks the 14 policies and tests row isolation on `customers` and `support_incidents` for synthetic tenants A/B, including empty context, same-session re-use, allowed INSERT and rejected cross-tenant INSERT/UPDATE. The existing HTTP and Playwright smoke suite follows using the restricted role.
+- Cross-company infrastructure monitoring uses the argument-free, owner-defined `public.atlas_f20_global_metrics()` SQL function with `SECURITY DEFINER`, fixed SQL and `search_path=pg_catalog`. Default PUBLIC EXECUTE is revoked; `atlas_app_runtime` only receives EXECUTE on this specific aggregate. It returns three global counters (validated orders, issued invoice total, low stock), never row details. `MetricsController` checks the separate metrics token before invoking it. The CI checks the result against the migration-owner baseline.
 - F14 historical migration fixture excludes F20 and applies it only during the upgrade.
 
 ## Important security boundary
@@ -23,7 +24,7 @@
 
 Further work must review a trustworthy tenant-claim channel (e.g. dedicated DB tenant roles/credentials or integrity-verified claims in a DB-owned SECURITY DEFINER function, with secrets not exposed to the runtime SQL account), threat-model SQL injection, and test privilege escalation. No proposed design may trust a client-supplied company ID alone.
 
-The following shared/unscoped tables are **not** tenant RLS protected: `users`, `roles`, `companies`, `company_user`, `sessions`, job/cache tables, `document_sequences`. Authentication, membership, and tenant-specific numbering require separate review. PostgreSQL owner/migrator intentionally bypasses non-FORCE policies. Additional concerns: all background workers, long-lived connections, streaming responses, cron, exports, cross-service APIs, tenant revocation races, transaction lock contention, and cross-tenant admin functionality.
+The following shared/unscoped tables are **not** tenant RLS protected: `users`, `roles`, `companies`, `company_user`, `sessions`, job/cache tables, `document_sequences`. Authentication, membership, and tenant-specific numbering require separate review. PostgreSQL owner/migrator intentionally bypasses non-FORCE policies. The global metrics function is callable by a compromised runtime SQL account and exposes business-volume aggregates, even without its HTTP token. Assess whether this leakage is acceptable before release; a separate observability credential would reduce that exposure. Additional concerns: all background workers, long-lived connections, streaming responses, cron, exports, cross-service APIs, tenant revocation races, transaction lock contention, and cross-tenant admin functionality.
 
 ## Runtime invariants
 
