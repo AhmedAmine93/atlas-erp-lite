@@ -78,7 +78,8 @@ final class GlobalSearchController extends Controller
             $rows = $query->orderByDesc('id')->limit(5)->get();
             $items = $rows->map(function ($row) use ($type, $label) {
                 $title = match ($type) {
-                    'customers', 'suppliers', 'products' => $row->name,
+                    'customers', 'suppliers' => $row->name,
+                    'products' => $row->name.' · '.$row->reference,
                     'support-incidents' => $row->reference.' · '.$row->title,
                     'invoices' => $row->number ?: 'Brouillon #'.$row->id,
                     default => $row->number,
