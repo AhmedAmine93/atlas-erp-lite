@@ -1,0 +1,159 @@
+/* P06.05 — role-based dashboards, with real tenant-scoped API metrics. */
+.atlas-role-panel {
+  padding: 25px 27px;
+  margin-bottom: 25px;
+  border: 1px solid #dfe7f6;
+  border-radius: 17px;
+  background: #ffffff;
+  box-shadow: 0 8px 27px #243d6e0b;
+}
+.atlas-role-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 19px;
+}
+.atlas-role-header h2 {
+  margin: 8px 0 7px;
+  color: #1f355c;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -.5px;
+}
+.atlas-role-header p {
+  font-size: 12px;
+  line-height: 1.7;
+  color: #73819a;
+}
+.atlas-role-header > .button { min-height: 42px; }
+.atlas-role-eyebrow {
+  color: #506be0;
+  font-weight: 800;
+  font-size: 10px;
+  letter-spacing: 1.3px;
+}
+.atlas-role-stats {
+  display: grid;
+  grid-template-columns: repeat(4,minmax(0,1fr));
+  gap: 12px;
+}
+.atlas-role-sales-stats { grid-template-columns: repeat(3,minmax(0,1fr)); }
+.atlas-role-stat {
+  min-width: 0;
+  padding: 19px 18px;
+  border: 1px solid #e3e9f5;
+  border-radius: 12px;
+  background: #f7f9fe;
+  text-align: left;
+}
+.atlas-role-stat-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 9px;
+  min-height: 30px;
+  color: #687b9d;
+  font-size: 11px;
+  line-height: 1.45;
+}
+.atlas-role-stat-top svg { flex: none; color: #4e69d8; }
+.atlas-role-stat > strong {
+  display: block;
+  margin: 15px 0 8px;
+  font-family: "Manrope Variable", sans-serif;
+  font-size: clamp(21px,2vw,29px);
+  font-weight: 800;
+  color: #1c3258;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+.atlas-role-stat > small {
+  font-size: 10px;
+  line-height: 1.5;
+  color: #8390a6;
+}
+.atlas-role-stat-link { cursor: pointer; }
+.atlas-role-stat-link:hover { background: #ecf1ff; border-color: #b7c7f6; }
+.atlas-role-stat-link > small { display: flex; align-items: center; gap: 5px; }
+.atlas-role-status {
+  padding: 22px 5px;
+  color: #667994;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+.atlas-role-stock {
+  display: grid;
+  grid-template-columns: minmax(210px,.65fr) minmax(0,1.35fr);
+  gap: 15px;
+}
+.atlas-role-stock-total {
+  border-radius: 12px;
+  background: linear-gradient(135deg,#2746ad,#4768e4);
+  color: white;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 13px;
+  min-height: 205px;
+}
+.atlas-role-stock-total > strong {
+  font-family: "Manrope Variable",sans-serif;
+  font-size: 48px;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.atlas-role-stock-total > span { max-width: 245px; color: #dce7ff; line-height: 1.55; font-size: 12px; }
+.atlas-role-stock-list {
+  min-width: 0;
+  border: 1px solid #e3e9f5;
+  border-radius: 12px;
+  padding: 20px;
+  background: #f9fbff;
+}
+.atlas-role-stock-head {
+  display: flex;
+  gap: 15px;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 14px;
+}
+.atlas-role-stock-head strong { color: #263c61; font-size: 13px; }
+.atlas-role-stock-head .text-button { font-size: 11px; }
+.atlas-role-stock-list > p { font-size: 12px; padding: 12px 0; color: #73849d; }
+.atlas-role-stock-list ul { list-style: none; margin: 0; padding: 0; }
+.atlas-role-stock-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid #e6ecf5;
+}
+.atlas-role-stock-list li:last-child { border-bottom: 0; }
+.atlas-role-stock-list li strong { display: block; font-size: 11px; color: #294062; }
+.atlas-role-stock-list li small { display: block; color: #8191ab; font-size: 10px; margin-top: 4px; }
+.atlas-role-stock-quantity { font-size: 11px; font-weight: 700; color: #b27c2c; text-align: right; }
+@media (max-width: 1200px) {
+  .atlas-role-stats { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .atlas-role-stock { grid-template-columns: 1fr; }
+  .atlas-role-stock-total { min-height: 150px; }
+}
+@media (max-width: 760px) {
+  .atlas-role-panel { padding: 20px 15px; border-radius: 13px; }
+  .atlas-role-header { align-items: flex-start; }
+  .atlas-role-header h2 { font-size: 18px; }
+  .atlas-role-header > .button { width: 100%; }
+  .atlas-role-stock-head { flex-wrap: wrap; }
+}
+@media (max-width: 440px) {
+  .atlas-role-stats { grid-template-columns: 1fr; }
+  .atlas-role-stat > strong { font-size: 24px; }
+}
