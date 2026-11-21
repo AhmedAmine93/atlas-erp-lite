@@ -21,7 +21,7 @@ dc run --rm -e DB_DATABASE="$legacy_db" tests sh -ec '
   mkdir -p /tmp/atlas-f14-pre-upgrade
   for file in database/migrations/*.php; do
     case "$file" in
-      *000005_add_tenant_composite_fks.php|*000006_tenant_ownership_on_document_items.php|*000007_pilot_incident_readonly_rls.php|*000008_create_runtime_db_privilege_boundary.php) ;;
+      *000005_add_tenant_composite_fks.php|*000006_tenant_ownership_on_document_items.php|*000007_pilot_incident_readonly_rls.php|*000008_create_runtime_db_privilege_boundary.php|*000009_harden_runtime_write_privileges.php) ;;
       *) cp "$file" /tmp/atlas-f14-pre-upgrade/ ;;
     esac
   done
