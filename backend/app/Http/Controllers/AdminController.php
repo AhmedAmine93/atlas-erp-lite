@@ -31,7 +31,11 @@ class AdminController extends Controller
         $roles = Role::whereIn('id', $roleIds->values()->unique()->all())->get()->keyBy('id');
 
         $page->getCollection()->each(function (User $user) use ($roles, $roleIds): void {
-            $user->setRelation('role', $roles->get((int) ($roleIds[$user->id] ?? 0)));
+            $effectiveRoleId = (int) ($roleIds[$user->id] ?? 0);
+            $user->setRelation('role', $roles->get($effectiveRoleId));
+            // The UI must edit the membership's role, not the legacy global role.
+            // This modifies only the serialized model, never the users table.
+            $user->setAttribute('role_id', $effectiveRoleId);
         });
 
         return $page;
@@ -91,11 +95,16 @@ class AdminController extends Controller
                     );
                 }
 
-                // Keep the historical users.role_id intact. Only the active
-                // company's membership is edited.
-                $userData = $data;
-                unset($userData['role_id']);
-                $user->fill($userData)->save();
+                // Global identity (name, email, password) is shared across
+                // companies. A tenant admin may ONLY modify the membership
+                // role, even when the user currently has one affiliation.
+                // Identity edits require a separate verified self-service flow.
+                if ($data['name'] !== $user->name || $data['email'] !== $user->email || array_key_exists('password', $data)) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'identity' => 'Les informations du compte sont globales : seule l’affiliation à cette entreprise peut être modifiée.',
+                    ]);
+                }
+
                 $user->companies()->updateExistingPivot($companyId, ['role_id' => $roleId]);
                 DB::table('sessions')->where('user_id', $id)->delete();
             } else {
@@ -107,8 +116,11 @@ class AdminController extends Controller
                 'company_id' => $companyId, 'role_id' => $roleId,
             ]);
 
+            $effectiveRole = Role::findOrFail($roleId);
+            // Do not leak the deprecated global users.role_id into the UI.
             return response()->json(array_merge($user->load('role')->toArray(), [
-                'role' => Role::findOrFail($roleId)->toArray(),
+                'role_id' => $effectiveRole->id,
+                'role' => $effectiveRole->toArray(),
             ]), $id ? 200 : 201);
         }, 3);
     }
@@ -140,9 +152,10 @@ class AdminController extends Controller
 
             DB::table('sessions')->where('user_id', $id)->delete();
             $user->companies()->detach($companyId);
-            if (! $user->companies()->exists()) {
-                $user->delete();
-            }
+            // Preserve the global identity and immutable historical references
+            // (invoices, incidents, audit records) even if this was the final
+            // membership. Login already rejects users without affiliations.
+            // Account lifecycle/deletion requires a separate retention policy.
             Audit::record('user.removed_from_company', $user, ['company_id' => $companyId]);
 
             return response()->noContent();
