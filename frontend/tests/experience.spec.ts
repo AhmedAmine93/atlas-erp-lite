@@ -37,6 +37,28 @@ test("P06: refreshed dashboard and modular navigation preserve real routes", asy
   await page.getByRole("button", { name: "Vue d’ensemble" }).click();
   await expect(page.getByRole("heading", { name: "Pilotez votre activité avec une seule vue." })).toBeVisible();
 
+  // P066.02: navigation has stable URLs, supports refresh and browser history.
+  await page.getByRole("button", { name: "Clients", exact: true }).click();
+  await expect(page).toHaveURL(/\\/workspace\\/customers$/);
+  await expect(page.getByRole("heading", { name: "Clients." })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Clients." })).toBeVisible();
+
+  // Customer history opens as an addressable record, revalidated on reload.
+  await page.getByRole("button", { name: "Historique" }).first().click();
+  await expect(page).toHaveURL(/\\/workspace\\/customers\\/\\d+$/);
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.getByRole("button", { name: "Fermer", exact: true }).click();
+  await expect(page).toHaveURL(/\\/workspace\\/customers$/);
+
+  await page.getByRole("button", { name: "Vue d’ensemble" }).click();
+  await expect(page).toHaveURL(/\\/workspace\\/dashboard$/);
+  await page.goBack();
+  await expect(page.getByRole("heading", { name: "Clients." })).toBeVisible();
+  await page.getByRole("button", { name: "Vue d’ensemble" }).click();
+
   // Dashboard Builder: real widgets can be hidden, moved, and restored, with
   // preferences kept on the same browser for this user and active company.
   await page.getByRole("button", { name: "Personnaliser le tableau de bord" }).click();
