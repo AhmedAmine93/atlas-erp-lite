@@ -109,6 +109,9 @@ class SupportIncidentController extends Controller
                 'reference' => 'INC-'.strtoupper(bin2hex(random_bytes(6))),
                 'reported_by' => $request->user()->id,
                 'status' => 'open',
+                // Persist explicitly so the immediate API response is consistent
+                // with the database default before Eloquent refreshes the model.
+                'escalation_level' => 2,
             ]);
             $this->event($incident, 'created', null, 'open');
             Audit::record('support.incident_created', $incident, [
