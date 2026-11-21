@@ -25,8 +25,8 @@ BEGIN
           NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
     END IF;
     EXECUTE format('GRANT %I TO %I', 'atlas_f15_incident_reader', CURRENT_USER);
-END
-$do$
+END;
+$do$;
 SQL);
 
         // If the cluster-level role already exists, reject an unexpectedly
