@@ -4,6 +4,7 @@ use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\HotelRegistryController;
 use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\MetricsController;
@@ -28,6 +29,10 @@ Route::prefix('api')->group(function () {
         Route::post('tenant/switch', [TenantContextController::class, 'switch']);
         Route::post('logout', [AuthController::class, 'logout']);
         Route::get('dashboard', DashboardController::class);
+        Route::get('hotels', [HotelRegistryController::class, 'hotels']);
+        Route::post('hotels', [HotelRegistryController::class, 'createHotel']);
+        Route::get('hotel-rooms', [HotelRegistryController::class, 'rooms']);
+        Route::post('hotel-rooms', [HotelRegistryController::class, 'createRoom']);
         Route::get('search', GlobalSearchController::class);
         Route::get('stock-movements', [ProductController::class, 'movements']);
         Route::get('products', [ProductController::class, 'index']);
