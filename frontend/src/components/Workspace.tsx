@@ -44,6 +44,8 @@ import Login from "@/components/auth/Login";
 import WorkspaceSidebar from "@/components/layout/WorkspaceSidebar";
 import WorkspaceWelcome from "@/components/layout/WorkspaceWelcome";
 import RoleDashboardPanel from "@/components/dashboard/RoleDashboardPanel";
+import DataTableFrame from "@/components/ui/DataTableFrame";
+import FormField from "@/components/ui/FormField";
 import type {
   User,
   Contact,
@@ -647,7 +649,7 @@ function DashboardView({
                   <ArrowUpRight size={16} />
                 </button>
               </div>
-              <div className="table-scroll">
+              <DataTableFrame label="Dernières commandes">
                 <table>
                   <thead>
                     <tr>
@@ -674,7 +676,7 @@ function DashboardView({
                   </tbody>
                 </table>
                 {!data.recent_orders.length && <Empty />}
-              </div>
+              </DataTableFrame>
             </section>
             <section className="panel stock-alerts">
               <div className="panel-heading">
@@ -943,10 +945,7 @@ function ListView({
           {error}
         </div>
       )}
-      <div
-        className={`table-scroll ${loading ? "is-loading" : ""}`}
-        aria-busy={loading}
-      >
+      <DataTableFrame label={`Résultats : ${nav.find((item) => item.id === view)?.label ?? view}`} busy={loading}>
         <table>
           <thead>
             <tr>
@@ -1148,7 +1147,7 @@ function ListView({
             }
           />
         )}
-      </div>
+      </DataTableFrame>
       <div className="pagination">
         <span>
           Page {data?.current_page || 1} sur {data?.last_page || 1}
@@ -1280,8 +1279,7 @@ function EditorForm({
               <p>Stock actuel : {row?.stock} unités</p>
             </div>
           </div>
-          <label>
-            Quantité à ajouter ou retirer
+          <FormField label="Quantité à ajouter ou retirer">
             <input
               name="quantity"
               type="number"
@@ -1291,9 +1289,8 @@ function EditorForm({
               step="1"
               placeholder="Ex. 10 ou -3"
             />
-          </label>
-          <label>
-            Motif
+          </FormField>
+          <FormField label="Motif">
             <input
               name="reason"
               required
@@ -1301,19 +1298,18 @@ function EditorForm({
               maxLength={255}
               placeholder="Réception fournisseur, correction d’inventaire…"
             />
-          </label>
+          </FormField>
         </>
       ) : contact ? (
         <>
-          <label>
-            Nom / entreprise
+          <FormField label="Nom / entreprise">
             <input
               name="name"
               required
               maxLength={255}
               defaultValue={row?.name}
             />
-          </label>
+          </FormField>
           <div className="form-grid">
             <label>
               Adresse e-mail
@@ -1700,7 +1696,7 @@ function Detail({
         </div>
         <Badge status={row.status} />
       </div>
-      <div className="table-scroll">
+      <DataTableFrame label="Lignes du document">
         <table>
           <thead>
             <tr>
@@ -1726,7 +1722,7 @@ function Detail({
             ))}
           </tbody>
         </table>
-      </div>
+      </DataTableFrame>
       <div className="totals">
         <span>
           Total HT<b>{euro(row.subtotal_cents)}</b>

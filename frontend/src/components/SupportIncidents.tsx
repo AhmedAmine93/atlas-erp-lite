@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { AlertTriangle, CheckCircle2, Plus, RefreshCcw, Search, Wrench } from "lucide-react";
 import { api, send } from "@/lib/api";
+import DataTableFrame from "@/components/ui/DataTableFrame";
+import FormField from "@/components/ui/FormField";
 import type { Page } from "@/lib/types";
 
 type Severity = "P1" | "P2" | "P3" | "P4";
@@ -269,7 +271,7 @@ export default function SupportIncidents({ canDiagnose }: { canDiagnose: boolean
           </button>
           <span className="result-count">{total} incident(s)</span>
         </form>
-        <div className="table-scroll" aria-busy={loading}>
+        <DataTableFrame label="Liste des incidents" busy={loading}>
           <table>
             <thead><tr><th>Référence</th><th>Incident</th><th>Priorité</th><th>Statut</th><th>Environnement</th><th>Créé le</th><th>Action</th></tr></thead>
             <tbody>
@@ -291,7 +293,7 @@ export default function SupportIncidents({ canDiagnose }: { canDiagnose: boolean
               {loading && <tr><td colSpan={7}>Chargement des incidents…</td></tr>}
             </tbody>
           </table>
-        </div>
+        </DataTableFrame>
         <div className="pagination">
           <span>Page {page} / {lastPage}</span>
           <div>
@@ -306,8 +308,8 @@ export default function SupportIncidents({ canDiagnose }: { canDiagnose: boolean
           <div className="modal" role="dialog" aria-modal="true" aria-label="Déclarer un incident">
             <header><h2>Nouvel incident</h2><button aria-label="Fermer" className="icon-button" onClick={() => setCreating(false)}>✕</button></header>
             <form className="editor-form" onSubmit={create}>
-              <label>Titre<input required maxLength={180} value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} /></label>
-              <label>Description (sans secret ni données réelles)<textarea required rows={5} maxLength={10000} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></label>
+              <FormField label="Titre"><input required maxLength={180} value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} /></FormField>
+              <FormField label="Description (sans secret ni données réelles)"><textarea required rows={5} maxLength={10000} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></FormField>
               <div className="form-grid">
                 <label>Priorité<select value={form.severity} onChange={e => setForm({ ...form, severity: e.target.value as Severity })}>
                   {Object.entries(severityLabels).map(([v, l]) => <option key={v} value={v}>{l}</option>)}

@@ -12,6 +12,7 @@ test("F07-F09: support incident, N3 escalation, comments and SLA", async ({ page
 
   await page.getByRole("button", { name: "Incidents", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Centre des incidents" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Liste des incidents" })).toBeVisible();
   await expect(page.getByLabel("Synthèse des incidents")).toBeVisible();
 
   await page.getByRole("button", { name: "Déclarer un incident" }).click();

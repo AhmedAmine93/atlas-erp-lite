@@ -10,6 +10,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { send } from "@/lib/api";
+import FormField from "@/components/ui/FormField";
 import type { User } from "@/lib/types";
 
 type LoginProps = {
@@ -96,8 +97,7 @@ export default function Login({ onLogin }: LoginProps) {
         </p>
 
         <form onSubmit={submit}>
-          <label>
-            Adresse e-mail
+          <FormField label="Adresse e-mail">
             <input
               type="email"
               autoComplete="username"
@@ -105,10 +105,9 @@ export default function Login({ onLogin }: LoginProps) {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
-          </label>
+          </FormField>
 
-          <label>
-            Mot de passe
+          <FormField label="Mot de passe">
             <input
               type="password"
               autoComplete="current-password"
@@ -116,7 +115,7 @@ export default function Login({ onLogin }: LoginProps) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
-          </label>
+          </FormField>
 
           {error && (
             <div className="error" role="alert">
