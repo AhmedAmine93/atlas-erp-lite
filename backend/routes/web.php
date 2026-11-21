@@ -5,6 +5,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\GlobalSearchController;
+use App\Http\Controllers\FormSchemaController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\MetricsController;
 use App\Http\Controllers\OrganizationController;
@@ -29,6 +30,7 @@ Route::prefix('api')->group(function () {
         Route::post('logout', [AuthController::class, 'logout']);
         Route::get('dashboard', DashboardController::class);
         Route::get('search', GlobalSearchController::class);
+        Route::post('builders/forms/validate', [FormSchemaController::class, 'validateDraft']);
         Route::get('stock-movements', [ProductController::class, 'movements']);
         Route::get('products', [ProductController::class, 'index']);
         Route::post('products', [ProductController::class, 'save']);
