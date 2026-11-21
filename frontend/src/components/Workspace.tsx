@@ -43,6 +43,7 @@ import SupportIncidents from "@/components/SupportIncidents";
 import Login from "@/components/auth/Login";
 import WorkspaceSidebar from "@/components/layout/WorkspaceSidebar";
 import WorkspaceWelcome from "@/components/layout/WorkspaceWelcome";
+import RoleDashboardPanel from "@/components/dashboard/RoleDashboardPanel";
 import type {
   User,
   Contact,
@@ -384,7 +385,7 @@ export default function Workspace() {
           {view === "dashboard" ? (
             <>
               <WorkspaceWelcome user={user} onNavigate={go} />
-              <DashboardView refresh={refresh} go={go} />
+              <DashboardView refresh={refresh} go={go} user={user} />
             </>
           ) : view === "support-incidents" ? (
             <SupportIncidents canDiagnose={["admin", "support_n3"].includes(user.role.name)} />
@@ -457,9 +458,11 @@ export default function Workspace() {
 function DashboardView({
   refresh,
   go,
+  user,
 }: {
   refresh: number;
   go: (v: View) => void;
+  user: User;
 }) {
   const localToday = () => {
     const d = new Date();
@@ -469,7 +472,14 @@ function DashboardView({
     [from, setFrom] = useState(() => localToday().slice(0, 8) + "01"),
     [data, setData] = useState<Dashboard | null>(null),
     [error, setError] = useState("");
+  const supportOnly = user.role.name === "support_n2" || user.role.name === "support_n3";
   useEffect(() => {
+    if (supportOnly) {
+      // Support accounts should not fetch financial KPIs unnecessarily.
+      setData(null);
+      setError("");
+      return;
+    }
     let active = true;
     setError("");
     api<Dashboard>(`dashboard?from=${from}&to=${to}`)
@@ -482,7 +492,10 @@ function DashboardView({
     return () => {
       active = false;
     };
-  }, [from, to, refresh]);
+  }, [from, to, refresh, supportOnly]);
+  if (supportOnly) {
+    return <RoleDashboardPanel user={user} refresh={refresh} onNavigate={go} />;
+  }
   return (
     <>
       <div className="dashboard-tools">
@@ -516,6 +529,9 @@ function DashboardView({
         <Empty text="Chargement des indicateurs…" />
       ) : (
         <>
+          <RoleDashboardPanel user={user} dashboard={data} refresh={refresh} onNavigate={go} />
+          {user.role.name !== "stock" && (
+            <>
           <div className="stats-grid">
             {[
               {
@@ -718,6 +734,8 @@ function DashboardView({
               <ArrowUpRight size={16} />
             </button>
           </div>
+            </>
+          )}
         </>
       )}
     </>
