@@ -4,6 +4,7 @@ use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DataIngestionBatchController;
 use App\Http\Controllers\DataSourceCatalogController;
 use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\InvoiceController;
@@ -31,6 +32,8 @@ Route::prefix('api')->group(function () {
         Route::get('dashboard', DashboardController::class);
         Route::get('data/sources', [DataSourceCatalogController::class, 'index']);
         Route::post('data/sources', [DataSourceCatalogController::class, 'store']);
+        Route::get('data/ingestion-batches', [DataIngestionBatchController::class, 'index']);
+        Route::post('data/ingestion-batches', [DataIngestionBatchController::class, 'store']);
         Route::get('search', GlobalSearchController::class);
         Route::get('stock-movements', [ProductController::class, 'movements']);
         Route::get('products', [ProductController::class, 'index']);
