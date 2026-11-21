@@ -42,6 +42,13 @@ const severityLabels: Record<Severity, string> = {
   P1: "P1 — Critique", P2: "P2 — Majeur", P3: "P3 — Normal", P4: "P4 — Mineur",
 };
 const safeDate = (value: string) => new Date(value).toLocaleString("fr-FR");
+type DiagnosticRun = { id: number; check_name: string; status: string; duration_ms: number; created_at: string };
+type DiagnosticResult = {
+  check: string;
+  status: "ok" | "degraded";
+  duration_ms: number;
+  metrics: Record<string, number | boolean>;
+};
 type SupportSummary = {
   open: number;
   escalated_n3: number;
@@ -49,9 +56,12 @@ type SupportSummary = {
   resolution_sla_breached: number;
 };
 
-export default function SupportIncidents() {
+export default function SupportIncidents({ canDiagnose }: { canDiagnose: boolean }) {
   const [items, setItems] = useState<Incident[]>([]);
   const [summary, setSummary] = useState<SupportSummary | null>(null);
+  const [diagnosticCheck, setDiagnosticCheck] = useState("database");
+  const [diagnosticResult, setDiagnosticResult] = useState<DiagnosticResult | null>(null);
+  const [diagnosticRuns, setDiagnosticRuns] = useState<DiagnosticRun[]>([]);
   const [comment, setComment] = useState("");
   const [escalationReason, setEscalationReason] = useState("");
   const [page, setPage] = useState(1);
@@ -148,9 +158,17 @@ export default function SupportIncidents() {
     if (resetDrafts) {
       setComment("");
       setEscalationReason("");
+      setDiagnosticResult(null);
+      setDiagnosticRuns([]);
     }
     try {
-      setSelected(await api<Incident>(`support/incidents/${incident.id}`));
+      const detail = await api<Incident>(`support/incidents/${incident.id}`);
+      setSelected(detail);
+      if (canDiagnose && detail.escalation_level === 3) {
+        setDiagnosticRuns(await api<DiagnosticRun[]>(`support/incidents/${incident.id}/diagnostics`));
+      } else {
+        setDiagnosticRuns([]);
+      }
     } catch (e) {
       setError((e as Error).message);
     }
@@ -182,6 +200,24 @@ export default function SupportIncidents() {
       await showDetail(selected, false);
       setRevision(n => n + 1);
       setNotice("Incident escaladé au niveau N3.");
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function runDiagnostic() {
+    if (!selected || !canDiagnose || selected.escalation_level !== 3 || selected.status === "closed") return;
+    setSaving(true);
+    setError("");
+    try {
+      const result = await send<DiagnosticResult>(
+        `support/incidents/${selected.id}/diagnostics`, "POST", { check: diagnosticCheck },
+      );
+      setDiagnosticResult(result);
+      setDiagnosticRuns(await api<DiagnosticRun[]>(`support/incidents/${selected.id}/diagnostics`));
+      setNotice("Diagnostic N3 exécuté.");
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -334,6 +370,37 @@ export default function SupportIncidents() {
                   <button className="button secondary" disabled={saving || escalationReason.trim().length < 5}
                     onClick={() => void escalate()}>Escalader vers N3</button>
                 </>
+              )}
+              {canDiagnose && selected.escalation_level === 3 && (
+                <section aria-label="Diagnostics N3" className="panel" style={{ padding: "1rem", marginTop: "1rem" }}>
+                  <h3>Diagnostics N3 — lecture seule</h3>
+                  <p>Contrôles prédéfinis et limités, sans SQL libre ni journaux bruts.</p>
+                  {selected.status !== "closed" && (
+                    <>
+                      <label>Contrôle prédéfini
+                        <select aria-label="Contrôle N3" value={diagnosticCheck}
+                          onChange={e => setDiagnosticCheck(e.target.value)}>
+                          <option value="database">Disponibilité SQL (SELECT 1)</option>
+                          <option value="cache">Lecture cache</option>
+                          <option value="tenant_incidents">Indicateurs incidents entreprise active</option>
+                        </select>
+                      </label>
+                      <button className="button secondary" disabled={saving}
+                        onClick={() => void runDiagnostic()}>Exécuter le diagnostic</button>
+                    </>
+                  )}
+                  {diagnosticResult && (
+                    <p>Résultat du diagnostic : {diagnosticResult.status}. Durée : {diagnosticResult.duration_ms} ms.
+                      {Object.entries(diagnosticResult.metrics).map(([key, val]) =>
+                        <span key={key}> {key} : {String(val)}.</span>)}
+                    </p>
+                  )}
+                  <h3>Historique de contrôles</h3>
+                  {diagnosticRuns.length === 0 && <p>Aucun contrôle exécuté.</p>}
+                  <ul>{diagnosticRuns.map(run => (
+                    <li key={run.id}>{safeDate(run.created_at)} · {run.check_name} · {run.status} · {run.duration_ms} ms</li>
+                  ))}</ul>
+                </section>
               )}
               {selected.status === "investigating" && <label>Compte rendu de résolution
                 <textarea rows={4} value={resolution} onChange={e => setResolution(e.target.value)}
