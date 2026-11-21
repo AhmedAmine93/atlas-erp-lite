@@ -35,6 +35,8 @@ class OrganizationTest extends TestCase
         ])->assertCreated()->assertJsonPath('code', 'ATLAS')->json('id');
 
         $this->getJson('/api/companies')->assertOk()->assertJsonCount(2);
+        // Administration of a company requires making it the active tenant.
+        $this->postJson('/api/tenant/switch', ['company_id' => $company])->assertOk();
 
         $establishment = $this->postJson('/api/establishments', [
             'company_id' => $company, 'code' => 'paris', 'name' => 'Agence Paris',
@@ -75,11 +77,13 @@ class OrganizationTest extends TestCase
         ])->assertUnprocessable();
 
         Establishment::create(['company_id' => $first->id, 'code' => 'PARIS', 'name' => 'Paris A']);
+        $this->postJson('/api/tenant/switch', ['company_id' => $first->id])->assertOk();
         $this->postJson('/api/establishments', [
             'company_id' => $first->id, 'code' => 'paris', 'name' => 'Doublon A',
         ])->assertUnprocessable();
 
         // Le même code est accepté dans une autre société.
+        $this->postJson('/api/tenant/switch', ['company_id' => $second->id])->assertOk();
         $this->postJson('/api/establishments', [
             'company_id' => $second->id, 'code' => 'PARIS', 'name' => 'Paris B',
         ])->assertCreated();
