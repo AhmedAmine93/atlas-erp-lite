@@ -10,6 +10,7 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   timeout: 60000,
+  outputDir: "test-results-compat",
   use: {
     baseURL: process.env.ATLAS_URL || "http://127.0.0.1:3100",
     trace: "retain-on-failure",
