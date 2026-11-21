@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { api, send } from "@/lib/api";
 import type { User } from "@/lib/types";
 
 export const dashboardWidgets = [
@@ -56,8 +57,11 @@ export function useDashboardLayout(user: User) {
   const key = `${STORAGE_PREFIX}${user.id}:${user.active_company_id ?? "none"}:${user.role.name}`;
   const [state, setState] = useState<{ key: string; layout: DashboardLayout } | null>(null);
   const [storageAvailable, setStorageAvailable] = useState(true);
+  const changes = useRef(0);
 
   useEffect(() => {
+    let active = true;
+    const before = changes.current;
     let layout = DEFAULT_LAYOUT.map((x) => ({ ...x }));
     try {
       const raw = window.localStorage.getItem(key);
@@ -66,10 +70,28 @@ export function useDashboardLayout(user: User) {
       setStorageAvailable(false);
     }
     setState({ key, layout });
+    // P071.02: remote preferences work across devices. Local storage is
+    // retained only as an offline fallback and migration source.
+    api<{ version: number; layout: DashboardLayout | null }>("dashboard/layout")
+      .then((remote) => {
+        if (!active || before !== changes.current) return;
+        if (remote.version !== 1) return;
+        if (remote.layout) {
+          const normalized = normalizeLayout(remote.layout);
+          setState({ key, layout: normalized });
+          try { window.localStorage.setItem(key, JSON.stringify(normalized)); } catch {}
+        } else {
+          // Existing local preferences are migrated after a verified login.
+          void send("dashboard/layout", "PUT", { version: 1, layout }).catch(() => {});
+        }
+      })
+      .catch(() => { /* Keep local fallback; no data is uploaded on failure. */ });
+    return () => { active = false; };
   }, [key]);
 
   const layout = state?.key === key ? state.layout : DEFAULT_LAYOUT;
   const save = (next: DashboardLayout) => {
+    changes.current += 1;
     const normalized = normalizeLayout(next);
     setState({ key, layout: normalized });
     try {
@@ -79,6 +101,8 @@ export function useDashboardLayout(user: User) {
       // UI still works in memory; accurately report that storage is blocked.
       setStorageAvailable(false);
     }
+    void send("dashboard/layout", "PUT", { version: 1, layout: normalized })
+      .catch(() => { /* Local fallback remains available; server does not grant extra access. */ });
   };
   const visible = (id: DashboardWidgetId) => layout.some((x) => x.id === id && x.enabled);
   const order = (id: DashboardWidgetId) => layout.findIndex((x) => x.id === id);
