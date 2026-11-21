@@ -23,7 +23,7 @@ class OrganizationTest extends TestCase
             'role_id' => Role::where('name', $role)->value('id'),
         ]);
         $company = Company::where('code', 'ATLAS_DEMO')->firstOrFail();
-        $user->companies()->attach($company->id);
+        $user->companies()->attach($company->id, ['role_id' => Role::where('name', $role)->value('id')]);
         $this->actingAs($user);
     }
 
@@ -65,8 +65,8 @@ class OrganizationTest extends TestCase
         $this->asRole('admin');
         $first = Company::create(['code' => 'A', 'name' => 'Entreprise A']);
         $second = Company::create(['code' => 'B', 'name' => 'Entreprise B']);
-        $first->users()->attach(auth()->id());
-        $second->users()->attach(auth()->id());
+        $first->users()->attach(auth()->id(), ['role_id' => Role::where('name', 'admin')->value('id')]);
+        $second->users()->attach(auth()->id(), ['role_id' => Role::where('name', 'admin')->value('id')]);
 
         $this->postJson('/api/companies', ['code' => 'a', 'name' => 'Doublon'])->assertUnprocessable();
         $this->postJson('/api/companies', ['code' => 'bad code', 'name' => 'Invalide'])->assertUnprocessable();
