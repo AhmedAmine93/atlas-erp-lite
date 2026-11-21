@@ -61,7 +61,7 @@ SQL);
         // The owner migrator owns this SECURITY DEFINER function and is
         // responsible for reviewing changes to its fixed SQL body.
         DB::statement(<<<'SQL'
-CREATE FUNCTION public.atlas_f20_global_metrics()
+CREATE OR REPLACE FUNCTION public.atlas_f20_global_metrics()
 RETURNS TABLE (
     orders_validated bigint,
     invoices_outstanding_cents numeric,
