@@ -1,0 +1,4 @@
+/app/
+/reports/
+/node_modules/
+*.log
