@@ -15,6 +15,7 @@ cleanup() {
   exit "$result"
 }
 trap cleanup EXIT
+node scripts/verify-design-tokens.mjs
 node scripts/setup.mjs
 DEMO_PASSWORD=$(node --input-type=module -e "import fs from 'node:fs'; process.stdout.write(fs.readFileSync('.env','utf8').match(/^DEMO_PASSWORD=(.+)$/m)[1].trim())")
 export DEMO_PASSWORD
@@ -26,7 +27,7 @@ export DEMO_PASSWORD
 bash scripts/rehearse-f14.sh
 bash scripts/verify-rc1.sh
 "${dc[@]}" run --rm tests php tests/concurrency.php
-# Isolated browser identity avoids exhausting the default admin login rate-limit bucket.
+# Separate dedicated browser account; login throttling remains intact.
 "${dc[@]}" exec -T -e ATLAS_BROWSER_E2E_CONFIRM=YES_ISOLATED_CI backend php artisan db:seed --class=BrowserE2ESeeder --force
 "${dc[@]}" run --rm tests composer validate --strict
 "${dc[@]}" run --rm tests composer audit --locked

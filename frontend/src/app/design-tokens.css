@@ -1,0 +1,50 @@
+:root {
+  /* ATLAS ONE P065.01-.02: cross-application semantic primitives. */
+  --atlas-color-primary: #4965ef;
+  --atlas-color-primary-contrast: #ffffff;
+  --atlas-color-background: #f3f6fc;
+  --atlas-color-surface: #ffffff;
+  --atlas-color-text: #18253c;
+  --atlas-color-muted: #66758d;
+  --atlas-color-border: #e4eaf3;
+  --atlas-color-focus: #6387ff;
+  --atlas-color-positive: #14785f;
+  --atlas-color-warning: #925e09;
+  --atlas-color-danger: #a32934;
+  --atlas-font-body: "DM Sans Variable", Arial, sans-serif;
+  --atlas-font-heading: "Manrope Variable", Arial, sans-serif;
+  --atlas-space-1: 4px;
+  --atlas-space-2: 8px;
+  --atlas-space-3: 12px;
+  --atlas-space-4: 16px;
+  --atlas-space-6: 24px;
+  --atlas-radius-small: 6px;
+  --atlas-radius-medium: 10px;
+  --atlas-radius-large: 16px;
+}
+:root[data-atlas-theme="dark"] {
+  --atlas-color-primary: #91a4ff;
+  --atlas-color-primary-contrast: #101936;
+  --atlas-color-background: #11192b;
+  --atlas-color-surface: #1d2a40;
+  --atlas-color-text: #f1f5fd;
+  --atlas-color-muted: #bcc9dc;
+  --atlas-color-border: #344865;
+  --atlas-color-focus: #b4d4ff;
+  --atlas-color-positive: #65d7b0;
+  --atlas-color-warning: #f6c57c;
+  --atlas-color-danger: #ffa3aa;
+}
+/* Additive primitives: do not override the existing visual shell until
+   application-level theme compatibility has passed visual regression. */
+.atlas-design-surface {
+  background: var(--atlas-color-surface);
+  color: var(--atlas-color-text);
+  border: 1px solid var(--atlas-color-border);
+  border-radius: var(--atlas-radius-large);
+}
+.atlas-design-surface button:focus-visible,
+.atlas-design-surface input:focus-visible {
+  outline: 3px solid var(--atlas-color-focus);
+  outline-offset: 2px;
+}
