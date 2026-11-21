@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 test("V5: navigation des quatre domaines et sous-menus sans fausses pages métier", async ({ page }) => {
   if (!process.env.DEMO_PASSWORD) throw new Error("Set DEMO_PASSWORD before browser tests");
   await page.goto("/");
-  await page.getByLabel("Adresse e-mail", { exact: true }).fill("admin@atlas.example");
+  await page.getByLabel("Adresse e-mail", { exact: true }).fill("v5-browser-e2e@atlas.example");
   await page.getByLabel("Mot de passe", { exact: true }).fill(process.env.DEMO_PASSWORD);
   await page.getByRole("button", { name: "Se connecter", exact: true }).click();
   await expect(page.getByRole("combobox", { name: "Entreprise active" })).toBeVisible();
@@ -40,7 +40,7 @@ test("V5: navigation des quatre domaines et sous-menus sans fausses pages métie
 test("V5: création DI puis qualification et BT sans doublon", async ({ page }) => {
   if (!process.env.DEMO_PASSWORD) throw new Error("Set DEMO_PASSWORD before browser tests");
   await page.goto("/");
-  await page.getByLabel("Adresse e-mail", { exact: true }).fill("admin@atlas.example");
+  await page.getByLabel("Adresse e-mail", { exact: true }).fill("v5-browser-e2e@atlas.example");
   await page.getByLabel("Mot de passe", { exact: true }).fill(process.env.DEMO_PASSWORD);
   await page.getByRole("button", { name: "Se connecter", exact: true }).click();
   const suffix = String(Date.now());
