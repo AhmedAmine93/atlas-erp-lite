@@ -399,6 +399,7 @@ export default function Workspace() {
   const current = nav.find((n) => n.id === view)!;
   return (
     <div className="app-shell">
+      <a className="atlas-skip-link" href="#atlas-main">Aller au contenu principal</a>
       {mobile && (
         <div className="sidebar-scrim" onClick={() => setMobile(false)} />
       )}
@@ -441,7 +442,7 @@ export default function Workspace() {
           }
         }}
       />
-      <main className="main">
+      <main className="main" id="atlas-main" tabIndex={-1}>
         <header className="topbar">
           <div className="breadcrumb">
             <button

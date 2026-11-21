@@ -349,3 +349,22 @@ tbody tr:hover { background: #f8faff; }
   .atlas-launchpad-button { transition: none; }
   .atlas-launchpad-button:hover { transform: none; }
 }
+
+/* P066.06: keyboard users can bypass persistent navigation. */
+.atlas-skip-link {
+  position: fixed;
+  z-index: 100;
+  top: 10px;
+  left: 12px;
+  transform: translateY(-160%);
+  background: #ffffff;
+  color: #172b4c;
+  padding: 12px 16px;
+  border: 2px solid #4965ef;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.atlas-skip-link:focus {
+  transform: translateY(0);
+}

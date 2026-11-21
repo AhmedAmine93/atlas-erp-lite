@@ -33,5 +33,8 @@ export ATLAS_URL="http://127.0.0.1:${WEB_PORT:-3100}"
 node scripts/smoke.mjs
 cd frontend
 npm ci --no-fund
-npx playwright install --with-deps chromium
+# P066.06: every PR validates the existing Chromium transactions, then a
+# bounded, unauthenticated compatibility pass for Firefox and WebKit.
+npx playwright install --with-deps chromium firefox webkit
 npm run test:e2e
+npx playwright test --config=playwright.compat.config.ts

@@ -117,4 +117,20 @@ test("lecture seule et affichage mobile", async ({ page }) => {
   await expect(
     page.getByRole("button", { name: "Utilisateurs", exact: true }),
   ).toHaveCount(0);
+
+  // P066.06: keyboard skip navigation and responsive authenticated workspace.
+  await page.keyboard.press("Control+Home");
+  const skip = page.getByRole("link", { name: "Aller au contenu principal" });
+  await skip.focus();
+  await expect(skip).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#atlas-main")).toBeFocused();
+
+  for (const width of [390, 768, 1280]) {
+    await page.setViewportSize({ width, height: 844 });
+    await expect(page.getByRole("heading", { name: "Clients." })).toBeVisible();
+    expect(await page.evaluate(() =>
+      document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1
+    ), `Horizontal overflow in authenticated workspace at ${width}px`).toBeTruthy();
+  }
 });
