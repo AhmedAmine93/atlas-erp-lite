@@ -33,7 +33,7 @@ const blankEstablishment: EstablishmentForm = {
   company_id: "", code: "", name: "", city: "", address: "", active: true,
 };
 
-export default function OrganizationWorkspace() {
+export default function OrganizationWorkspace({ onCompanySaved }: { onCompanySaved?: () => Promise<void> }) {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [establishments, setEstablishments] = useState<Establishment[]>([]);
   const [tab, setTab] = useState<"companies" | "establishments">("companies");
@@ -102,6 +102,13 @@ export default function OrganizationWorkspace() {
       setCompanyId(null);
       setCompanyForm(blankCompany);
       setSuccess("Entreprise enregistrée.");
+      if (onCompanySaved) {
+        try {
+          await onCompanySaved();
+        } catch {
+          setError("Entreprise enregistrée, mais la liste des entreprises actives n’a pas pu être actualisée. Rechargez la page.");
+        }
+      }
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -133,7 +140,7 @@ export default function OrganizationWorkspace() {
     <div className="org-workspace">
       <p className="org-scope">
         Référentiel administratif : les sociétés et établissements sont gérés ici.
-        L’isolation des données commerciales entre entreprises n’est pas encore activée.
+        Les données commerciales sont isolées par entreprise active. Seules vos entreprises affiliées sont affichées.
       </p>
       <div className="org-tabs" role="group" aria-label="Référentiels">
         <button type="button" className={tab === "companies" ? "selected" : ""} onClick={() => { setTab("companies"); setError(""); }}>
