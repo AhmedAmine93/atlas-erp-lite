@@ -15,6 +15,7 @@ cleanup() {
 trap cleanup EXIT
 
 dc exec -T db createdb -U atlas "$legacy_db"
+# shellcheck disable=SC2016 # Intentionally evaluated in the container, not by the host.
 dc run --rm -e DB_DATABASE="$legacy_db" tests sh -ec '
   set -eu
   mkdir -p /tmp/atlas-f14-pre-upgrade
