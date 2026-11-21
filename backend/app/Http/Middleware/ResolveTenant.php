@@ -3,6 +3,8 @@
 namespace App\Http\Middleware;
 
 use App\Services\TenantContext;
+use App\Services\TenantDatabaseContext;
+use Illuminate\Support\Facades\DB;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -48,6 +50,25 @@ class ResolveTenant
             }
         }
 
-        return $next($request);
+        if (DB::getDriverName() !== 'pgsql') {
+            return $next($request);
+        }
+
+        // Keep both cross-tab context validation and transaction-scoped PostgreSQL RLS.
+        return DB::transaction(function () use ($request, $next, $companyId): Response {
+            $previous = DB::selectOne(
+                "SELECT current_setting('atlas.tenant_id', true) AS tenant_id"
+            )?->tenant_id ?? '';
+
+            TenantDatabaseContext::set((int) $companyId);
+            try {
+                return $next($request);
+            } finally {
+                DB::selectOne(
+                    "SELECT set_config('atlas.tenant_id', ?, true) AS restored_tenant",
+                    [$previous],
+                );
+            }
+        });
     }
 }

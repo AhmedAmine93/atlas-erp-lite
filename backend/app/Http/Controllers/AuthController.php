@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Services\Audit;
+use App\Services\TenantDatabaseContext;
 use App\Services\TenantRoles;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
@@ -24,7 +26,17 @@ class AuthController extends Controller
         }
         $request->session()->put('active_company_id', (int) $firstCompany);
         $request->attributes->set('atlas_company_id', (int) $firstCompany);
-        Audit::record('auth.login');
+
+        // Login is intentionally outside ResolveTenant. Give its audit event
+        // the same transaction-local RLS context as authenticated API calls.
+        if (DB::getDriverName() === 'pgsql') {
+            DB::transaction(function () use ($firstCompany) {
+                TenantDatabaseContext::set((int) $firstCompany);
+                Audit::record('auth.login');
+            });
+        } else {
+            Audit::record('auth.login');
+        }
 
         return app(TenantRoles::class)->profile($request->user(), (int) $firstCompany);
     }

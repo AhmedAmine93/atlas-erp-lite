@@ -1,0 +1,9 @@
+# Optional isolated staging overlay; never used by production deploy.sh.
+# Compose CLI must receive BOTH .env (owner setup) and .env.staging (runtime).
+# The init/migrate service retains the DB owner and is never exposed to users.
+services:
+  backend:
+    environment:
+      DB_USERNAME: ${ATLAS_STAGING_RUNTIME_USERNAME:-atlas_app_runtime}
+      DB_PASSWORD: ${ATLAS_STAGING_RUNTIME_PASSWORD:?Provide an external staging runtime secret}
+      DB_SSLMODE: prefer

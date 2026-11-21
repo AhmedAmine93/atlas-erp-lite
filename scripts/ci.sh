@@ -19,12 +19,19 @@ node scripts/setup.mjs
 DEMO_PASSWORD=$(node --input-type=module -e "import fs from 'node:fs'; process.stdout.write(fs.readFileSync('.env','utf8').match(/^DEMO_PASSWORD=(.+)$/m)[1].trim())")
 export DEMO_PASSWORD
 "${dc[@]}" config --quiet
+# Structural verification only: no credentials are created and no staging
+# services are started. The placeholder exists solely for Compose parsing.
+ATLAS_STAGING_RUNTIME_PASSWORD=ci-config-only-not-a-real-password \
+  docker compose -f compose.yaml -f compose.staging.yaml config --quiet
 "${dc[@]}" --profile test build --pull
 "${dc[@]}" up -d --wait --wait-timeout 240
 "${dc[@]}" exec -T db createdb -U atlas atlas_test
 "${dc[@]}" run --rm tests vendor/bin/phpunit --log-junit /reports/phpunit.xml
 bash scripts/rehearse-f14.sh
 bash scripts/verify-rc1.sh
+# F17: ephemeral authenticated runtime login and negative SQL privilege tests.
+# Following HTTP/browser tests now run against the restricted runtime service.
+bash scripts/verify-f17.sh
 "${dc[@]}" run --rm tests php tests/concurrency.php
 "${dc[@]}" run --rm tests composer validate --strict
 "${dc[@]}" run --rm tests composer audit --locked
