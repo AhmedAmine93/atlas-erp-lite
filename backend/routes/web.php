@@ -5,6 +5,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DataIngestionBatchController;
+use App\Http\Controllers\DataCsvIngestionController;
 use App\Http\Controllers\DataSourceCatalogController;
 use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\InvoiceController;
@@ -35,6 +36,7 @@ Route::prefix('api')->group(function () {
         Route::post('data/sources/{id}/validate', [DataSourceCatalogController::class, 'validateSource'])->whereNumber('id');
         Route::get('data/ingestion-batches', [DataIngestionBatchController::class, 'index']);
         Route::post('data/ingestion-batches', [DataIngestionBatchController::class, 'store']);
+        Route::post('data/ingestion-batches/{id}/ingest-csv', [DataCsvIngestionController::class, 'ingest'])->whereNumber('id');
         Route::get('search', GlobalSearchController::class);
         Route::get('stock-movements', [ProductController::class, 'movements']);
         Route::get('products', [ProductController::class, 'index']);
