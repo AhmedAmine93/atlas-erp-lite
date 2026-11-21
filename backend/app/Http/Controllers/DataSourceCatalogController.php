@@ -17,6 +17,18 @@ final class DataSourceCatalogController extends Controller {
             ->select('id','code','name','source_type','classification','status','schema_version','purpose','created_at')
             ->orderBy('code')->paginate(20);
     }
+    public function validateSource(int $id) {
+        Gate::authorize('admin');
+        return DB::transaction(function()use($id){
+            $source=DataSourceRegistry::query()->lockForUpdate()->findOrFail($id);
+            abort_unless($source->status==='draft',409,'Source déjà traitée.');
+            $source->status='validated';
+            $source->save();
+            Audit::record('data.source.validated',$source);
+            return response()->json($source);
+        });
+    }
+
     public function store(Request $request) {
         Gate::authorize('admin');
         $company = app(TenantContext::class)->requireId();
