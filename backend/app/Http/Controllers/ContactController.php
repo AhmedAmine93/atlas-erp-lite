@@ -20,6 +20,7 @@ class ContactController extends Controller
 
     public function index(Request $r, string $kind)
     {
+        Gate::authorize('crmRead');
         $r->validate(['search' => 'nullable|string|max:100', 'page' => 'nullable|integer|min:1']);
 
         return $this->model($kind)::query()->when($r->search, fn ($q) => $q->where(fn ($q) => $q->whereRaw('LOWER(name) LIKE ?', ['%'.mb_strtolower($r->search).'%'])->orWhereRaw('LOWER(email) LIKE ?', ['%'.mb_strtolower($r->search).'%'])))
@@ -28,6 +29,7 @@ class ContactController extends Controller
 
     public function show(string $kind, int $id)
     {
+        Gate::authorize('crmRead');
         $item = $this->model($kind)::findOrFail($id);
 
         return $kind === 'customers' ? $item->load(['orders' => fn ($q) => $q->latest()->limit(100)]) : $item;
