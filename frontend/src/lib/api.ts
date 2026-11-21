@@ -1,4 +1,13 @@
+/**
+ * P066.05 — all data requests belong to the last server-verified company.
+ * In-memory only: no tenant ID in query parameters or browser persistence.
+ * The backend validates the X-Atlas-Expected-Company header before executing
+ * a business request. The epoch also drops replies issued before a switch.
+ */
 let csrf = "";
+let verifiedCompanyId: number | null = null;
+let contextEpoch = 0;
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -7,38 +16,98 @@ export class ApiError extends Error {
     super(message);
   }
 }
+
+export class StaleTenantContextError extends ApiError {
+  constructor() {
+    super("Le contexte entreprise a changé. Actualisez votre espace.", 409);
+    this.name = "StaleTenantContextError";
+  }
+}
+
+/** Stop all in-flight responses from being consumed by the previous workspace. */
+export function resetTenantContext(): void {
+  contextEpoch += 1;
+  verifiedCompanyId = null;
+  csrf = "";
+}
+
+export function setVerifiedCompanyContext(companyId: number): void {
+  if (!Number.isSafeInteger(companyId) || companyId <= 0) {
+    resetTenantContext();
+    return;
+  }
+  if (verifiedCompanyId !== companyId) {
+    contextEpoch += 1;
+    verifiedCompanyId = companyId;
+    csrf = "";
+  }
+}
+
+export function getVerifiedCompanyContext(): number | null {
+  return verifiedCompanyId;
+}
+
+const contextFreePaths = new Set(["me", "login", "logout", "tenant/switch", "csrf"]);
+
 export async function api<T = unknown>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const method = options.method || "GET";
+  const startedEpoch = contextEpoch;
+  const expectedCompany = verifiedCompanyId;
+  const method = (options.method || "GET").toUpperCase();
+  const route = path.split("?")[0];
+  const isBusinessRequest = !contextFreePaths.has(route);
+
   if (!["GET", "HEAD"].includes(method) && !csrf) {
-    const response = await fetch("/api/csrf", {
+    const tokenResponse = await fetch("/api/csrf", {
       credentials: "same-origin",
       cache: "no-store",
     });
-    if (!response.ok)
-      throw new ApiError("Impossible de joindre le serveur.", response.status);
-    csrf = (await response.json()).token;
+    if (startedEpoch !== contextEpoch) throw new StaleTenantContextError();
+    if (!tokenResponse.ok) {
+      throw new ApiError("Impossible de joindre le serveur.", tokenResponse.status);
+    }
+    csrf = (await tokenResponse.json()).token;
+    if (startedEpoch !== contextEpoch) throw new StaleTenantContextError();
   }
+
+  const headers = new Headers(options.headers);
+  headers.set("Accept", "application/json");
+  headers.set("Content-Type", "application/json");
+  if (csrf) headers.set("X-CSRF-TOKEN", csrf);
+  if (isBusinessRequest && expectedCompany !== null) {
+    headers.set("X-Atlas-Expected-Company", String(expectedCompany));
+  }
+
   const response = await fetch(`/api/${path}`, {
     ...options,
     credentials: "same-origin",
     cache: "no-store",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      "X-CSRF-TOKEN": csrf,
-      ...options.headers,
-    },
+    headers,
   });
+  // A switch in another tab or a local route reconciliation invalidates data
+  // even if the old request happened to complete successfully.
+  if (startedEpoch !== contextEpoch) throw new StaleTenantContextError();
+
   if (!response.ok) {
+    if (response.status === 409 &&
+        response.headers.get("X-Atlas-Context-Stale") === "1") {
+      resetTenantContext();
+      window.dispatchEvent(new Event("atlas-tenant-stale"));
+      throw new StaleTenantContextError();
+    }
     const data = await response
       .json()
       .catch(() => ({ message: "Le serveur est indisponible." }));
     if (response.status === 419) csrf = "";
-    if (response.status === 401)
+    if (response.status === 401) {
+      resetTenantContext();
       window.dispatchEvent(new Event("atlas-session-expired"));
+    }
+    if (startedEpoch !== contextEpoch && response.status !== 401) {
+      throw new StaleTenantContextError();
+    }
     throw new ApiError(
       data.errors
         ? Object.values(data.errors).flat().join(" ")
@@ -46,9 +115,46 @@ export async function api<T = unknown>(
       response.status,
     );
   }
+
   if (path === "login" || path === "logout") csrf = "";
-  return response.status === 204 ? (undefined as T) : response.json();
+  const body: T = response.status === 204 ? (undefined as T) : await response.json();
+  if (startedEpoch !== contextEpoch) throw new StaleTenantContextError();
+  return body;
 }
+
+/**
+ * Downloads are not JSON API calls, but must obey the same company handshake
+ * and reject a response that arrives after a context revision.
+ */
+export async function fetchTenantBlob(path: string, accept: string): Promise<Blob> {
+  const startedEpoch = contextEpoch;
+  const expectedCompany = verifiedCompanyId;
+  if (expectedCompany === null) throw new StaleTenantContextError();
+  const response = await fetch(`/api/${path}`, {
+    credentials: "same-origin",
+    cache: "no-store",
+    headers: {
+      Accept: accept,
+      "X-Atlas-Expected-Company": String(expectedCompany),
+    },
+  });
+  if (contextEpoch !== startedEpoch) throw new StaleTenantContextError();
+  if (response.status === 409 && response.headers.get("X-Atlas-Context-Stale") === "1") {
+    resetTenantContext();
+    window.dispatchEvent(new Event("atlas-tenant-stale"));
+    throw new StaleTenantContextError();
+  }
+  if (response.status === 401) {
+    resetTenantContext();
+    window.dispatchEvent(new Event("atlas-session-expired"));
+    throw new ApiError("Session expirée.", 401);
+  }
+  if (!response.ok) throw new ApiError("Le téléchargement n’a pas pu aboutir.", response.status);
+  const blob = await response.blob();
+  if (contextEpoch !== startedEpoch) throw new StaleTenantContextError();
+  return blob;
+}
+
 export const send = <T = unknown>(
   path: string,
   method: string,
@@ -58,14 +164,15 @@ export const send = <T = unknown>(
     method,
     body: data === undefined ? undefined : JSON.stringify(data),
   });
+
 export async function all<T>(path: string): Promise<T[]> {
-  let page = 1,
-    result: T[] = [];
+  let page = 1;
+  const result: T[] = [];
   while (true) {
     const data = await api<{ data: T[]; last_page: number }>(
       `${path}?page=${page}`,
     );
-    result = result.concat(data.data);
+    result.push(...data.data);
     if (page >= data.last_page) return result;
     page++;
   }

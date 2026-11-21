@@ -37,7 +37,7 @@ import {
   Wallet,
   TrendingUp,
 } from "lucide-react";
-import { api, send, all } from "@/lib/api";
+import { api, send, all, fetchTenantBlob, setVerifiedCompanyContext, resetTenantContext } from "@/lib/api";
 import { nav, navigationSections, type View } from "@/lib/navigation";
 import { canEditWorkspaceView, canOpenWorkspaceView, parseWorkspacePath, workspaceHref, type WorkspaceRoute } from "@/lib/workspaceRoutes";
 import OrganizationWorkspace from "@/components/OrganizationWorkspace";
@@ -70,6 +70,17 @@ const euro = (n: number) =>
     currency: "EUR",
     maximumFractionDigits: 2,
   }).format(Number(n) / 100);
+const CONTEXT_CHANGE_KEY = "atlas-one:context-revision:v1";
+
+/** Cross-tab notification holds a random nonce only, never a tenant ID or credential. */
+function announceContextChange() {
+  try {
+    window.localStorage.setItem(CONTEXT_CHANGE_KEY, crypto.randomUUID());
+  } catch {
+    // Storage can be disabled; focus/visibility reconciliation still applies.
+  }
+}
+
 const date = (s: string) =>
   new Date(s).toLocaleDateString("fr-FR", {
     day: "2-digit",
@@ -178,6 +189,8 @@ export default function Workspace() {
     [view, setView] = useState<View>("dashboard"),
     [mobile, setMobile] = useState(false);
   const navigationRequest = useRef(0);
+  const userRef = useRef<User | null>(null);
+  userRef.current = user;
   const [notice, setNotice] = useState(""),
     [error, setError] = useState(""),
     [refresh, setRefresh] = useState(0),
@@ -185,14 +198,84 @@ export default function Workspace() {
     [detail, setDetail] = useState<{ kind: string; row: Row } | null>(null),
     [busy, setBusy] = useState(false);
   useEffect(() => {
+    let active = true;
     api<User>("me")
-      .then(setUser)
-      .catch(() => {})
-      .finally(() => setChecking(false));
-    const expired = () => setUser(null);
+      .then((profile) => {
+        if (!active) return;
+        setVerifiedCompanyContext(profile.active_company_id ?? 0);
+        setUser(profile);
+      })
+      .catch(() => { if (active) resetTenantContext(); })
+      .finally(() => { if (active) setChecking(false); });
+    const expired = () => {
+      ++navigationRequest.current;
+      resetTenantContext();
+      setDetail(null);
+      setEditor(null);
+      setUser(null);
+      setChecking(false);
+    };
     window.addEventListener("atlas-session-expired", expired);
-    return () => window.removeEventListener("atlas-session-expired", expired);
+    return () => {
+      active = false;
+      window.removeEventListener("atlas-session-expired", expired);
+    };
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    let reconciling = false;
+    let disposed = false;
+    const resetWorkspace = () => {
+      // Fail closed before any previous-company data can render again.
+      ++navigationRequest.current;
+      resetTenantContext();
+      setDetail(null);
+      setEditor(null);
+      setNotice("");
+      setError("");
+      setChecking(true);
+      window.history.replaceState(null, "", workspaceHref("dashboard"));
+      window.location.replace(workspaceHref("dashboard"));
+    };
+    const onExternalChange = (event: StorageEvent) => {
+      if (event.key === CONTEXT_CHANGE_KEY) resetWorkspace();
+    };
+    const onStale = () => resetWorkspace();
+    const verifyOnReturn = () => {
+      if (document.visibilityState === "hidden" || reconciling || disposed) return;
+      reconciling = true;
+      setChecking(true);
+      api<User>("me")
+        .then((profile) => {
+          if (disposed) return;
+          const previous = userRef.current;
+          if (!previous ||
+              profile.id !== previous.id ||
+              profile.active_company_id !== previous.active_company_id ||
+              profile.role.name !== previous.role.name) {
+            resetWorkspace();
+          } else {
+            setVerifiedCompanyContext(profile.active_company_id ?? 0);
+            setUser(profile);
+            setChecking(false);
+          }
+        })
+        .catch(() => { if (!disposed) resetWorkspace(); })
+        .finally(() => { reconciling = false; });
+    };
+    window.addEventListener("storage", onExternalChange);
+    window.addEventListener("atlas-tenant-stale", onStale);
+    window.addEventListener("focus", verifyOnReturn);
+    document.addEventListener("visibilitychange", verifyOnReturn);
+    return () => {
+      disposed = true;
+      window.removeEventListener("storage", onExternalChange);
+      window.removeEventListener("atlas-tenant-stale", onStale);
+      window.removeEventListener("focus", verifyOnReturn);
+      document.removeEventListener("visibilitychange", verifyOnReturn);
+    };
+  }, [user?.id, user?.active_company_id, user?.role.name]);
   useEffect(() => {
     if (!notice) return;
     const t = setTimeout(() => setNotice(""), 6000);
@@ -296,6 +379,7 @@ export default function Workspace() {
     return (
       <Login
         onLogin={(u) => {
+          setVerifiedCompanyContext(u.active_company_id ?? 0);
           setUser(u);
           setView("dashboard");
           setError("");
@@ -304,7 +388,10 @@ export default function Workspace() {
           // The login response does not carry company memberships.
           // Hydrate the full tenant-aware profile before enabling tenant navigation.
           api<User>("me")
-            .then(setUser)
+            .then((profile) => {
+              setVerifiedCompanyContext(profile.active_company_id ?? 0);
+              setUser(profile);
+            })
             .catch((e: Error) => setError("Impossible de charger les entreprises autorisées : " + e.message));
         }}
       />
@@ -326,6 +413,13 @@ export default function Workspace() {
           setError("");
           try {
             await send("tenant/switch", "POST", { company_id: companyId });
+            // Prevent old-company async replies and notify other same-origin tabs.
+            ++navigationRequest.current;
+            resetTenantContext();
+            setEditor(null);
+            setDetail(null);
+            setNotice("");
+            announceContextChange();
             // A company switch must drop any previous tenant's record URL.
             window.history.replaceState(null, "", workspaceHref("dashboard"));
             window.location.reload();
@@ -338,6 +432,8 @@ export default function Workspace() {
           try {
             await send("logout", "POST");
             ++navigationRequest.current;
+            resetTenantContext();
+            announceContextChange();
             window.history.replaceState(null, "", "/");
             setUser(null);
           } catch (e) {
@@ -1773,11 +1869,8 @@ function Detail({
   async function download() {
     setError("");
     try {
-      const res = await fetch(`/api/invoices/${row.id}/pdf`, {
-        headers: { Accept: "application/pdf" },
-      });
-      if (!res.ok) throw new Error("La génération du PDF a échoué.");
-      const url = URL.createObjectURL(await res.blob());
+      const blob = await fetchTenantBlob(`invoices/${row.id}/pdf`, "application/pdf");
+      const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       a.download = `${row.number || "BROUILLON-" + row.id}.pdf`;
