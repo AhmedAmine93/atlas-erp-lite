@@ -33,6 +33,8 @@ Route::prefix('api')->group(function () {
         Route::post('purchasing/requests', [PurchaseRequestController::class, 'store']);
         Route::post('purchasing/requests/{id}/submit', [PurchaseRequestController::class, 'submit'])->whereNumber('id');
         Route::post('purchasing/requests/{id}/approve', [PurchaseRequestController::class, 'approve'])->whereNumber('id');
+        Route::post('purchasing/requests/{id}/reject', [PurchaseRequestController::class, 'reject'])->whereNumber('id');
+        Route::patch('purchasing/requests/{id}/revise', [PurchaseRequestController::class, 'revise'])->whereNumber('id');
         Route::get('search', GlobalSearchController::class);
         Route::get('stock-movements', [ProductController::class, 'movements']);
         Route::get('products', [ProductController::class, 'index']);
