@@ -164,7 +164,7 @@ export const navigationSections: NavigationSection[] = [
     icon: AlertTriangle,
     items: [
       { id: "support-tickets", label: "Centre de tickets" },
-      { id: "support-incidents", label: "Incidents" },
+      { id: "support-incidents", label: "Incidents", ready: true },
       { id: "support-problems", label: "Problèmes" },
       { id: "support-services", label: "Demandes de service" },
       { id: "support-changes", label: "Changements" },

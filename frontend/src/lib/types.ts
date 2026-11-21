@@ -1,6 +1,6 @@
 export type Role = {
   id: number;
-  name: "admin" | "commercial" | "stock" | "reader";
+  name: "admin" | "commercial" | "stock" | "reader" | "support_n2" | "support_n3";
 };
 export type User = {
   id: number;
