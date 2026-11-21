@@ -42,6 +42,7 @@ import OrganizationWorkspace from "@/components/OrganizationWorkspace";
 import SupportIncidents from "@/components/SupportIncidents";
 import Login from "@/components/auth/Login";
 import WorkspaceSidebar from "@/components/layout/WorkspaceSidebar";
+import WorkspaceWelcome from "@/components/layout/WorkspaceWelcome";
 import type {
   User,
   Contact,
@@ -381,7 +382,10 @@ export default function Workspace() {
             </div>
           )}
           {view === "dashboard" ? (
-            <DashboardView refresh={refresh} go={go} />
+            <>
+              <WorkspaceWelcome user={user} onNavigate={go} />
+              <DashboardView refresh={refresh} go={go} />
+            </>
           ) : view === "support-incidents" ? (
             <SupportIncidents canDiagnose={["admin", "support_n3"].includes(user.role.name)} />
           ) : view === "admin-companies" ? (
@@ -405,7 +409,7 @@ export default function Workspace() {
             />
           )}
           <footer className="page-footer">
-            <span>ATLAS ERP Lite</span>
+            <span>ATLAS ONE</span>
             <span>Un peu moins de gestion. Un peu plus de perspective.</span>
           </footer>
         </div>
