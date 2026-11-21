@@ -32,7 +32,10 @@ test("P06.05: commercial user sees sales priorities and follows invoice shortcut
   await expect(commercial).toBeVisible();
   await expect(commercial.getByRole("heading", { name: "Votre suivi commercial" })).toBeVisible();
   await expect(commercial.getByText("À encaisser TTC")).toBeVisible();
-  await commercial.getByRole("button", { name: "À encaisser TTC" }).click();
+  const invoiceShortcut = commercial.getByRole("button", { name: "À encaisser TTC" });
+  await invoiceShortcut.focus();
+  await expect(invoiceShortcut).toBeFocused();
+  await page.keyboard.press("Enter");
   await expect(page.getByRole("heading", { name: "Factures." })).toBeVisible();
 });
 
