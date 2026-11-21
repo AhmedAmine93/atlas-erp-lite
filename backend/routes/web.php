@@ -4,6 +4,7 @@ use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\MaintenanceRequestController;
 use App\Http\Controllers\MaintenanceRegistryController;
 use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\InvoiceController;
@@ -33,6 +34,9 @@ Route::prefix('api')->group(function () {
         Route::post('maintenance/sites', [MaintenanceRegistryController::class, 'createSite']);
         Route::get('maintenance/assets', [MaintenanceRegistryController::class, 'assets']);
         Route::post('maintenance/assets', [MaintenanceRegistryController::class, 'createAsset']);
+        Route::get('maintenance/requests', [MaintenanceRequestController::class, 'index']);
+        Route::post('maintenance/requests', [MaintenanceRequestController::class, 'store']);
+        Route::post('maintenance/requests/{id}/qualify', [MaintenanceRequestController::class, 'qualify'])->whereNumber('id');
         Route::get('search', GlobalSearchController::class);
         Route::get('stock-movements', [ProductController::class, 'movements']);
         Route::get('products', [ProductController::class, 'index']);
