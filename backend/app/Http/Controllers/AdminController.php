@@ -3,10 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\AuditLog;
+use App\Models\Company;
 use App\Models\Role;
 use App\Models\User;
-use App\Services\TenantContext;
 use App\Services\Audit;
+use App\Services\TenantContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -18,8 +19,22 @@ class AdminController extends Controller
     public function users()
     {
         Gate::authorize('admin');
+        $companyId = app(TenantContext::class)->requireId();
+        $page = User::whereHas('companies', fn ($query) => $query->whereKey($companyId))
+            ->orderBy('name')->paginate(20);
 
-        return User::whereHas('companies', fn ($query) => $query->whereKey(app(TenantContext::class)->requireId()))->orderBy('name')->paginate(20);
+        // The legacy global User.role relation is for backward compatibility only.
+        // Always show the role of the membership in the active company.
+        $roleIds = DB::table('company_user')->where('company_id', $companyId)
+            ->whereIn('user_id', $page->getCollection()->pluck('id'))
+            ->pluck('role_id', 'user_id');
+        $roles = Role::whereIn('id', $roleIds->values()->unique()->all())->get()->keyBy('id');
+
+        $page->getCollection()->each(function (User $user) use ($roles, $roleIds): void {
+            $user->setRelation('role', $roles->get((int) ($roleIds[$user->id] ?? 0)));
+        });
+
+        return $page;
     }
 
     public function roles()
@@ -39,33 +54,62 @@ class AdminController extends Controller
     public function save(Request $r, ?int $id = null)
     {
         Gate::authorize('admin');
-        $data = $r->validate(['name' => 'required|string|max:255', 'email' => ['required', 'email', 'max:255', Rule::unique('users')->ignore($id)],
-            'role_id' => 'required|integer|exists:roles,id', 'password' => [$id ? 'nullable' : 'required', 'string', Password::min(12)->letters()->numbers()]]);
+        $data = $r->validate([
+            'name' => 'required|string|max:255',
+            'email' => ['required', 'email', 'max:255', Rule::unique('users')->ignore($id)],
+            'role_id' => 'required|integer|exists:roles,id',
+            'password' => [$id ? 'nullable' : 'required', 'string', Password::min(12)->letters()->numbers()],
+        ]);
         if (empty($data['password'])) {
             unset($data['password']);
         }
 
         return DB::transaction(function () use ($id, $data) {
-            $tenant = app(TenantContext::class)->requireId();
-            $admin = Role::where('name', 'admin')->lockForUpdate()->firstOrFail();
-            $user = $id ? User::whereHas('companies', fn ($query) => $query->whereKey($tenant))->lockForUpdate()->firstWhere('id', $id) : new User;
-            abort_if($id && ! $user, 404);
-            if ($id && $user->role_id === $admin->id && (int) $data['role_id'] !== $admin->id) {
-                abort_if(User::where('role_id', $admin->id)->whereHas('companies', fn ($query) => $query->whereKey($tenant))->count() <= 1, 409, 'Le dernier administrateur doit être conservé.');
-            }
-            if ($id && $user->companies()->count() > 1 && (int) $data['role_id'] !== $user->role_id) {
-                abort(409, 'Les rôles des comptes multi-entreprises doivent être gérés par affiliation.');
-            }
-            $user->fill($data)->save();
-            if (! $id) {
-                $user->companies()->attach($tenant);
-            }
-            if ($id) {
-                DB::table('sessions')->where('user_id', $id)->delete();
-            }
-            Audit::record($id ? 'user.updated' : 'user.created', $user, ['role_id' => $user->role_id]);
+            $companyId = app(TenantContext::class)->requireId();
+            // Serializes admin-role changes within the same company.
+            Company::whereKey($companyId)->lockForUpdate()->firstOrFail();
+            $adminRoleId = Role::where('name', 'admin')->value('id');
+            $roleId = (int) $data['role_id'];
+            $user = $id
+                ? User::whereHas('companies', fn ($query) => $query->whereKey($companyId))
+                    ->lockForUpdate()->findOrFail($id)
+                : new User;
 
-            return response()->json($user->load('role'), $id ? 200 : 201);
+            if ($id) {
+                $previousRoleId = DB::table('company_user')
+                    ->where('company_id', $companyId)
+                    ->where('user_id', $id)
+                    ->value('role_id');
+
+                if ((int) $previousRoleId === (int) $adminRoleId && $roleId !== (int) $adminRoleId) {
+                    abort_if(
+                        DB::table('company_user')
+                            ->where('company_id', $companyId)
+                            ->where('role_id', $adminRoleId)->count() <= 1,
+                        409,
+                        'Le dernier administrateur de cette entreprise doit être conservé.',
+                    );
+                }
+
+                // Keep the historical users.role_id intact. Only the active
+                // company's membership is edited.
+                $userData = $data;
+                unset($userData['role_id']);
+                $user->fill($userData)->save();
+                $user->companies()->updateExistingPivot($companyId, ['role_id' => $roleId]);
+                DB::table('sessions')->where('user_id', $id)->delete();
+            } else {
+                $user->fill($data)->save();
+                $user->companies()->attach($companyId, ['role_id' => $roleId]);
+            }
+
+            Audit::record($id ? 'user.updated' : 'user.created', $user, [
+                'company_id' => $companyId, 'role_id' => $roleId,
+            ]);
+
+            return response()->json(array_merge($user->load('role')->toArray(), [
+                'role' => Role::findOrFail($roleId)->toArray(),
+            ]), $id ? 200 : 201);
         }, 3);
     }
 
@@ -75,16 +119,31 @@ class AdminController extends Controller
         abort_if($id === auth()->id(), 409, 'Vous ne pouvez pas supprimer votre propre compte.');
 
         return DB::transaction(function () use ($id) {
-            $tenant = app(TenantContext::class)->requireId();
-            Role::where('name', 'admin')->lockForUpdate()->firstOrFail();
-            $user = User::whereHas('companies', fn ($query) => $query->whereKey($tenant))->findOrFail($id);
-            abort_if($user->role->name === 'admin' && User::where('role_id', $user->role_id)->whereHas('companies', fn ($query) => $query->whereKey($tenant))->count() <= 1, 409, 'Le dernier administrateur doit être conservé.');
+            $companyId = app(TenantContext::class)->requireId();
+            Company::whereKey($companyId)->lockForUpdate()->firstOrFail();
+            $adminRoleId = Role::where('name', 'admin')->value('id');
+
+            $user = User::whereHas('companies', fn ($query) => $query->whereKey($companyId))
+                ->lockForUpdate()->findOrFail($id);
+            $currentRoleId = DB::table('company_user')
+                ->where('company_id', $companyId)->where('user_id', $id)->value('role_id');
+
+            if ((int) $currentRoleId === (int) $adminRoleId) {
+                abort_if(
+                    DB::table('company_user')
+                        ->where('company_id', $companyId)
+                        ->where('role_id', $adminRoleId)->count() <= 1,
+                    409,
+                    'Le dernier administrateur de cette entreprise doit être conservé.',
+                );
+            }
+
             DB::table('sessions')->where('user_id', $id)->delete();
-            $user->companies()->detach($tenant);
+            $user->companies()->detach($companyId);
             if (! $user->companies()->exists()) {
                 $user->delete();
             }
-            Audit::record('user.removed_from_company', $user);
+            Audit::record('user.removed_from_company', $user, ['company_id' => $companyId]);
 
             return response()->noContent();
         }, 3);

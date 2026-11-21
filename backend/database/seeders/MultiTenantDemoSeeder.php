@@ -71,7 +71,9 @@ class MultiTenantDemoSeeder extends Seeder
                         ['name' => $site['name'], 'city' => $site['city'], 'active' => true],
                     );
                 }
-                $user->companies()->syncWithoutDetaching([$company->id]);
+                if (! $user->companies()->whereKey($company->id)->exists()) {
+                    $user->companies()->attach($company->id, ['role_id' => $readerRoleId]);
+                }
             }
         });
 

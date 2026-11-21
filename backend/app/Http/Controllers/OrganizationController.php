@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Company;
 use App\Models\Establishment;
+use App\Models\Role;
 use App\Services\Audit;
 use App\Services\TenantContext;
 use Illuminate\Http\Request;
@@ -33,10 +34,20 @@ class OrganizationController extends Controller
         ]);
 
         return DB::transaction(function () use ($id, $data) {
-            $company = $id ? Company::whereHas('users', fn ($q) => $q->whereKey(auth()->id()))->findOrFail($id) : new Company();
+            $activeCompanyId = app(TenantContext::class)->requireId();
+            $company = $id
+                ? Company::whereKey($activeCompanyId)->whereHas('users', fn ($q) => $q->whereKey(auth()->id()))->findOrFail($id)
+                : new Company();
+            // Editing another company requires switching to it and passing
+            // the active company's admin policy.
+            if ($id && (int) $id !== $activeCompanyId) {
+                abort(404);
+            }
             $company->fill($data)->save();
             if (! $id) {
-                $company->users()->attach(auth()->id());
+                $company->users()->attach(auth()->id(), [
+                    'role_id' => Role::where('name', 'admin')->value('id'),
+                ]);
             }
             Audit::record($id ? 'company.updated' : 'company.created', $company);
 
@@ -48,12 +59,13 @@ class OrganizationController extends Controller
     {
         Gate::authorize('admin');
         $filter = $request->validate(['company_id' => 'nullable|integer']);
-        if (isset($filter['company_id'])) {
-            Company::whereHas('users', fn ($q) => $q->whereKey(auth()->id()))->findOrFail($filter['company_id']);
+        $activeCompanyId = app(TenantContext::class)->requireId();
+        if (isset($filter['company_id']) && (int) $filter['company_id'] !== $activeCompanyId) {
+            abort(404);
         }
 
-        return Establishment::whereHas('company.users', fn ($q) => $q->whereKey(auth()->id()))->with('company:id,name,code')
-            ->when(isset($filter['company_id']), fn ($q) => $q->where('company_id', $filter['company_id']))
+        return Establishment::where('company_id', $activeCompanyId)
+            ->with('company:id,name,code')
             ->orderBy('company_id')->orderBy('code')->get();
     }
 
@@ -69,7 +81,8 @@ class OrganizationController extends Controller
             'company_id' => 'required|integer|exists:companies,id',
         ]);
         $companyId = (int) $companyReference['company_id'];
-        Company::whereHas('users', fn ($q) => $q->whereKey(auth()->id()))->findOrFail($companyId);
+        $activeCompanyId = app(TenantContext::class)->requireId();
+        abort_unless($companyId === $activeCompanyId, 404);
         $data = $request->validate([
             'company_id' => 'required|integer|exists:companies,id',
             'code' => [
@@ -84,7 +97,9 @@ class OrganizationController extends Controller
         ]);
 
         return DB::transaction(function () use ($id, $data) {
-            $establishment = $id ? Establishment::whereHas('company.users', fn ($q) => $q->whereKey(auth()->id()))->findOrFail($id) : new Establishment();
+            $establishment = $id
+                ? Establishment::where('company_id', app(TenantContext::class)->requireId())->findOrFail($id)
+                : new Establishment();
             $establishment->fill($data)->save();
             Audit::record($id ? 'establishment.updated' : 'establishment.created', $establishment, [
                 'company_id' => $establishment->company_id,
