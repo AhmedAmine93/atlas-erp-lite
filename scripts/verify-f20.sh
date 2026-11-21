@@ -53,7 +53,25 @@ if [[ ! "$a_id" =~ ^[0-9]+$ || ! "$b_id" =~ ^[0-9]+$ || "$a_id" == "$b_id" ]]; t
   exit 1
 fi
 
-policy_count="$(runtime -c "SELECT count(*) FROM pg_policies WHERE schemaname='public' AND policyname='atlas_f20_runtime_tenant_policy' AND 'atlas_app_runtime'=ANY(roles);")"
+# Count F20 core policies separately from additive V5 domain policies.
+# A legitimate extension must not invalidate the core F20 assertion.
+policy_count="$(runtime -c "SELECT count(*) FROM pg_policies
+ WHERE schemaname='public' AND policyname='atlas_f20_runtime_tenant_policy'
+ AND 'atlas_app_runtime'=ANY(roles)
+ AND tablename IN ('customers','suppliers','products','quotes','quote_items',
+ 'orders','order_items','invoices','stock_movements','audit_logs',
+ 'establishments','support_incidents','support_incident_events','support_diagnostic_runs');")"
+v5_policy_count="$(runtime -c "SELECT count(*) FROM pg_policies
+ WHERE schemaname='public' AND policyname='atlas_f20_runtime_tenant_policy'
+ AND 'atlas_app_runtime'=ANY(roles)
+ AND tablename IN ('purchase_requests','maintenance_sites','maintenance_assets',
+ 'maintenance_requests','maintenance_work_orders','hotel_properties',
+ 'hotel_rooms','hotel_bookings','data_source_registry',
+ 'data_ingestion_batches','data_ingested_csv_rows');")"
+if [[ "$v5_policy_count" != 11 ]]; then
+  echo "F20 BLOCKER: expected 11 V5 tenant RLS policies, found $v5_policy_count" >&2
+  exit 1
+fi
 if [[ "$policy_count" != 14 ]]; then
   echo "F20 BLOCKER: expected 14 RLS policies, found $policy_count" >&2
   exit 1
@@ -145,5 +163,5 @@ DELETE FROM public.companies WHERE code IN ('F20_SQL_A','F20_SQL_B');
 SQL
 
 mkdir -p reports
-printf 'F20 policies=14; actual runtime SQL A/B isolation=PASS\nF20 no-context and post-commit reset=PASS\nF20 cross-tenant INSERT and owner UPDATE denied=PASS\nF20 in-tenant INSERT and rollback=PASS\n' > reports/f20-tenant-rls.txt
+printf 'F20 core policies=14; V5 policies=11; actual runtime SQL A/B isolation=PASS\nF20 no-context and post-commit reset=PASS\nF20 cross-tenant INSERT and owner UPDATE denied=PASS\nF20 in-tenant INSERT and rollback=PASS\n' > reports/f20-tenant-rls.txt
 echo 'F20 PASS: authenticated runtime RLS denies cross-tenant rows and resets context on commit.'
