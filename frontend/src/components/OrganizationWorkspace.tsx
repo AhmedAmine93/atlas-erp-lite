@@ -33,7 +33,13 @@ const blankEstablishment: EstablishmentForm = {
   company_id: "", code: "", name: "", city: "", address: "", active: true,
 };
 
-export default function OrganizationWorkspace({ onCompanySaved }: { onCompanySaved?: () => Promise<void> }) {
+export default function OrganizationWorkspace({
+  onCompanySaved,
+  activeCompanyId,
+}: {
+  onCompanySaved?: () => Promise<void>;
+  activeCompanyId: number | null;
+}) {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [establishments, setEstablishments] = useState<Establishment[]>([]);
   const [tab, setTab] = useState<"companies" | "establishments">("companies");
@@ -140,7 +146,7 @@ export default function OrganizationWorkspace({ onCompanySaved }: { onCompanySav
     <div className="org-workspace">
       <p className="org-scope">
         Référentiel administratif : les sociétés et établissements sont gérés ici.
-        Les données commerciales sont isolées par entreprise active. Seules vos entreprises affiliées sont affichées.
+        Les données commerciales sont isolées par entreprise active. Pour administrer un autre établissement ou une autre société, sélectionnez d’abord cette entreprise dans le menu latéral.
       </p>
       <div className="org-tabs" role="group" aria-label="Référentiels">
         <button type="button" className={tab === "companies" ? "selected" : ""} onClick={() => { setTab("companies"); setError(""); }}>
@@ -165,7 +171,13 @@ export default function OrganizationWorkspace({ onCompanySaved }: { onCompanySav
                       <strong>{company.name}</strong>
                       <small>{company.code} · {company.establishments_count} établissement(s)</small>
                     </div>
-                    <button type="button" onClick={() => editCompany(company)} aria-label={`Modifier l’entreprise ${company.name}`}>Modifier</button>
+                    <button
+                      type="button"
+                      disabled={company.id !== activeCompanyId}
+                      title={company.id !== activeCompanyId ? "Sélectionnez cette entreprise dans le menu latéral." : undefined}
+                      onClick={() => editCompany(company)}
+                      aria-label={`Modifier l’entreprise ${company.name}`}
+                    >Modifier</button>
                   </article>
                 ))}
               </div>
@@ -211,7 +223,7 @@ export default function OrganizationWorkspace({ onCompanySaved }: { onCompanySav
               <label>Entreprise
                 <select required value={establishmentForm.company_id} onChange={e => setEstablishmentForm(v => ({ ...v, company_id: e.target.value }))}>
                   <option value="">Choisir une entreprise</option>
-                  {companies.map(c => <option key={c.id} value={c.id}>{c.name} ({c.code})</option>)}
+                  {companies.filter(c => c.id === activeCompanyId).map(c => <option key={c.id} value={c.id}>{c.name} ({c.code})</option>)}
                 </select>
               </label>
               <label>Code établissement <input required pattern="[a-zA-Z0-9_-]+" maxLength={30} value={establishmentForm.code} onChange={e => setEstablishmentForm(v => ({ ...v, code: e.target.value }))} /></label>
