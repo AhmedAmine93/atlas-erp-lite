@@ -80,3 +80,5 @@ echo 'F17 PASS: authenticated runtime is active. Next CI smoke and Playwright ru
 bash scripts/verify-f18.sh
 # F19 also runs before F17 destroys the ephemeral authenticated credential.
 bash scripts/verify-f19.sh
+# F20 completes SQL tenant isolation checks in the same disposable database.
+bash scripts/verify-f20.sh
