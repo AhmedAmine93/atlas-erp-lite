@@ -32,6 +32,7 @@ Route::prefix('api')->group(function () {
         Route::get('dashboard', DashboardController::class);
         Route::get('data/sources', [DataSourceCatalogController::class, 'index']);
         Route::post('data/sources', [DataSourceCatalogController::class, 'store']);
+        Route::post('data/sources/{id}/validate', [DataSourceCatalogController::class, 'validateSource'])->whereNumber('id');
         Route::get('data/ingestion-batches', [DataIngestionBatchController::class, 'index']);
         Route::post('data/ingestion-batches', [DataIngestionBatchController::class, 'store']);
         Route::get('search', GlobalSearchController::class);
