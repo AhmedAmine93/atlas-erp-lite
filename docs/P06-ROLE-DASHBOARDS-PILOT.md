@@ -26,7 +26,7 @@ For support-only roles, the dashboard avoids fetching the sales/finance endpoint
 - `frontend/src/components/Workspace.tsx` — passes active role and uses support-only view where appropriate, preserving existing finance dashboard for admin/commercial/reader.
 - `frontend/src/components/layout/WorkspaceWelcome.tsx` — role-dependent shortcuts.
 - `frontend/src/app/role-dashboard.css` and `layout.tsx` — accessible responsive layout, loaded after the P06 theme.
-- `frontend/tests/role-dashboard.spec.ts` — Playwright on four seeded demo roles, no real credentials.
+- `frontend/tests/role-dashboard.spec.ts` — Playwright on stock, commercial and reader accounts; the admin case is asserted in the existing `experience.spec.ts` login, preserving the 5/min demo login throttle.
 
 ### Acceptance
 
