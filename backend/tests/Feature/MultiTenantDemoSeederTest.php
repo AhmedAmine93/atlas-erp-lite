@@ -45,7 +45,9 @@ class MultiTenantDemoSeederTest extends TestCase
         $this->app['env'] = 'production';
         try {
             $this->expectException(\RuntimeException::class);
-            $this->seed(MultiTenantDemoSeeder::class);
+            // Call the seeder directly: Artisan would prompt for confirmation
+            // in production before our environment guard executes.
+            app(MultiTenantDemoSeeder::class)->run();
         } finally {
             $this->app['env'] = 'testing';
         }
