@@ -1,5 +1,6 @@
 "use client";
 import {
+  Fragment,
   useEffect,
   useState,
   useRef,
@@ -44,6 +45,8 @@ import Login from "@/components/auth/Login";
 import WorkspaceSidebar from "@/components/layout/WorkspaceSidebar";
 import WorkspaceWelcome from "@/components/layout/WorkspaceWelcome";
 import RoleDashboardPanel from "@/components/dashboard/RoleDashboardPanel";
+import DashboardBuilder from "@/components/dashboard/DashboardBuilder";
+import { useDashboardLayout } from "@/components/dashboard/useDashboardLayout";
 import DataTableFrame from "@/components/ui/DataTableFrame";
 import FormField from "@/components/ui/FormField";
 import type {
@@ -475,6 +478,7 @@ function DashboardView({
     [data, setData] = useState<Dashboard | null>(null),
     [error, setError] = useState("");
   const supportOnly = user.role.name === "support_n2" || user.role.name === "support_n3";
+  const widgets = useDashboardLayout(user);
   useEffect(() => {
     if (supportOnly) {
       // Support accounts should not fetch financial KPIs unnecessarily.
@@ -522,6 +526,15 @@ function DashboardView({
           />
         </div>
       </div>
+      {user.role.name !== "stock" && !supportOnly && (
+        <DashboardBuilder
+          layout={widgets.layout}
+          onToggle={widgets.toggle}
+          onMove={widgets.move}
+          onReset={widgets.reset}
+          storageAvailable={widgets.storageAvailable}
+        />
+      )}
       {error && (
         <div className="error" role="alert">
           {error}
@@ -542,29 +555,36 @@ function DashboardView({
                 note: "HT · Factures émises et payées",
                 icon: TrendingUp,
                 featured: true,
+                id: "revenue" as const,
               },
               {
+                id: "validated-orders" as const,
                 title: "Commandes validées",
                 value: String(data.orders_count).padStart(2, "0"),
                 note: "Validées sur la période",
                 icon: ShoppingBag,
               },
               {
+                id: "outstanding" as const,
                 title: "À encaisser",
                 value: euro(data.outstanding_cents),
                 note: "TTC · Factures émises non payées",
                 icon: Wallet,
               },
               {
+                id: "low-stock" as const,
                 title: "Alertes de stock",
                 value: String(data.low_stock_count).padStart(2, "0"),
                 note: "Produits au seuil ou en dessous",
                 icon: Package,
               },
-            ].map((s, i) => (
+            ].filter((s) => widgets.visible(s.id))
+              .sort((a, b) => widgets.order(a.id) - widgets.order(b.id))
+              .map((s) => (
               <article
                 className={`stat-card ${s.featured ? "featured" : ""}`}
-                key={s.title}
+                data-widget={s.id}
+                key={s.id}
               >
                 <div className="stat-top">
                   <span>{s.title}</span>
@@ -572,7 +592,7 @@ function DashboardView({
                 </div>
                 <strong>{s.value}</strong>
                 <div className="stat-note">
-                  {i === 3 ? (
+                  {s.id === "low-stock" ? (
                     <span className="amber-dot" />
                   ) : (
                     <span className="tiny-line" />
@@ -583,7 +603,10 @@ function DashboardView({
             ))}
           </div>
           <div className="dashboard-grid">
-            <section className="panel revenue-panel">
+            {([
+              { id: "revenue-chart" as const, element: (
+            <section className="panel revenue-panel atlas-dashboard-widget"
+              data-widget="revenue-chart">
               <div className="panel-heading">
                 <div>
                   <h2>Le rythme de vos ventes</h2>
@@ -602,7 +625,10 @@ function DashboardView({
                 </strong>
               </div>
             </section>
-            <section className="panel top-products">
+              ) },
+              { id: "top-products" as const, element: (
+            <section className="panel top-products atlas-dashboard-widget"
+              data-widget="top-products">
               <div className="panel-heading">
                 <div>
                   <h2>Vos meilleures ventes</h2>
@@ -638,7 +664,10 @@ function DashboardView({
                 <ArrowRight size={16} />
               </button>
             </section>
-            <section className="panel recent-orders">
+              ) },
+              { id: "recent-orders" as const, element: (
+            <section className="panel recent-orders atlas-dashboard-widget"
+              data-widget="recent-orders">
               <div className="panel-heading">
                 <div>
                   <h2>Les dernières commandes</h2>
@@ -678,7 +707,10 @@ function DashboardView({
                 {!data.recent_orders.length && <Empty />}
               </DataTableFrame>
             </section>
-            <section className="panel stock-alerts">
+              ) },
+              { id: "stock-alerts" as const, element: (
+            <section className="panel stock-alerts atlas-dashboard-widget"
+              data-widget="stock-alerts">
               <div className="panel-heading">
                 <div>
                   <h2>
@@ -717,6 +749,11 @@ function DashboardView({
                 <ArrowRight size={16} />
               </button>
             </section>
+              ) },
+            ])
+              .filter((panel) => widgets.visible(panel.id))
+              .sort((a, b) => widgets.order(a.id) - widgets.order(b.id))
+              .map((panel) => <Fragment key={panel.id}>{panel.element}</Fragment>)}
           </div>
           <div className="insight-strip">
             <span className="insight-icon">
