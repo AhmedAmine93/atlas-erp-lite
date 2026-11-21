@@ -76,3 +76,5 @@ dc_runtime exec -T backend php artisan atlas:verify-runtime-db
 mkdir -p reports
 printf 'F17 actual PostgreSQL password authentication: PASS\nF17 migration/DDL denial and F15 no-context RLS: PASS\nF17 Laravel connected identity: PASS\n' > reports/f17-runtime.txt
 echo 'F17 PASS: authenticated runtime is active. Next CI smoke and Playwright run with this identity.'
+# F18 runs in this process while the ephemeral credential remains available.
+bash scripts/verify-f18.sh
