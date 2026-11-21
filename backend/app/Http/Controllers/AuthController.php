@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\Audit;
+use App\Services\TenantRoles;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
@@ -25,7 +26,7 @@ class AuthController extends Controller
         $request->attributes->set('atlas_company_id', (int) $firstCompany);
         Audit::record('auth.login');
 
-        return $request->user()->load('role');
+        return app(TenantRoles::class)->profile($request->user(), (int) $firstCompany);
     }
 
     public function logout(Request $request)
