@@ -4,6 +4,7 @@ use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\HotelBookingController;
 use App\Http\Controllers\HotelRegistryController;
 use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\InvoiceController;
@@ -33,6 +34,8 @@ Route::prefix('api')->group(function () {
         Route::post('hotels', [HotelRegistryController::class, 'createHotel']);
         Route::get('hotel-rooms', [HotelRegistryController::class, 'rooms']);
         Route::post('hotel-rooms', [HotelRegistryController::class, 'createRoom']);
+        Route::get('hotel-bookings', [HotelBookingController::class, 'index']);
+        Route::post('hotel-bookings', [HotelBookingController::class, 'store']);
         Route::get('search', GlobalSearchController::class);
         Route::get('stock-movements', [ProductController::class, 'movements']);
         Route::get('products', [ProductController::class, 'index']);
