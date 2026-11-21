@@ -5,6 +5,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\MaintenanceRequestController;
+use App\Http\Controllers\MaintenanceWorkOrderController;
 use App\Http\Controllers\MaintenanceRegistryController;
 use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\InvoiceController;
@@ -37,6 +38,10 @@ Route::prefix('api')->group(function () {
         Route::get('maintenance/requests', [MaintenanceRequestController::class, 'index']);
         Route::post('maintenance/requests', [MaintenanceRequestController::class, 'store']);
         Route::post('maintenance/requests/{id}/qualify', [MaintenanceRequestController::class, 'qualify'])->whereNumber('id');
+        Route::get('maintenance/work-orders', [MaintenanceWorkOrderController::class, 'index']);
+        Route::post('maintenance/requests/{id}/work-orders', [MaintenanceWorkOrderController::class, 'createFromRequest'])->whereNumber('id');
+        Route::post('maintenance/work-orders/{id}/start', [MaintenanceWorkOrderController::class, 'start'])->whereNumber('id');
+        Route::post('maintenance/work-orders/{id}/complete', [MaintenanceWorkOrderController::class, 'complete'])->whereNumber('id');
         Route::get('search', GlobalSearchController::class);
         Route::get('stock-movements', [ProductController::class, 'movements']);
         Route::get('products', [ProductController::class, 'index']);
