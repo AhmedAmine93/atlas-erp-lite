@@ -45,6 +45,7 @@ import SupportIncidents from "@/components/SupportIncidents";
 import Login from "@/components/auth/Login";
 import WorkspaceSidebar from "@/components/layout/WorkspaceSidebar";
 import WorkspaceWelcome from "@/components/layout/WorkspaceWelcome";
+import GlobalSearch from "@/components/layout/GlobalSearch";
 import RoleDashboardPanel from "@/components/dashboard/RoleDashboardPanel";
 import DashboardBuilder from "@/components/dashboard/DashboardBuilder";
 import { useDashboardLayout } from "@/components/dashboard/useDashboardLayout";
@@ -277,7 +278,7 @@ export default function Workspace() {
   }
   async function show(kind: string, row: Row) {
     // Existing non-detail views keep their original dialog behavior.
-    const detailPath = workspaceHref(view, row.id);
+    const detailPath = workspaceHref(kind as View, row.id);
     const isDetailRoute = detailPath !== workspaceHref(view);
     const sequence = ++navigationRequest.current;
     setError("");
@@ -365,6 +366,15 @@ export default function Workspace() {
             <strong>{current.label}</strong>
           </div>
           <div className="topbar-right">
+            <GlobalSearch
+              user={user}
+              onSelect={(type, id) => {
+                go(type);
+                if (["customers", "quotes", "orders", "invoices"].includes(type)) {
+                  void show(type, { id } as Row);
+                }
+              }}
+            />
             <span className="environment">
               <i />
               Données de démonstration
