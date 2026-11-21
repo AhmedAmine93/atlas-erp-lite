@@ -24,6 +24,7 @@ export DEMO_PASSWORD
 "${dc[@]}" exec -T db createdb -U atlas atlas_test
 "${dc[@]}" run --rm tests vendor/bin/phpunit --log-junit /reports/phpunit.xml
 bash scripts/rehearse-f14.sh
+bash scripts/verify-rc1.sh
 "${dc[@]}" run --rm tests php tests/concurrency.php
 "${dc[@]}" run --rm tests composer validate --strict
 "${dc[@]}" run --rm tests composer audit --locked
