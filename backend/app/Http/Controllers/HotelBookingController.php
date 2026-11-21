@@ -8,6 +8,7 @@ use App\Services\Audit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 
 final class HotelBookingController extends Controller {
     public function index() {
@@ -31,6 +32,11 @@ final class HotelBookingController extends Controller {
         // occupancy exclusion rule and a dedicated follow-up phase.
         $room=HotelRoom::query()->findOrFail($data['room_id']);
         abort_unless($room->room_status==='available',409,'Chambre indisponible.');
+        $request->validate(['reference'=>[
+            'required',
+            Rule::unique('hotel_bookings')->where('company_id', $room->company_id)
+                ->where('hotel_id', $room->hotel_id),
+        ]]);
         return DB::transaction(function () use($request,$data,$room){
             $item=HotelBooking::create([
                 'hotel_id'=>$room->hotel_id,
