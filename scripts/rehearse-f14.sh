@@ -113,8 +113,12 @@ count_sql="SELECT (SELECT count(*) FROM customers)::text || ':' ||
  (SELECT count(*) FROM stock_movements)::text"
 pre="$(dc exec -T db psql -U atlas -d "$legacy_db" -Atc "$count_sql" | tr -d '\r')"
 post="$(dc exec -T db psql -U atlas -d "$restored_db" -Atc "$count_sql" | tr -d '\r')"
-if [[ "$pre" != "$post" || "$pre" != "1:1:1:1:1:1:1" ]]; then
+if [[ "$pre" != "$post" ]]; then
   echo "F14 restore count mismatch: original=$pre restored=$post" >&2
+  exit 1
+fi
+if [[ "$post" != "1:1:1:1:1:1:1" ]]; then
+  echo "F14 synthetic fixture contains unexpected row counts: $post" >&2
   exit 1
 fi
 
