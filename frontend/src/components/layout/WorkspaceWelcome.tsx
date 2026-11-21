@@ -51,7 +51,7 @@ export default function WorkspaceWelcome({
           </span>
         </div>
       </div>
-      <div className="atlas-launchpad" aria-label="Accès rapides">
+      <section className="atlas-launchpad" aria-label="Accès rapides">
         <div className="atlas-launchpad-heading">
           <strong>Accès rapides</strong>
           <small>Modules disponibles</small>
@@ -70,7 +70,7 @@ export default function WorkspaceWelcome({
             </button>
           ))}
         </div>
-      </div>
+      </section>
     </section>
   );
 }
