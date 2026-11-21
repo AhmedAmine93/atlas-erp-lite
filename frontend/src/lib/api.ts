@@ -74,7 +74,8 @@ export async function api<T = unknown>(
 
   const headers = new Headers(options.headers);
   headers.set("Accept", "application/json");
-  headers.set("Content-Type", "application/json");
+  // Let the browser set the multipart/form-data boundary for CSV uploads.
+  if (!(options.body instanceof FormData)) headers.set("Content-Type", "application/json");
   if (csrf) headers.set("X-CSRF-TOKEN", csrf);
   if (isBusinessRequest && expectedCompany !== null) {
     headers.set("X-Atlas-Expected-Company", String(expectedCompany));

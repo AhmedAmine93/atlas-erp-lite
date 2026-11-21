@@ -1,0 +1,3 @@
+# ATLAS ONE V5 — P089.05/P089.06 — CSV réel borné
+
+Importer un fichier CSV (max 1 Mio/10 000 lignes) selon schéma strict v1 `external_id,amount_cents` et empreinte SHA-256 préenregistrée. Lignes typées et persistées dans PostgreSQL avec FK tenant et unicité par lot ; rejeu d'un lot processed donne 200 sans réécriture. Parsing et validation avant transaction, insertion atomique et audit. Aucune conservation du fichier brut. Aucune authentification tierce; pas de stockage de credentials. Limites: pas encore de CDC, ETL distribué, réparation/compensation, watermark, version de schéma autre que v1, tests de charge et isolation SQL adversariale. Pour tests de production : contrôler PostgreSQL et le rollback réel.
