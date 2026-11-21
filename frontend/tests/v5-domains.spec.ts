@@ -28,10 +28,13 @@ test("V5: navigation des quatre domaines et sous-menus sans fausses pages métie
     await expect(page.locator(".atlas-domain h2")).toBeVisible();
     await expect(page).toHaveURL(/\/workspace\//);
     await expect(page.locator(".atlas-domain-list")).toBeVisible();
-    await expect(page.getByRole("alert")).toHaveCount(0);
+    // Next.js uses a global empty live-region alert for route announcements.
+    // Only errors inside the domain view are business failures.
+    await expect(page.locator(".atlas-domain .error")).toHaveCount(0);
   }
-  await expect(page.getByRole("button", { name: "Mini-bar" })).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Pipelines ETL" })).toBeDisabled();
+  await page.getByRole("button", { name: "Voir les modules prévus" }).click();
+  await expect(page.getByRole("button", { name: /Mini-bar/ })).toBeDisabled();
+  await expect(page.getByRole("button", { name: /Pipelines ETL/ })).toBeDisabled();
 });
 
 test("V5: création DI puis qualification et BT sans doublon", async ({ page }) => {
@@ -45,24 +48,24 @@ test("V5: création DI puis qualification et BT sans doublon", async ({ page }) 
   await page.getByRole("button", { name: "Sites et localisations" }).click();
   await page.getByRole("button", { name: "Nouvelle fiche" }).click();
   await page.getByLabel(/^Code/).fill("SITE-"+suffix);
-  await page.getByLabel("Nom", { exact: true }).fill("Site de recette");
+  await page.getByLabel(/^Nom\s*\*/).fill("Site de recette");
   await page.getByRole("button", { name: "Enregistrer" }).click();
   await expect(page.getByText("SITE-"+suffix)).toBeVisible();
 
   await page.getByRole("button", { name: "Parc d’équipements" }).click();
   await page.getByRole("button", { name: "Nouvelle fiche" }).click();
-  await page.getByLabel("Site", { exact: true }).selectOption({ label: "SITE-"+suffix+" · Site de recette" });
+  await page.getByLabel(/^Site\s*\*/).selectOption({ label: "SITE-"+suffix+" · Site de recette" });
   await page.getByLabel(/^Code/).fill("PUMP-"+suffix);
-  await page.getByLabel("Nom", { exact: true }).fill("Pompe de démonstration");
+  await page.getByLabel(/^Nom\s*\*/).fill("Pompe de démonstration");
   await page.getByRole("button", { name: "Enregistrer" }).click();
   await expect(page.getByText("PUMP-"+suffix)).toBeVisible();
 
   await page.getByRole("button", { name: "Demandes d’intervention (DI)" }).click();
   await page.getByRole("button", { name: "Nouvelle fiche" }).click();
-  await page.getByLabel("Équipement", { exact: true }).selectOption({ label: "PUMP-"+suffix+" · Pompe de démonstration" });
-  await page.getByLabel("Référence", { exact: true }).fill("DI-"+suffix);
-  await page.getByLabel("Objet", { exact: true }).fill("Pression insuffisante");
-  await page.getByLabel("Priorité", { exact: true }).selectOption("high");
+  await page.getByLabel(/^Équipement\s*\*/).selectOption({ label: "PUMP-"+suffix+" · Pompe de démonstration" });
+  await page.getByLabel(/^Référence\s*\*/).fill("DI-"+suffix);
+  await page.getByLabel(/^Objet\s*\*/).fill("Pression insuffisante");
+  await page.getByLabel(/^Priorité\s*\*/).selectOption("high");
   await page.getByRole("button", { name: "Enregistrer" }).click();
   const row = page.getByRole("row", { name: new RegExp("DI-"+suffix) });
   await expect(row).toBeVisible();
