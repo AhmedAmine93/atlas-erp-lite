@@ -45,6 +45,8 @@ test("P06: refreshed dashboard and modular navigation preserve real routes", asy
   await expect(chartToggle).toBeChecked();
   await chartToggle.uncheck();
   await expect(page.getByRole("heading", { name: "Le rythme de vos ventes" })).toHaveCount(0);
+  await settings.getByRole("checkbox", { name: "Chiffre d’affaires" }).uncheck();
+  await expect(page.locator('.stats-grid > [data-widget="revenue"]')).toHaveCount(0);
   await settings.getByRole("button", { name: "Monter Les dernières commandes" }).click();
   await expect(page.locator(".dashboard-grid > section").first())
     .toHaveAttribute("data-widget", "recent-orders");
@@ -53,6 +55,7 @@ test("P06: refreshed dashboard and modular navigation preserve real routes", asy
   await page.reload();
   await expect(page.getByRole("heading", { name: "Pilotez votre activité avec une seule vue." })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Le rythme de vos ventes" })).toHaveCount(0);
+  await expect(page.locator('.stats-grid > [data-widget="revenue"]')).toHaveCount(0);
   await expect(page.locator(".dashboard-grid > section").first())
     .toHaveAttribute("data-widget", "recent-orders");
 
@@ -60,6 +63,7 @@ test("P06: refreshed dashboard and modular navigation preserve real routes", asy
   settings = page.getByRole("region", { name: "Personnalisation du tableau de bord" });
   await settings.getByRole("button", { name: "Réinitialiser" }).click();
   await expect(page.getByRole("heading", { name: "Le rythme de vos ventes" })).toBeVisible();
+  await expect(page.locator('.stats-grid > [data-widget="revenue"]')).toBeVisible();
   await expect(page.locator(".dashboard-grid > section").first())
     .toHaveAttribute("data-widget", "revenue-chart");
 });
