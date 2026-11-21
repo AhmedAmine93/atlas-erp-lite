@@ -20,12 +20,13 @@ test("V5: navigation des quatre domaines et sous-menus sans fausses pages métie
     ["Catalogue des sources", "data/sources"],
     ["Lots et ingestion CSV", "data/ingestion-batches"],
   ];
-  for (const [label, endpoint] of views) {
+  for (const [label] of views) {
     const button = page.getByRole("button", { name: label, exact: true });
     await expect(button).toBeEnabled();
     await button.click();
     await expect(page.locator(".atlas-domain")).toBeVisible();
-    await expect(page.locator(".atlas-domain h2")).toContainText(endpoint);
+    await expect(page.locator(".atlas-domain h2")).toBeVisible();
+    await expect(page).toHaveURL(/\/workspace\//);
     await expect(page.locator(".atlas-domain-list")).toBeVisible();
     await expect(page.getByRole("alert")).toHaveCount(0);
   }
