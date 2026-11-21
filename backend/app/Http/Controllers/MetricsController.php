@@ -14,9 +14,9 @@ class MetricsController extends Controller
         $secret = (string) config('atlas.metrics_token');
         abort_if($secret === '' || ! hash_equals($secret, (string) $request->bearerToken()), 403);
         $metrics = [
-            'atlas_orders_validated' => ['Validated orders', Order::where('status', 'validated')->count()],
-            'atlas_invoices_outstanding_cents' => ['Outstanding issued invoices in euro cents', Invoice::where('status', 'issued')->sum('total_cents')],
-            'atlas_products_low_stock' => ['Products at or below stock threshold', Product::whereColumn('stock', '<=', 'alert_threshold')->count()],
+            'atlas_orders_validated' => ['Validated orders', Order::withoutGlobalScopes()->where('status', 'validated')->count()],
+            'atlas_invoices_outstanding_cents' => ['Outstanding issued invoices in euro cents', Invoice::withoutGlobalScopes()->where('status', 'issued')->sum('total_cents')],
+            'atlas_products_low_stock' => ['Products at or below stock threshold', Product::withoutGlobalScopes()->whereColumn('stock', '<=', 'alert_threshold')->count()],
         ];
         $text = '';
         foreach ($metrics as $name => [$help,$value]) {

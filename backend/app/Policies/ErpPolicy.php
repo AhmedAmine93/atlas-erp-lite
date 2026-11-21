@@ -3,26 +3,37 @@
 namespace App\Policies;
 
 use App\Models\User;
+use App\Services\TenantRoles;
 
 class ErpPolicy
 {
     public function crm(User $u): bool
     {
-        return in_array($u->role->name, ['admin', 'commercial']);
+        return in_array(app(TenantRoles::class)->role($u)?->name, ['admin', 'commercial']);
     }
 
     public function stock(User $u): bool
     {
-        return in_array($u->role->name, ['admin', 'stock']);
+        return in_array(app(TenantRoles::class)->role($u)?->name, ['admin', 'stock']);
     }
 
     public function sales(User $u): bool
     {
-        return in_array($u->role->name, ['admin', 'commercial']);
+        return in_array(app(TenantRoles::class)->role($u)?->name, ['admin', 'commercial']);
+    }
+
+    public function support(User $u): bool
+    {
+        return in_array(app(TenantRoles::class)->role($u)?->name, ['admin', 'support_n2', 'support_n3'], true);
+    }
+
+    public function supportDiagnostics(User $u): bool
+    {
+        return in_array(app(TenantRoles::class)->role($u)?->name, ['admin', 'support_n3'], true);
     }
 
     public function admin(User $u): bool
     {
-        return $u->role->name === 'admin';
+        return app(TenantRoles::class)->role($u)?->name === 'admin';
     }
 }

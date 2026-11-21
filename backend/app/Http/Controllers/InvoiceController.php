@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Invoice;
+use App\Models\Order;
 use App\Services\InvoiceService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -26,6 +27,8 @@ class InvoiceController extends Controller
     {
         Gate::authorize('sales');
         $d = $r->validate(['order_id' => 'required|integer|exists:orders,id']);
+
+        Order::findOrFail((int) $d['order_id']);
 
         return response()->json($s->create($d['order_id']), 201);
     }

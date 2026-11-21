@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\AuditLog;
 use App\Models\Customer;
+use App\Models\Company;
 use App\Models\Invoice;
 use App\Models\Product;
 use App\Models\Role;
@@ -34,7 +35,10 @@ class ErpTest extends TestCase
 
     private function user(string $role): User
     {
-        return User::create(['name' => $role, 'email' => $role.'@test.example', 'password' => 'PasswordTest2026!', 'role_id' => Role::where('name', $role)->value('id')]);
+        $user = User::create(['name' => $role, 'email' => $role.'@test.example', 'password' => 'PasswordTest2026!', 'role_id' => Role::where('name', $role)->value('id')]);
+        $company = Company::where('code', 'ATLAS_DEMO')->firstOrFail();
+        $user->companies()->attach($company->id, ['role_id' => Role::where('name', $role)->value('id')]);
+        return $user;
     }
 
     private function order(int $quantity = 2): int
@@ -223,7 +227,7 @@ class ErpTest extends TestCase
         $this->putJson('/api/users/'.$this->admin->id, ['name' => 'Admin', 'email' => $this->admin->email, 'role_id' => Role::where('name', 'reader')->value('id')])->assertConflict();
         $this->deleteJson('/api/users/'.$this->admin->id)->assertConflict();
         $id = $this->postJson('/api/users', ['name' => 'New reader', 'email' => 'new@test.example', 'password' => 'SafePassword123!', 'role_id' => Role::where('name', 'reader')->value('id')])->assertCreated()->assertJsonMissingPath('password')->json('id');
-        $this->putJson("/api/users/$id", ['name' => 'Updated', 'email' => 'new@test.example', 'role_id' => Role::where('name', 'stock')->value('id')])->assertOk()->assertJsonPath('role.name', 'stock');
+        $this->putJson("/api/users/$id", ['role_id' => Role::where('name', 'stock')->value('id')])->assertOk()->assertJsonPath('role.name', 'stock');
         $this->deleteJson("/api/users/$id")->assertNoContent();
         $this->getJson('/api/audit-logs')->assertOk()->assertJsonPath('total', 3);
         $this->assertStringNotContainsString('SafePassword', AuditLog::all()->toJson());

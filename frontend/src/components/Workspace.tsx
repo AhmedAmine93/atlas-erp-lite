@@ -37,6 +37,11 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { api, send, all } from "@/lib/api";
+import { nav, navigationSections, type View } from "@/lib/navigation";
+import OrganizationWorkspace from "@/components/OrganizationWorkspace";
+import SupportIncidents from "@/components/SupportIncidents";
+import Login from "@/components/auth/Login";
+import WorkspaceSidebar from "@/components/layout/WorkspaceSidebar";
 import type {
   User,
   Contact,
@@ -74,19 +79,7 @@ const labels: Record<string, string> = {
   stock: "Stock",
   reader: "Lecture seule",
 };
-const nav = [
-  { id: "dashboard", label: "Vue d’ensemble", icon: LayoutDashboard },
-  { id: "customers", label: "Clients", icon: Users },
-  { id: "suppliers", label: "Fournisseurs", icon: Truck },
-  { id: "products", label: "Produits & stocks", icon: Package },
-  { id: "stock-movements", label: "Mouvements", icon: ArrowLeftRight },
-  { id: "quotes", label: "Devis", icon: FileText },
-  { id: "orders", label: "Commandes", icon: ShoppingBag },
-  { id: "invoices", label: "Factures", icon: Receipt },
-  { id: "users", label: "Utilisateurs", icon: ShieldCheck },
-  { id: "audit-logs", label: "Journal d’activité", icon: History },
-];
-type View = (typeof nav)[number]["id"];
+
 type Row = Contact & Product & Sale & Invoice & Movement & Audit & User;
 type Editor = { kind: string; row?: Partial<Row> };
 function Badge({ status }: { status: string }) {
@@ -246,6 +239,11 @@ export default function Workspace() {
           setUser(u);
           setView("dashboard");
           setError("");
+          // The login response does not carry company memberships.
+          // Hydrate the full tenant-aware profile before enabling tenant navigation.
+          api<User>("me")
+            .then(setUser)
+            .catch((e: Error) => setError("Impossible de charger les entreprises autorisées : " + e.message));
         }}
       />
     );
@@ -255,83 +253,32 @@ export default function Workspace() {
       {mobile && (
         <div className="sidebar-scrim" onClick={() => setMobile(false)} />
       )}
-      <aside className={`sidebar ${mobile ? "open" : ""}`}>
-        <a
-          className="brand"
-          href="#"
-          onClick={(e) => {
-            e.preventDefault();
-            go("dashboard");
-          }}
-        >
-          <span className="brand-mark">A</span>
-          <span>
-            ATLAS<span className="brand-lite">ERP LITE</span>
-          </span>
-        </a>
-        <div className="workspace-chip">
-          <span className="workspace-avatar">A</span>
-          <div>
-            Atelier & Co.<small>Espace de démonstration</small>
-          </div>
-          <span className="online-dot" />
-        </div>
-        <div className="nav-caption">ESPACE DE TRAVAIL</div>
-        <nav aria-label="Navigation principale">
-          {nav
-            .filter(
-              (n) =>
-                user.role.name === "admin" ||
-                !["users", "audit-logs"].includes(n.id),
-            )
-            .map((n, i) => (
-              <div key={n.id}>
-                {[1, 5, 8].includes(i) && <div className="nav-separator" />}
-                <button
-                  onClick={() => go(n.id)}
-                  className={view === n.id ? "active" : ""}
-                  aria-current={view === n.id ? "page" : undefined}
-                >
-                  <n.icon size={18} />
-                  <span>{n.label}</span>
-                  {view === n.id && <span className="nav-active-dot" />}
-                </button>
-              </div>
-            ))}
-        </nav>
-        <div className="sidebar-bottom">
-          <div className="demo-card">
-            <span className="demo-pill">PORTFOLIO</span>
-            <p>
-              Les idées prennent forme.
-              <br />
-              Votre activité aussi.
-            </p>
-            <span>ATLAS ERP Lite · v1.0</span>
-          </div>
-          <div className="profile">
-            <span className="avatar">{user.name.slice(0, 1)}</span>
-            <div>
-              <strong>{user.name.split(" · ")[0]}</strong>
-              <small>{labels[user.role.name]}</small>
-            </div>
-            <button
-              className="icon-button"
-              aria-label="Se déconnecter"
-              onClick={async () => {
-                try {
-                  await send("logout", "POST");
-                  setUser(null);
-                } catch (e) {
-                  setError((e as Error).message);
-                }
-              }}
-            >
-              <LogOut size={17} />
-            </button>
-          </div>
-        </div>
-      </aside>
+      <WorkspaceSidebar
+        user={user}
+        view={view}
+        mobile={mobile}
+        busy={busy}
+        onNavigate={go}
+        onTenantSwitch={async (companyId) => {
+          setBusy(true);
+          setError("");
+          try {
+            await send("tenant/switch", "POST", { company_id: companyId });
+            window.location.reload();
+          } catch (e) {
+            setError((e as Error).message);
+            setBusy(false);
+          }
+        }}
+        onLogout={async () => {
+          try {
+            await send("logout", "POST");
+            setUser(null);
+          } catch (e) {
+            setError((e as Error).message);
+          }
+        }}
+      />
       <main className="main">
         <header className="topbar">
           <div className="breadcrumb">
@@ -380,6 +327,8 @@ export default function Workspace() {
                           "Une facturation claire, du brouillon au règlement.",
                         users: "Les bonnes permissions pour chaque membre.",
                         "audit-logs": "La trace des opérations sensibles.",
+                        "admin-companies": "Gestion du référentiel des entreprises et établissements.",
+                        "support-incidents": "Diagnostic, SLA, escalades N2/N3 et historique.",
                       } as Record<string, string>
                     )[view]}
               </p>
@@ -390,6 +339,8 @@ export default function Workspace() {
                 "stock-movements",
                 "audit-logs",
                 "invoices",
+                "admin-companies",
+                "support-incidents",
               ].includes(view) && (
                 <button
                   className="button primary"
@@ -431,6 +382,13 @@ export default function Workspace() {
           )}
           {view === "dashboard" ? (
             <DashboardView refresh={refresh} go={go} />
+          ) : view === "support-incidents" ? (
+            <SupportIncidents canDiagnose={["admin", "support_n3"].includes(user.role.name)} />
+          ) : view === "admin-companies" ? (
+            <OrganizationWorkspace
+              activeCompanyId={user.active_company_id ?? null}
+              onCompanySaved={async () => setUser(await api<User>("me"))}
+            />
           ) : (
             <ListView
               key={view}
@@ -488,107 +446,6 @@ export default function Workspace() {
           />
         </Modal>
       )}
-    </div>
-  );
-}
-
-function Login({ onLogin }: { onLogin: (u: User) => void }) {
-  const [email, setEmail] = useState("admin@atlas.example"),
-    [password, setPassword] = useState(""),
-    [error, setError] = useState(""),
-    [busy, setBusy] = useState(false);
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    setError("");
-    setBusy(true);
-    try {
-      onLogin(await send<User>("login", "POST", { email, password }));
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
-  return (
-    <div className="login-page">
-      <section className="login-story">
-        <div className="brand">
-          <span className="brand-mark">A</span>
-          <span>
-            ATLAS<span className="brand-lite">ERP LITE</span>
-          </span>
-        </div>
-        <div>
-          <span className="demo-pill">L’ESSENTIEL, BIEN PENSÉ</span>
-          <h1>
-            Une vision claire.
-            <br />
-            Une activité
-            <br />
-            <em>qui avance.</em>
-          </h1>
-          <p>
-            Clients, stocks, ventes et factures.
-            <br />
-            Tout se retrouve. Tout se suit.
-          </p>
-          <div className="login-art">
-            <div className="art-orbit" />
-            <div className="art-block one">
-              Clients <Users />
-            </div>
-            <div className="art-block two">
-              Ventes <TrendingUp />
-            </div>
-            <div className="art-block three">
-              Stocks <Package />
-            </div>
-          </div>
-        </div>
-        <small>Projet portfolio · PHP / Next.js / PostgreSQL</small>
-      </section>
-      <section className="login-form">
-        <div className="eyebrow">BIENVENUE DANS VOTRE ESPACE</div>
-        <h2>Heureux de vous retrouver.</h2>
-        <p>Connectez-vous pour garder le cap sur votre activité.</p>
-        <form onSubmit={submit}>
-          <label>
-            Adresse e-mail
-            <input
-              type="email"
-              autoComplete="username"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </label>
-          <label>
-            Mot de passe
-            <input
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </label>
-          {error && (
-            <div className="error" role="alert">
-              {error}
-            </div>
-          )}
-          <button className="button primary" disabled={busy}>
-            {busy ? "Connexion…" : "Se connecter"}
-            <ArrowRight size={18} />
-          </button>
-        </form>
-        <p className="login-note">
-          <ShieldCheck size={18} />
-          Données fictives · Aucun paiement bancaire réel.
-          <br />
-          Les accès de démonstration sont dans le README.
-        </p>
-      </section>
     </div>
   );
 }
@@ -1545,49 +1402,50 @@ function EditorForm({
         </>
       ) : kind === "users" ? (
         <>
+          {row ? (
+            <p className="form-hint">
+              Compte partagé : {row.name} ({row.email}). Seul le rôle dans
+              l’entreprise active peut être modifié ici. Le nom, l’e-mail
+              et le mot de passe sont des informations globales protégées.
+            </p>
+          ) : (
+            <>
+              <label>
+                Nom
+                <input name="name" required maxLength={255} />
+              </label>
+              <label>
+                Adresse e-mail
+                <input name="email" type="email" required maxLength={255} />
+              </label>
+            </>
+          )}
           <label>
-            Nom
-            <input
-              name="name"
-              required
-              maxLength={255}
-              defaultValue={row?.name}
-            />
-          </label>
-          <label>
-            Adresse e-mail
-            <input
-              name="email"
-              type="email"
-              required
-              maxLength={255}
-              defaultValue={row?.email}
-            />
-          </label>
-          <label>
-            Rôle
+            Rôle dans l’entreprise active
             <select name="role_id" required defaultValue={row?.role_id || ""}>
               <option value="" disabled>
                 Sélectionner un rôle
               </option>
               {roles.map((r) => (
                 <option key={r.id} value={r.id}>
-                  {labels[r.name]}
+                  {labels[r.name] || r.name}
                 </option>
               ))}
             </select>
           </label>
-          <label>
-            {row ? "Nouveau mot de passe (facultatif)" : "Mot de passe"}
-            <input
-              name="password"
-              type="password"
-              autoComplete="new-password"
-              minLength={12}
-              required={!row}
-            />
-            <small>12 caractères minimum, avec lettres et chiffres.</small>
-          </label>
+          {!row && (
+            <label>
+              Mot de passe initial
+              <input
+                name="password"
+                type="password"
+                autoComplete="new-password"
+                minLength={12}
+                required
+              />
+              <small>12 caractères minimum, avec lettres et chiffres.</small>
+            </label>
+          )}
         </>
       ) : sale ? (
         <>
