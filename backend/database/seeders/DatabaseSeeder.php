@@ -32,7 +32,7 @@ class DatabaseSeeder extends Seeder
             foreach (['admin' => 'Amine · Administrateur', 'commercial' => 'Camille · Commercial', 'stock' => 'Samir · Stock', 'reader' => 'Alex · Consultation'] as $role => $name) {
                 $u = User::create(['name' => $name, 'email' => $role.'@atlas.example', 'password' => $password, 'role_id' => Role::where('name', $role)->value('id')]);
                 $tenant = Company::firstOrCreate(['code' => 'ATLAS_DEMO'], ['name' => 'Atelier & Co. (démonstration)']);
-                $u->companies()->syncWithoutDetaching([$tenant->id]);
+                $u->companies()->syncWithoutDetaching([$tenant->id => ['role_id' => Role::where('name', $role)->value('id')]]);
             }
             Auth::login(User::where('email', 'admin@atlas.example')->firstOrFail());
             foreach (['Maison Juniper', 'Studio Horizon', 'Atelier Noma', 'Collectif Rivage', 'Bureau Sillage', 'Forma Architecture'] as $i => $name) {
