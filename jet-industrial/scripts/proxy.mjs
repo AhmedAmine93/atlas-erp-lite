@@ -6,9 +6,11 @@
 import http from "node:http";
 const host="127.0.0.1";
 const nextPort=Number(process.env.ATLAS_WEB_PORT??3100);
-if(!Number.isInteger(nextPort)||nextPort<1||nextPort>65535)throw Error("Invalid ATLAS_WEB_PORT");
+const jetPort=Number(process.env.ATLAS_JET_PORT??8000);
+const gatewayPort=Number(process.env.ATLAS_JET_GATEWAY_PORT??8100);
+for(const port of [nextPort,jetPort,gatewayPort])if(!Number.isInteger(port)||port<1||port>65535)throw Error("Invalid ATLAS port");
 http.createServer((req,res)=>{
- const target=(req.url||"/").startsWith("/api/")?nextPort:8000;
+ const target=(req.url||"/").startsWith("/api/")?nextPort:jetPort;
  const upstream=http.request({
   host,port:target,method:req.method,path:req.url,
   headers:{...req.headers,host:host+":"+target}
@@ -18,4 +20,4 @@ http.createServer((req,res)=>{
   res.end("JET or ATLAS application unavailable.");
  });
  req.pipe(upstream);
-}).listen(8100,host,()=>console.log("JET gateway: http://127.0.0.1:8100"));
+}).listen(gatewayPort,host,()=>console.log("JET gateway: http://127.0.0.1:"+gatewayPort));
