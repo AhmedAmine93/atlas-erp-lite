@@ -58,7 +58,7 @@ class OrganizationTest extends TestCase
         ]);
         $this->assertDatabaseHas('audit_logs', ['action' => 'company.created', 'entity_id' => $company]);
         $this->assertDatabaseHas('audit_logs', ['action' => 'establishment.updated', 'entity_id' => $establishment]);
-        $this->assertDatabaseCount('audit_logs', 4);
+        $this->assertDatabaseCount('audit_logs', 5); // Four organization actions + tenant switch.
         $this->getJson('/api/establishments?company_id='.$company)->assertOk()->assertJsonCount(1);
     }
 
