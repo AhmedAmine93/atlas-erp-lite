@@ -122,6 +122,39 @@ export async function api<T = unknown>(
   return body;
 }
 
+/**
+ * Downloads are not JSON API calls, but must obey the same company handshake
+ * and reject a response that arrives after a context revision.
+ */
+export async function fetchTenantBlob(path: string, accept: string): Promise<Blob> {
+  const startedEpoch = contextEpoch;
+  const expectedCompany = verifiedCompanyId;
+  if (expectedCompany === null) throw new StaleTenantContextError();
+  const response = await fetch(`/api/${path}`, {
+    credentials: "same-origin",
+    cache: "no-store",
+    headers: {
+      Accept: accept,
+      "X-Atlas-Expected-Company": String(expectedCompany),
+    },
+  });
+  if (contextEpoch !== startedEpoch) throw new StaleTenantContextError();
+  if (response.status === 409 && response.headers.get("X-Atlas-Context-Stale") === "1") {
+    resetTenantContext();
+    window.dispatchEvent(new Event("atlas-tenant-stale"));
+    throw new StaleTenantContextError();
+  }
+  if (response.status === 401) {
+    resetTenantContext();
+    window.dispatchEvent(new Event("atlas-session-expired"));
+    throw new ApiError("Session expirée.", 401);
+  }
+  if (!response.ok) throw new ApiError("Le téléchargement n’a pas pu aboutir.", response.status);
+  const blob = await response.blob();
+  if (contextEpoch !== startedEpoch) throw new StaleTenantContextError();
+  return blob;
+}
+
 export const send = <T = unknown>(
   path: string,
   method: string,
