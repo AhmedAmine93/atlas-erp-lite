@@ -140,11 +140,15 @@ export default function SupportIncidents() {
     }
   }
 
-  async function showDetail(incident: Incident) {
+  async function showDetail(incident: Incident, resetDrafts = true) {
     setError("");
     setCreating(false);
-    setComment("");
-    setEscalationReason("");
+    // Preserve user-entered drafts during a background detail refresh.
+    // Only clear them when explicitly opening a different incident.
+    if (resetDrafts) {
+      setComment("");
+      setEscalationReason("");
+    }
     try {
       setSelected(await api<Incident>(`support/incidents/${incident.id}`));
     } catch (e) {
@@ -159,7 +163,7 @@ export default function SupportIncidents() {
     try {
       await send(`support/incidents/${selected.id}/comments`, "POST", { message: comment.trim() });
       setComment("");
-      await showDetail(selected);
+      await showDetail(selected, false);
       setRevision(n => n + 1);
       setNotice("Commentaire ajouté.");
     } catch (e) {
@@ -175,7 +179,7 @@ export default function SupportIncidents() {
     setError("");
     try {
       await send(`support/incidents/${selected.id}/escalate`, "POST", { reason: escalationReason.trim() });
-      await showDetail(selected);
+      await showDetail(selected, false);
       setRevision(n => n + 1);
       setNotice("Incident escaladé au niveau N3.");
     } catch (e) {
