@@ -1,0 +1,40 @@
+name: Oracle JET GMAO foundation
+on:
+  pull_request:
+    paths:
+      - 'jet-industrial/**'
+      - '.github/workflows/oracle-jet-gmao.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: oracle-jet-gmao-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  jet-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+      - name: Validate local gateway source
+        run: |
+          node --check jet-industrial/scripts/bootstrap.mjs
+          node --check jet-industrial/scripts/proxy.mjs
+          node --test jet-industrial/tests/gateway.test.mjs
+      - name: Generate official Oracle JET 21 application
+        run: node jet-industrial/scripts/bootstrap.mjs
+      - name: Build actual Oracle JET VDOM app
+        working-directory: jet-industrial/app
+        run: |
+          npx @oracle/ojet-cli@21.0.0 build
+      - name: Verify generated JET output
+        run: |
+          test -f jet-industrial/app/oraclejetconfig.json
+          test -f jet-industrial/app/src/components/content/atlas-api.ts
+          test -d jet-industrial/app/web
+          echo 'Oracle JET 21 official build succeeded'
