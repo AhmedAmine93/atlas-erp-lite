@@ -46,7 +46,7 @@ export default function Login({ onLogin }: LoginProps) {
         <div className="brand">
           <span className="brand-mark">A</span>
           <span>
-            ATLAS<span className="brand-lite">ERP LITE</span>
+            ATLAS<span className="brand-lite">ONE · WORKSPACE</span>
           </span>
         </div>
 
@@ -82,7 +82,7 @@ export default function Login({ onLogin }: LoginProps) {
         </div>
 
         <small>
-          Projet portfolio · PHP / Next.js / PostgreSQL
+          ATLAS ONE · Environnement de démonstration · Next.js / PostgreSQL
         </small>
       </section>
 
