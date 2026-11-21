@@ -39,7 +39,9 @@ jobs:
           path: |
             reports/
             frontend/playwright-report/
+            frontend/playwright-compat-report/
             frontend/test-results/
+            frontend/test-results-compat/
           retention-days: 14
       - name: Export the exact tested images
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
