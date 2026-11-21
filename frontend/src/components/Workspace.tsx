@@ -37,7 +37,7 @@ import {
   Wallet,
   TrendingUp,
 } from "lucide-react";
-import { api, send, all, setVerifiedCompanyContext, resetTenantContext, getVerifiedCompanyContext } from "@/lib/api";
+import { api, send, all, setVerifiedCompanyContext, resetTenantContext } from "@/lib/api";
 import { nav, navigationSections, type View } from "@/lib/navigation";
 import { canEditWorkspaceView, canOpenWorkspaceView, parseWorkspacePath, workspaceHref, type WorkspaceRoute } from "@/lib/workspaceRoutes";
 import OrganizationWorkspace from "@/components/OrganizationWorkspace";
