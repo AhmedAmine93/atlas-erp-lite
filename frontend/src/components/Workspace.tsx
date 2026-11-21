@@ -39,6 +39,8 @@ import {
 import { api, send, all } from "@/lib/api";
 import { nav, navigationSections, type View } from "@/lib/navigation";
 import OrganizationWorkspace from "@/components/OrganizationWorkspace";
+import Login from "@/components/auth/Login";
+import WorkspaceSidebar from "@/components/layout/WorkspaceSidebar";
 import type {
   User,
   Contact,
@@ -171,12 +173,6 @@ export default function Workspace() {
     [editor, setEditor] = useState<Editor | null>(null),
     [detail, setDetail] = useState<{ kind: string; row: Row } | null>(null),
     [busy, setBusy] = useState(false);
-  const [navSearch, setNavSearch] = useState("");
-  const [expandedSections, setExpandedSections] = useState<string[]>(() =>
-    navigationSections
-      .filter((section) => section.items.some((item) => item.ready))
-      .map((section) => section.id),
-  );
   useEffect(() => {
     api<User>("me")
       .then(setUser)
@@ -246,168 +242,37 @@ export default function Workspace() {
       />
     );
   const current = nav.find((n) => n.id === view)!;
-  const searchTerm = navSearch.trim().toLocaleLowerCase("fr");
-  const accessibleSections = navigationSections
-    .filter((section) => !section.adminOnly || user.role.name === "admin")
-    .map((section) => ({
-      ...section,
-      items: section.items.filter((item) => {
-        const matches =
-          !searchTerm ||
-          section.label.toLocaleLowerCase("fr").includes(searchTerm) ||
-          item.label.toLocaleLowerCase("fr").includes(searchTerm);
-        return matches;
-      }),
-    }))
-    .filter((section) => section.items.length > 0);
   return (
     <div className="app-shell">
       {mobile && (
         <div className="sidebar-scrim" onClick={() => setMobile(false)} />
       )}
-      <aside className={`sidebar ${mobile ? "open" : ""}`}>
-        <a
-          className="brand"
-          href="#"
-          onClick={(e) => {
-            e.preventDefault();
-            go("dashboard");
-          }}
-        >
-          <span className="brand-mark">A</span>
-          <span>
-            ATLAS<span className="brand-lite">ERP LITE</span>
-          </span>
-        </a>
-        <div className="workspace-chip">
-          <span className="workspace-avatar">A</span>
-          <div className="tenant-picker">
-            <label htmlFor="active-company">Entreprise active</label>
-            <select
-              id="active-company"
-              value={user.active_company_id ?? ""}
-              aria-label="Entreprise active"
-              disabled={!user.companies?.length || busy}
-              onChange={async (event) => {
-                setBusy(true);
-                setError("");
-                try {
-                  await send("tenant/switch", "POST", { company_id: Number(event.target.value) });
-                  window.location.reload();
-                } catch (e) {
-                  setError((e as Error).message);
-                  setBusy(false);
-                }
-              }}
-            >
-              {(user.companies ?? []).map((company) => (
-                <option key={company.id} value={company.id}>{company.name}</option>
-              ))}
-            </select>
-            <small>Données isolées par entreprise</small>
-          </div>
-          <span className="online-dot" />
-        </div>
-        <div className="nav-caption">ESPACE DE TRAVAIL</div>
-        <div className="erp-sidebar-search">
-          <Search size={15} aria-hidden="true" />
-          <input
-            type="search"
-            aria-label="Rechercher un menu"
-            placeholder="Rechercher un menu…"
-            value={navSearch}
-            onChange={(e) => setNavSearch(e.target.value)}
-          />
-        </div>
-        <nav aria-label="Navigation principale" className="erp-module-nav">
-          {accessibleSections.length === 0 && (
-            <p className="nav-empty">Aucun menu trouvé.</p>
-          )}
-          {accessibleSections.map((section) => {
-            const expanded =
-              searchTerm.length > 0 || expandedSections.includes(section.id);
-            return (
-              <div className="nav-group" key={section.id}>
-                <button
-                  type="button"
-                  className="nav-group-toggle"
-                  aria-expanded={expanded}
-                  aria-controls={`erp-nav-${section.id}`}
-                  onClick={() =>
-                    setExpandedSections((previous) =>
-                      previous.includes(section.id)
-                        ? previous.filter((id) => id !== section.id)
-                        : [...previous, section.id],
-                    )
-                  }
-                >
-                  <section.icon size={17} aria-hidden="true" />
-                  <span>{section.label}</span>
-                  <ChevronRight
-                    size={14}
-                    aria-hidden="true"
-                    className={expanded ? "expanded" : ""}
-                  />
-                </button>
-                {expanded && (
-                  <div className="nav-group-children" id={`erp-nav-${section.id}`}>
-                    {section.items.map((item) => (
-                      <button
-                        type="button"
-                        key={item.id}
-                        disabled={!item.ready}
-                        className={`nav-entry ${view === item.id ? "active" : ""}`}
-                        aria-current={view === item.id ? "page" : undefined}
-                        onClick={() => item.ready && go(item.id as View)}
-                      >
-                        <span>{item.label}</span>
-                        {!item.ready && (
-                          <span className="nav-coming-soon">À venir</span>
-                        )}
-                        {view === item.id && (
-                          <span className="nav-active-dot" />
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </nav>
-        <div className="sidebar-bottom">
-          <div className="demo-card">
-            <span className="demo-pill">PORTFOLIO</span>
-            <p>
-              Les idées prennent forme.
-              <br />
-              Votre activité aussi.
-            </p>
-            <span>ATLAS ERP Lite · v1.0</span>
-          </div>
-          <div className="profile">
-            <span className="avatar">{user.name.slice(0, 1)}</span>
-            <div>
-              <strong>{user.name.split(" · ")[0]}</strong>
-              <small>{labels[user.role.name]}</small>
-            </div>
-            <button
-              className="icon-button"
-              aria-label="Se déconnecter"
-              onClick={async () => {
-                try {
-                  await send("logout", "POST");
-                  setUser(null);
-                } catch (e) {
-                  setError((e as Error).message);
-                }
-              }}
-            >
-              <LogOut size={17} />
-            </button>
-          </div>
-        </div>
-      </aside>
+      <WorkspaceSidebar
+        user={user}
+        view={view}
+        mobile={mobile}
+        busy={busy}
+        onNavigate={go}
+        onTenantSwitch={async (companyId) => {
+          setBusy(true);
+          setError("");
+          try {
+            await send("tenant/switch", "POST", { company_id: companyId });
+            window.location.reload();
+          } catch (e) {
+            setError((e as Error).message);
+            setBusy(false);
+          }
+        }}
+        onLogout={async () => {
+          try {
+            await send("logout", "POST");
+            setUser(null);
+          } catch (e) {
+            setError((e as Error).message);
+          }
+        }}
+      />
       <main className="main">
         <header className="topbar">
           <div className="breadcrumb">
@@ -510,7 +375,7 @@ export default function Workspace() {
           {view === "dashboard" ? (
             <DashboardView refresh={refresh} go={go} />
           ) : view === "admin-companies" ? (
-            <OrganizationWorkspace />
+            <OrganizationWorkspace onCompanySaved={async () => setUser(await api<User>("me"))} />
           ) : (
             <ListView
               key={view}
@@ -568,107 +433,6 @@ export default function Workspace() {
           />
         </Modal>
       )}
-    </div>
-  );
-}
-
-function Login({ onLogin }: { onLogin: (u: User) => void }) {
-  const [email, setEmail] = useState("admin@atlas.example"),
-    [password, setPassword] = useState(""),
-    [error, setError] = useState(""),
-    [busy, setBusy] = useState(false);
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    setError("");
-    setBusy(true);
-    try {
-      onLogin(await send<User>("login", "POST", { email, password }));
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
-  return (
-    <div className="login-page">
-      <section className="login-story">
-        <div className="brand">
-          <span className="brand-mark">A</span>
-          <span>
-            ATLAS<span className="brand-lite">ERP LITE</span>
-          </span>
-        </div>
-        <div>
-          <span className="demo-pill">L’ESSENTIEL, BIEN PENSÉ</span>
-          <h1>
-            Une vision claire.
-            <br />
-            Une activité
-            <br />
-            <em>qui avance.</em>
-          </h1>
-          <p>
-            Clients, stocks, ventes et factures.
-            <br />
-            Tout se retrouve. Tout se suit.
-          </p>
-          <div className="login-art">
-            <div className="art-orbit" />
-            <div className="art-block one">
-              Clients <Users />
-            </div>
-            <div className="art-block two">
-              Ventes <TrendingUp />
-            </div>
-            <div className="art-block three">
-              Stocks <Package />
-            </div>
-          </div>
-        </div>
-        <small>Projet portfolio · PHP / Next.js / PostgreSQL</small>
-      </section>
-      <section className="login-form">
-        <div className="eyebrow">BIENVENUE DANS VOTRE ESPACE</div>
-        <h2>Heureux de vous retrouver.</h2>
-        <p>Connectez-vous pour garder le cap sur votre activité.</p>
-        <form onSubmit={submit}>
-          <label>
-            Adresse e-mail
-            <input
-              type="email"
-              autoComplete="username"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </label>
-          <label>
-            Mot de passe
-            <input
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </label>
-          {error && (
-            <div className="error" role="alert">
-              {error}
-            </div>
-          )}
-          <button className="button primary" disabled={busy}>
-            {busy ? "Connexion…" : "Se connecter"}
-            <ArrowRight size={18} />
-          </button>
-        </form>
-        <p className="login-note">
-          <ShieldCheck size={18} />
-          Données fictives · Aucun paiement bancaire réel.
-          <br />
-          Les accès de démonstration sont dans le README.
-        </p>
-      </section>
     </div>
   );
 }
