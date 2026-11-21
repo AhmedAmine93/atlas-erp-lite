@@ -132,6 +132,9 @@ class TenantAccountHardeningTest extends TestCase
             'password' => 'PasswordTest2026!',
         ])->assertUnprocessable();
 
-        $this->getJson('/api/me')->assertUnauthorized();
+        // A stale authenticated session must still be rejected by
+        // tenant middleware once its last membership is revoked.
+        $this->actingAs($reader);
+        $this->getJson('/api/me')->assertForbidden();
     }
 }
