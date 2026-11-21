@@ -27,8 +27,8 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - name: Validate deployment scripts
         run: |
-          bash -n scripts/ci.sh scripts/deploy.sh scripts/rehearse-f14.sh
-          shellcheck scripts/ci.sh scripts/deploy.sh scripts/rehearse-f14.sh
+          bash -n scripts/ci.sh scripts/deploy.sh scripts/rehearse-f14.sh scripts/verify-rc1.sh
+          shellcheck scripts/ci.sh scripts/deploy.sh scripts/rehearse-f14.sh scripts/verify-rc1.sh
       - name: Build, PostgreSQL, concurrency, HTTP and browser tests
         run: bash scripts/ci.sh
       - name: Preserve test evidence
