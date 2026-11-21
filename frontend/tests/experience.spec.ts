@@ -18,6 +18,7 @@ test("P06: refreshed dashboard and modular navigation preserve real routes", asy
   await expect(support.getByText("Incidents en cours")).toBeVisible();
   await expect(support.getByText("Escalades N3")).toBeVisible();
   await expect(support.getByText("SLA résolution dépassé")).toBeVisible();
+  await expect(support.locator("article.atlas-role-stat")).toHaveCount(4);
   await expect(page.getByRole("heading", { name: "Le rythme de vos ventes" })).toBeVisible();
   await expect(page.getByRole("combobox", { name: "Entreprise active" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Voir les modules prévus" })).toBeVisible();

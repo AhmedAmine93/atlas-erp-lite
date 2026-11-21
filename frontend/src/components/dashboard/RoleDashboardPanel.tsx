@@ -8,6 +8,9 @@ import {
 import { api } from "@/lib/api";
 import type { Dashboard, User } from "@/lib/types";
 import type { View } from "@/lib/navigation";
+import MetricCard from "@/components/ui/MetricCard";
+import SectionHeading from "@/components/ui/SectionHeading";
+import FeedbackState from "@/components/ui/FeedbackState";
 
 type SupportSummary = {
   open: number;
@@ -24,9 +27,8 @@ type Props = {
 };
 
 /**
- * P06: visible role-specific landing content from existing authorized APIs.
- * This is presentation, NOT authorization. Laravel remains the permission
- * authority. The active-company switch reloads Workspace and clears state.
+ * Role-aware display only: Laravel remains the permission authority.
+ * Each card uses existing authorized, active-tenant API data.
  */
 export default function RoleDashboardPanel(props: Props) {
   if (["admin", "support_n2", "support_n3"].includes(props.user.role.name)) {
@@ -50,49 +52,47 @@ function SupportSummaryPanel({ user, onNavigate, refresh }: Props) {
     let active = true;
     setSummary(null);
     setError(false);
-    // Called only for roles entitled to Gate::authorize('support').
     api<SupportSummary>("support/incidents/summary")
       .then((result) => { if (active) setSummary(result); })
       .catch(() => { if (active) setError(true); });
     return () => { active = false; };
   }, [user.active_company_id, refresh, reload]);
 
-  const tiles = summary ? [
-    { title: "Incidents en cours", value: summary.open, icon: LifeBuoy },
-    { title: "Escalades N3", value: summary.escalated_n3, icon: ClipboardList },
-    { title: "SLA réponse dépassé", value: summary.response_sla_breached, icon: Clock3 },
-    { title: "SLA résolution dépassé", value: summary.resolution_sla_breached, icon: AlertTriangle },
+  const metrics = summary ? [
+    { label: "Incidents en cours", value: summary.open, icon: LifeBuoy },
+    { label: "Escalades N3", value: summary.escalated_n3, icon: ClipboardList },
+    { label: "SLA réponse dépassé", value: summary.response_sla_breached, icon: Clock3 },
+    { label: "SLA résolution dépassé", value: summary.resolution_sla_breached, icon: AlertTriangle },
   ] : [];
 
   return (
     <section className="atlas-role-panel" aria-label="Pilotage support">
-      <header className="atlas-role-header">
-        <div>
-          <span className="atlas-role-eyebrow">SUPPORT & ITSM</span>
-          <h2>{user.role.name === "admin" ? "Vue support de l'entreprise" : "Votre centre de pilotage support"}</h2>
-          <p>Incidents, escalades et SLA de la société active, selon vos autorisations.</p>
-        </div>
-        <button className="button secondary" type="button" onClick={() => onNavigate("support-incidents")}>
-          Ouvrir les incidents <ArrowUpRight size={16} aria-hidden="true" />
-        </button>
-      </header>
-      {error ? (
-        <div className="atlas-role-status" role="alert">
-          <span>Indicateurs support indisponibles.</span>
-          <button className="button secondary" type="button" onClick={() => setReload(n => n + 1)}>
-            Réessayer
+      <SectionHeading
+        eyebrow="SUPPORT & ITSM"
+        title={user.role.name === "admin" ? "Vue support de l'entreprise" : "Votre centre de pilotage support"}
+        description="Incidents, escalades et SLA de la société active, selon vos autorisations."
+        action={
+          <button className="button secondary" type="button" onClick={() => onNavigate("support-incidents")}>
+            Ouvrir les incidents <ArrowUpRight size={16} aria-hidden="true" />
           </button>
-        </div>
+        }
+      />
+      {error ? (
+        <FeedbackState kind="error" onRetry={() => setReload((n) => n + 1)}>
+          Indicateurs support indisponibles.
+        </FeedbackState>
       ) : !summary ? (
-        <p className="atlas-role-status" role="status">Chargement des indicateurs support…</p>
+        <FeedbackState kind="loading">Chargement des indicateurs support…</FeedbackState>
       ) : (
         <div className="atlas-role-stats">
-          {tiles.map(({ title, value, icon: Icon }) => (
-            <article className="atlas-role-stat" key={title}>
-              <span className="atlas-role-stat-top"><span>{title}</span><Icon size={17} aria-hidden="true" /></span>
-              <strong>{value}</strong>
-              <small>Données de la société active</small>
-            </article>
+          {metrics.map(({ label, value, icon }) => (
+            <MetricCard
+              key={label}
+              label={label}
+              value={value}
+              icon={icon}
+              hint="Données de la société active"
+            />
           ))}
         </div>
       )}
@@ -106,16 +106,16 @@ function StockSummaryPanel({ dashboard, onNavigate }: {
 }) {
   return (
     <section className="atlas-role-panel" aria-label="Priorités stocks">
-      <header className="atlas-role-header">
-        <div>
-          <span className="atlas-role-eyebrow">STOCKS & LOGISTIQUE</span>
-          <h2>Vos priorités d'inventaire</h2>
-          <p>Alertes courantes calculées sur les produits de la société active.</p>
-        </div>
-        <button className="button secondary" type="button" onClick={() => onNavigate("products")}>
-          Ouvrir les stocks <ArrowUpRight size={16} aria-hidden="true" />
-        </button>
-      </header>
+      <SectionHeading
+        eyebrow="STOCKS & LOGISTIQUE"
+        title="Vos priorités d'inventaire"
+        description="Alertes courantes calculées sur les produits de la société active."
+        action={
+          <button className="button secondary" type="button" onClick={() => onNavigate("products")}>
+            Ouvrir les stocks <ArrowUpRight size={16} aria-hidden="true" />
+          </button>
+        }
+      />
       <div className="atlas-role-stock">
         <div className="atlas-role-stock-total">
           <Package size={23} aria-hidden="true" />
@@ -130,7 +130,7 @@ function StockSummaryPanel({ dashboard, onNavigate }: {
             </button>
           </div>
           {dashboard.low_stock.length === 0 ? (
-            <p>Aucun produit au seuil d'alerte.</p>
+            <FeedbackState kind="empty">Aucun produit au seuil d'alerte.</FeedbackState>
           ) : (
             <ul>
               {dashboard.low_stock.slice(0, 5).map((product) => (
@@ -155,30 +155,34 @@ function SalesSummaryPanel({ dashboard, onNavigate }: {
   dashboard: Dashboard;
   onNavigate: (view: View) => void;
 }) {
+  const metrics = [
+    { label: "Commandes validées", value: String(dashboard.orders_count), icon: ShoppingCart, view: "orders" as const },
+    { label: "Chiffre d'affaires HT", value: euro(dashboard.revenue_cents), icon: ClipboardList, view: "invoices" as const },
+    { label: "À encaisser TTC", value: euro(dashboard.outstanding_cents), icon: Wallet, view: "invoices" as const },
+  ];
+
   return (
     <section className="atlas-role-panel" aria-label="Priorités commerciales">
-      <header className="atlas-role-header">
-        <div>
-          <span className="atlas-role-eyebrow">VENTES & COMMERCE</span>
-          <h2>Votre suivi commercial</h2>
-          <p>Commandes validées et factures de la période sélectionnée.</p>
-        </div>
-        <button className="button secondary" type="button" onClick={() => onNavigate("quotes")}>
-          Voir les devis <ArrowUpRight size={16} aria-hidden="true" />
-        </button>
-      </header>
-      <div className="atlas-role-stats atlas-role-sales-stats">
-        {[
-          { title: "Commandes validées", value: String(dashboard.orders_count), icon: ShoppingCart, view: "orders" as const },
-          { title: "Chiffre d'affaires HT", value: euro(dashboard.revenue_cents), icon: ClipboardList, view: "invoices" as const },
-          { title: "À encaisser TTC", value: euro(dashboard.outstanding_cents), icon: Wallet, view: "invoices" as const },
-        ].map(({ title, value, icon: Icon, view }) => (
-          <button key={title} className="atlas-role-stat atlas-role-stat-link" type="button"
-            onClick={() => onNavigate(view)}>
-            <span className="atlas-role-stat-top"><span>{title}</span><Icon size={17} aria-hidden="true" /></span>
-            <strong>{value}</strong>
-            <small>Accéder au module <ArrowUpRight size={12} aria-hidden="true" /></small>
+      <SectionHeading
+        eyebrow="VENTES & COMMERCE"
+        title="Votre suivi commercial"
+        description="Commandes validées et factures de la période sélectionnée."
+        action={
+          <button className="button secondary" type="button" onClick={() => onNavigate("quotes")}>
+            Voir les devis <ArrowUpRight size={16} aria-hidden="true" />
           </button>
+        }
+      />
+      <div className="atlas-role-stats atlas-role-sales-stats">
+        {metrics.map(({ label, value, icon, view }) => (
+          <MetricCard
+            key={label}
+            label={label}
+            value={value}
+            icon={icon}
+            hint="Accéder au module ↗"
+            onClick={() => onNavigate(view)}
+          />
         ))}
       </div>
     </section>
