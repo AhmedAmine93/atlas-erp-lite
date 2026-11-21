@@ -42,7 +42,7 @@ test("F04: connexion, navigation, société créée et changement de tenant", as
   await expect(page.getByRole("heading", { name: "Vue d’ensemble." })).toBeVisible();
   await page.getByRole("button", { name: "Clients", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Clients." })).toBeVisible();
-  await expect(page.getByText("Aucun résultat pour le moment.")).toBeVisible();
+  await expect(page.getByText("Aucun résultat. Modifiez vos filtres ou créez votre premier élément.")).toBeVisible();
 
   // Original company remains selectable by the same administrator.
   await expect(page.getByRole("combobox", { name: "Entreprise active" }).locator(`option[value="${originalCompany}"]`)).toHaveCount(1);
