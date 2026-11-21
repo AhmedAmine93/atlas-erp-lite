@@ -19,6 +19,7 @@ class SalesController extends Controller
 
     public function index(Request $r, string $kind)
     {
+        Gate::authorize('salesRead');
         $r->validate(['search' => 'nullable|string|max:100', 'status' => 'nullable|string|max:30', 'customer_id' => 'nullable|integer']);
 
         if ($r->customer_id) {
@@ -31,6 +32,7 @@ class SalesController extends Controller
 
     public function show(string $kind, int $id)
     {
+        Gate::authorize('salesRead');
         return $this->model($kind)::with('items', 'customer')->findOrFail($id);
     }
 
