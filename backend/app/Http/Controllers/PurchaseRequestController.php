@@ -17,6 +17,39 @@ final class PurchaseRequestController extends Controller {
         return PurchaseRequest::query()->latest('id')->paginate(20);
     }
 
+    /**
+     * Every transition is serialized on its row. Only a submitted request
+     * may be approved; creator and approver must be different users.
+     */
+    public function submit(int $id) {
+        Gate::authorize('admin');
+        return DB::transaction(function () use ($id) {
+            $item = PurchaseRequest::query()->lockForUpdate()->findOrFail($id);
+            abort_unless($item->status === 'draft', 409, 'La demande n’est plus en brouillon.');
+            $item->status = 'submitted';
+            $item->submitted_at = now();
+            $item->save();
+            Audit::record('purchase.request.submitted', $item);
+            return response()->json($item);
+        });
+    }
+
+    public function approve(Request $request, int $id) {
+        Gate::authorize('admin');
+        return DB::transaction(function () use ($request,$id) {
+            $item = PurchaseRequest::query()->lockForUpdate()->findOrFail($id);
+            abort_unless($item->status === 'submitted', 409, 'Seule une demande soumise peut être approuvée.');
+            abort_if((int) $item->requested_by === (int) $request->user()->id,
+                403, 'Le demandeur ne peut pas approuver sa propre demande.');
+            $item->status = 'approved';
+            $item->approved_by = $request->user()->id;
+            $item->approved_at = now();
+            $item->save();
+            Audit::record('purchase.request.approved',$item);
+            return response()->json($item);
+        });
+    }
+
     public function store(Request $request) {
         Gate::authorize('admin');
         $company = app(TenantContext::class)->requireId();
