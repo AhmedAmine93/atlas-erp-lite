@@ -41,6 +41,12 @@ SQL);
             throw new \RuntimeException('F16 runtime role has unacceptable privileges before provisioning.');
         }
 
+        // Allow the migration owner to assume the restricted role for
+        // non-destructive permission tests. Do not INHERIT its privileges.
+        $owner = (string) DB::selectOne('SELECT current_user AS name')->name;
+        $quotedOwner = '"'.str_replace('"', '""', $owner).'"';
+        DB::statement("GRANT atlas_app_runtime TO {$quotedOwner} WITH INHERIT FALSE, SET TRUE");
+
         DB::statement('GRANT USAGE ON SCHEMA public TO atlas_app_runtime');
         DB::statement('REVOKE CREATE ON SCHEMA public FROM atlas_app_runtime');
 
