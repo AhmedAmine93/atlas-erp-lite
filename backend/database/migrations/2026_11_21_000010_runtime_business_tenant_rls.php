@@ -56,6 +56,31 @@ WITH CHECK (
 SQL);
         }
 
+        // A fixed, argument-free metrics aggregate is the *only* global
+        // business visibility exposed to the runtime. No direct row access.
+        // The owner migrator owns this SECURITY DEFINER function and is
+        // responsible for reviewing changes to its fixed SQL body.
+        DB::statement(<<<'SQL'
+CREATE FUNCTION public.atlas_f20_global_metrics()
+RETURNS TABLE (
+    orders_validated bigint,
+    invoices_outstanding_cents numeric,
+    products_low_stock bigint
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = pg_catalog
+AS $metrics$
+    SELECT
+        (SELECT COUNT(*) FROM public.orders WHERE status = 'validated'),
+        (SELECT COALESCE(SUM(total_cents), 0) FROM public.invoices WHERE status = 'issued'),
+        (SELECT COUNT(*) FROM public.products WHERE stock <= alert_threshold)
+$metrics$
+SQL);
+        DB::statement('REVOKE ALL ON FUNCTION public.atlas_f20_global_metrics() FROM PUBLIC');
+        DB::statement('GRANT EXECUTE ON FUNCTION public.atlas_f20_global_metrics() TO atlas_app_runtime');
+
         $policies = DB::selectOne(<<<'SQL'
 SELECT COUNT(*)::int AS n
 FROM pg_policies
@@ -73,6 +98,9 @@ SQL);
         if (DB::getDriverName() !== 'pgsql') {
             return;
         }
+
+        DB::statement('REVOKE EXECUTE ON FUNCTION public.atlas_f20_global_metrics() FROM atlas_app_runtime');
+        DB::statement('DROP FUNCTION IF EXISTS public.atlas_f20_global_metrics()');
 
         foreach (self::TENANT_TABLES as $table) {
             DB::statement("DROP POLICY IF EXISTS atlas_f20_runtime_tenant_policy ON public.\"{$table}\"");
