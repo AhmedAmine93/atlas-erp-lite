@@ -46,7 +46,7 @@ test("P06: refreshed dashboard and modular navigation preserve real routes", asy
 
   // Customer history opens as an addressable record, revalidated on reload.
   await page.getByRole("button", { name: "Historique" }).first().click();
-  await expect(page).toHaveURL(/\/workspace\/customers\/\\d+$/);
+  await expect(page).toHaveURL(/\/workspace\/customers\/\d+$/);
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.reload();
   await expect(page.getByRole("dialog")).toBeVisible();
