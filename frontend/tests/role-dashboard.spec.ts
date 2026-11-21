@@ -24,6 +24,10 @@ test("P06.05: stock user sees real inventory priorities without finance panels",
   await expect(page.getByRole("region", { name: "Pilotage support" })).toHaveCount(0);
   await stocks.getByRole("button", { name: "Ouvrir les stocks" }).click();
   await expect(page.getByRole("heading", { name: "Produits & stocks." })).toBeVisible();
+  // A forged admin URL must never activate an admin-only workspace.
+  await page.goto("/workspace/users");
+  await expect(page.getByRole("heading", { name: "Vue d’ensemble." })).toBeVisible();
+  await expect(page).toHaveURL(/\/workspace\/dashboard$/);
 });
 
 test("P06.05: commercial user sees sales priorities and follows invoice shortcut", async ({ page }) => {
