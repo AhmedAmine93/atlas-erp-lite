@@ -50,7 +50,7 @@ test("V5: création DI puis qualification et BT sans doublon", async ({ page }) 
 
   await page.getByRole("button", { name: "Parc d’équipements" }).click();
   await page.getByRole("button", { name: "Nouvelle fiche" }).click();
-  await page.getByLabel("Site", { exact: true }).selectOption({ label: /SITE-/ });
+  await page.getByLabel("Site", { exact: true }).selectOption({ label: "SITE-"+suffix+" · Site de recette" });
   await page.getByLabel("Code", { exact: true }).fill("PUMP-"+suffix);
   await page.getByLabel("Nom", { exact: true }).fill("Pompe de démonstration");
   await page.getByRole("button", { name: "Enregistrer" }).click();
@@ -58,7 +58,7 @@ test("V5: création DI puis qualification et BT sans doublon", async ({ page }) 
 
   await page.getByRole("button", { name: "Demandes d’intervention (DI)" }).click();
   await page.getByRole("button", { name: "Nouvelle fiche" }).click();
-  await page.getByLabel("Équipement", { exact: true }).selectOption({ label: /PUMP-/ });
+  await page.getByLabel("Équipement", { exact: true }).selectOption({ label: "PUMP-"+suffix+" · Pompe de démonstration" });
   await page.getByLabel("Référence", { exact: true }).fill("DI-"+suffix);
   await page.getByLabel("Objet", { exact: true }).fill("Pression insuffisante");
   await page.getByLabel("Priorité", { exact: true }).selectOption("high");
@@ -70,7 +70,7 @@ test("V5: création DI puis qualification et BT sans doublon", async ({ page }) 
   await row.getByRole("button", { name: "Créer / voir BT" }).click();
 
   await page.getByRole("button", { name: "Bons de travail (BT)" }).click();
-  const workOrder = page.locator(".atlas-domain-list tbody tr").last();
+  const workOrder = page.locator(".atlas-domain-list tbody tr").first();
   await expect(workOrder).toBeVisible();
   await workOrder.getByRole("button", { name: "Démarrer" }).click();
   await expect(workOrder.getByRole("button", { name: "Clôturer" })).toBeVisible();
