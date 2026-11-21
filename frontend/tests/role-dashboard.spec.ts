@@ -24,6 +24,10 @@ test("P06.05: stock user sees real inventory priorities without finance panels",
   await expect(page.getByRole("region", { name: "Pilotage support" })).toHaveCount(0);
   await stocks.getByRole("button", { name: "Ouvrir les stocks" }).click();
   await expect(page.getByRole("heading", { name: "Produits & stocks." })).toBeVisible();
+  // P066.04: hidden modules must also be inaccessible via direct API.
+  await expect(page.getByRole("button", { name: "Factures", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Clients", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Devis", exact: true })).toHaveCount(0);
   // A forged admin URL must never activate an admin-only workspace.
   await page.goto("/workspace/users");
   await expect(page.getByRole("heading", { name: "Vue d’ensemble." })).toBeVisible();
@@ -41,6 +45,7 @@ test("P06.05: commercial user sees sales priorities and follows invoice shortcut
   await expect(invoiceShortcut).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(page.getByRole("heading", { name: "Factures." })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Mouvements", exact: true })).toHaveCount(0);
 });
 
 test("P06.05: reader retains original overview without privileged support summary", async ({ page }) => {
@@ -51,4 +56,8 @@ test("P06.05: reader retains original overview without privileged support summar
   await expect(page.getByRole("region", { name: "Pilotage support" })).toHaveCount(0);
   await expect(page.getByRole("region", { name: "Priorités commerciales" })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Le rythme de vos ventes" })).toBeVisible();
+  await page.getByRole("button", { name: "Clients", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Nouveau client" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /Modifier .*?/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /Supprimer .*?/ })).toHaveCount(0);
 });
