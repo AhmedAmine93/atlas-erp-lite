@@ -36,6 +36,8 @@ Route::prefix('api')->group(function () {
         Route::post('hotel-rooms', [HotelRegistryController::class, 'createRoom']);
         Route::get('hotel-bookings', [HotelBookingController::class, 'index']);
         Route::post('hotel-bookings', [HotelBookingController::class, 'store']);
+        Route::post('hotel-bookings/{id}/confirm', [HotelBookingController::class, 'confirm'])->whereNumber('id');
+        Route::post('hotel-bookings/{id}/cancel', [HotelBookingController::class, 'cancel'])->whereNumber('id');
         Route::get('search', GlobalSearchController::class);
         Route::get('stock-movements', [ProductController::class, 'movements']);
         Route::get('products', [ProductController::class, 'index']);
