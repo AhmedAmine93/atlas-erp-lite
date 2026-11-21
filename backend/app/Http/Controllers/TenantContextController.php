@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\Audit;
+use App\Services\TenantDatabaseContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -20,6 +21,9 @@ class TenantContextController extends Controller
         $oldCompanyId = (int) $request->session()->get('active_company_id');
         $newCompanyId = (int) $data['company_id'];
 
+        // ResolveTenant already verified membership and opened a tenant-
+        // scoped transaction. Rebind immediately for writes in this request.
+        TenantDatabaseContext::set($newCompanyId);
         $request->session()->put('active_company_id', $newCompanyId);
         $request->attributes->set('atlas_company_id', $newCompanyId);
         Audit::record('tenant.switched', null, ['from' => $oldCompanyId, 'to' => $newCompanyId]);

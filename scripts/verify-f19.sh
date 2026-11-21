@@ -64,6 +64,10 @@ denied 'roles DELETE' "DELETE FROM public.roles WHERE false;"
 # retained environment.
 runtime >/dev/null <<'SQL'
 BEGIN;
+-- F20 introduces tenant RLS on audit_logs; keep the positive F19 write
+-- fixture inside an authenticated transaction-local tenant.
+SELECT set_config('atlas.tenant_id',
+    (SELECT id::text FROM public.companies WHERE code='ATLAS_DEMO'), true);
 INSERT INTO public.audit_logs
 (company_id,user_id,action,entity_type,created_at,updated_at)
 SELECT c.id, u.id, 'f19.positive', 'SyntheticCI', now(), now()
