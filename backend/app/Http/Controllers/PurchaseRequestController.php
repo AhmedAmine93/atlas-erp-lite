@@ -44,8 +44,68 @@ final class PurchaseRequestController extends Controller {
             $item->status = 'approved';
             $item->approved_by = $request->user()->id;
             $item->approved_at = now();
+            $item->decided_by = $request->user()->id;
+            $item->decided_at = now();
+            $item->decision_reason = null;
             $item->save();
             Audit::record('purchase.request.approved',$item);
+            return response()->json($item);
+        });
+    }
+
+    /** Return a submitted request with a mandatory decision reason. */
+    public function reject(Request $request, int $id)
+    {
+        Gate::authorize('admin');
+        $data = $request->validate(['reason' => 'required|string|min:5|max:1000']);
+        return DB::transaction(function () use ($request, $id, $data) {
+            $item = PurchaseRequest::query()->lockForUpdate()->findOrFail($id);
+            abort_unless($item->status === 'submitted', 409, 'Seule une demande soumise peut être refusée.');
+            abort_if((int) $item->requested_by === (int) $request->user()->id,
+                403, 'Décision par un autre administrateur requise.');
+            $item->status = 'rejected';
+            $item->decision_reason = $data['reason'];
+            $item->decided_by = $request->user()->id;
+            $item->decided_at = now();
+            $item->save();
+            Audit::record('purchase.request.rejected', $item);
+            return response()->json($item);
+        });
+    }
+
+    /** Changing a submitted/rejected request invalidates the old decision. */
+    public function revise(Request $request, int $id)
+    {
+        Gate::authorize('admin');
+        $data = $request->validate([
+            'title' => 'sometimes|required|string|max:180',
+            'justification' => 'sometimes|nullable|string|max:2000',
+            'estimated_total_cents' => 'sometimes|required|integer|min:0|max:100000000000',
+            'currency' => ['sometimes', 'string', 'size:3', Rule::in(['EUR','USD','GBP'])],
+            'company_id' => 'prohibited',
+            'requested_by' => 'prohibited',
+            'status' => 'prohibited',
+            'approved_by' => 'prohibited',
+            'approved_at' => 'prohibited',
+        ]);
+        abort_if($data === [], 422, 'Aucune modification.');
+        return DB::transaction(function () use ($request, $id, $data) {
+            $item = PurchaseRequest::query()->lockForUpdate()->findOrFail($id);
+            abort_unless(in_array($item->status, ['draft', 'submitted', 'rejected'], true),
+                409, 'Une demande approuvée ne peut pas être modifiée.');
+            abort_unless((int) $item->requested_by === (int) $request->user()->id,
+                403, 'Seul le demandeur peut réviser.');
+            $item->fill($data);
+            $item->status = 'draft';
+            $item->submitted_at = null;
+            $item->approved_by = null;
+            $item->approved_at = null;
+            $item->decision_reason = null;
+            $item->decided_by = null;
+            $item->decided_at = null;
+            $item->revision = (int) $item->revision + 1;
+            $item->save();
+            Audit::record('purchase.request.revised', $item);
             return response()->json($item);
         });
     }
