@@ -29,6 +29,7 @@ export default function WorkspaceSidebar({
   user, view, mobile, busy, onNavigate, onTenantSwitch, onLogout,
 }: SidebarProps) {
   const [navSearch, setNavSearch] = useState("");
+  const [showPlanned, setShowPlanned] = useState(false);
   const [expandedSections, setExpandedSections] = useState<string[]>(() =>
     navigationSections
       .filter((section) => section.items.some((item) => item.ready))
@@ -43,6 +44,9 @@ export default function WorkspaceSidebar({
     .map((section) => ({
       ...section,
       items: section.items.filter((item) => {
+        // Keep the everyday workspace concise. A search still discovers
+        // planned features, clearly disabled until their API exists.
+        if (!item.ready && !showPlanned && !searchTerm) return false;
         const matches =
           !searchTerm ||
           section.label.toLocaleLowerCase("fr").includes(searchTerm) ||
@@ -64,7 +68,7 @@ export default function WorkspaceSidebar({
         >
           <span className="brand-mark">A</span>
           <span>
-            ATLAS<span className="brand-lite">ERP LITE</span>
+            ATLAS<span className="brand-lite">ONE · WORKSPACE</span>
           </span>
         </a>
         <div className="workspace-chip">
@@ -86,7 +90,17 @@ export default function WorkspaceSidebar({
           </div>
           <span className="online-dot" />
         </div>
-        <div className="nav-caption">ESPACE DE TRAVAIL</div>
+        <div className="atlas-nav-toolbar">
+          <span className="nav-caption">VOS MODULES</span>
+          <button
+            type="button"
+            className="atlas-planned-toggle"
+            aria-pressed={showPlanned}
+            onClick={() => setShowPlanned((previous) => !previous)}
+          >
+            {showPlanned ? "Masquer les modules prévus" : "Voir les modules prévus"}
+          </button>
+        </div>
         <div className="erp-sidebar-search">
           <Search size={15} aria-hidden="true" />
           <input
@@ -155,13 +169,13 @@ export default function WorkspaceSidebar({
         </nav>
         <div className="sidebar-bottom">
           <div className="demo-card">
-            <span className="demo-pill">PORTFOLIO</span>
+            <span className="demo-pill">ENVIRONNEMENT DÉMO</span>
             <p>
-              Les idées prennent forme.
+              Un espace de travail pour vos opérations,
               <br />
-              Votre activité aussi.
+              vos équipes et vos données.
             </p>
-            <span>ATLAS ERP Lite · v1.0</span>
+            <span>ATLAS ONE · Version de développement</span>
           </div>
           <div className="profile">
             <span className="avatar">{user.name.slice(0, 1)}</span>
