@@ -25,6 +25,9 @@ test("P06.05: admin sees tenant-scoped support summary and original finance dash
 
 test("P06.05: stock user sees real inventory priorities without finance panels", async ({ page }) => {
   await login(page, "stock");
+  const quick = page.getByRole("region", { name: "Accès rapides" });
+  await expect(quick.getByRole("button", { name: /Mouvements/ })).toBeVisible();
+  await expect(quick.getByRole("button", { name: /Incidents/ })).toHaveCount(0);
   const stocks = page.getByRole("region", { name: "Priorités stocks" });
   await expect(stocks).toBeVisible();
   await expect(stocks.getByRole("heading", { name: "Vos priorités d'inventaire" })).toBeVisible();
