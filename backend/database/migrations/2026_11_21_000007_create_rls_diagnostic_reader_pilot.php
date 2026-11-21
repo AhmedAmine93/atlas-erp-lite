@@ -35,11 +35,11 @@ $atlas$;
 SQL);
 
         $role = DB::selectOne(
-            "SELECT rolcanlogin, rolsuper, rolbypassrls, rolcreaterole
+            "SELECT (rolcanlogin::int + rolsuper::int +
+                      rolbypassrls::int + rolcreaterole::int) AS elevated
              FROM pg_roles WHERE rolname = 'atlas_rls_reader'"
         );
-        if (! $role || $role->rolcanlogin || $role->rolsuper ||
-            $role->rolbypassrls || $role->rolcreaterole) {
+        if (! $role || (int) $role->elevated !== 0) {
             throw new \RuntimeException('F15 reader role must be NOLOGIN, non-superuser and NOBYPASSRLS.');
         }
 
