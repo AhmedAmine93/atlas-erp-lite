@@ -27,6 +27,8 @@ export DEMO_PASSWORD
 bash scripts/rehearse-f14.sh
 bash scripts/verify-rc1.sh
 "${dc[@]}" run --rm tests php tests/concurrency.php
+# Separate dedicated browser account; login throttling remains intact.
+"${dc[@]}" exec -T -e ATLAS_BROWSER_E2E_CONFIRM=YES_ISOLATED_CI backend php artisan db:seed --class=BrowserE2ESeeder --force
 "${dc[@]}" run --rm tests composer validate --strict
 "${dc[@]}" run --rm tests composer audit --locked
 "${dc[@]}" exec -T frontend npm audit --omit=dev
