@@ -132,9 +132,20 @@ class TenantAccountHardeningTest extends TestCase
             'password' => 'PasswordTest2026!',
         ])->assertUnprocessable();
 
-        // A stale authenticated session must still be rejected by
-        // tenant middleware once its last membership is revoked.
+    }
+
+    public function test_revoked_account_is_denied_by_tenant_middleware_even_with_authentication(): void
+    {
+        // Independent test application: do not reuse the request guard
+        // cached by a previous login/API request.
+        $company = Company::where('code', 'ATLAS_DEMO')->firstOrFail();
+        $reader = $this->member('revoked-session-f13@example.test', 'reader', [
+            $company->id => 'reader',
+        ]);
+        $reader->companies()->detach($company->id);
         $this->actingAs($reader);
+
         $this->getJson('/api/me')->assertForbidden();
+        $this->getJson('/api/customers')->assertForbidden();
     }
 }
