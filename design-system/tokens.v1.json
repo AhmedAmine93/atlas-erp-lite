@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "metadata": {
+    "source": "ATLAS ONE P065",
+    "description": "Shared semantic tokens. Dark theme is opt-in until portal visual qualification."
+  },
+  "light": {
+    "primary": "#4965ef",
+    "primaryContrast": "#ffffff",
+    "background": "#f3f6fc",
+    "surface": "#ffffff",
+    "text": "#18253c",
+    "muted": "#66758d",
+    "border": "#e4eaf3",
+    "focus": "#6387ff",
+    "positive": "#14785f",
+    "warning": "#925e09",
+    "danger": "#a32934"
+  },
+  "dark": {
+    "primary": "#91a4ff",
+    "primaryContrast": "#101936",
+    "background": "#11192b",
+    "surface": "#1d2a40",
+    "text": "#f1f5fd",
+    "muted": "#bcc9dc",
+    "border": "#344865",
+    "focus": "#b4d4ff",
+    "positive": "#65d7b0",
+    "warning": "#f6c57c",
+    "danger": "#ffa3aa"
+  },
+  "space": {
+    "1": 4,
+    "2": 8,
+    "3": 12,
+    "4": 16,
+    "6": 24
+  },
+  "radius": {
+    "small": 6,
+    "medium": 10,
+    "large": 16
+  },
+  "font": {
+    "body": "DM Sans Variable",
+    "heading": "Manrope Variable"
+  }
+}

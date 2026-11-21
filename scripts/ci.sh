@@ -15,6 +15,7 @@ cleanup() {
   exit "$result"
 }
 trap cleanup EXIT
+node scripts/verify-design-tokens.mjs
 node scripts/setup.mjs
 DEMO_PASSWORD=$(node --input-type=module -e "import fs from 'node:fs'; process.stdout.write(fs.readFileSync('.env','utf8').match(/^DEMO_PASSWORD=(.+)$/m)[1].trim())")
 export DEMO_PASSWORD
