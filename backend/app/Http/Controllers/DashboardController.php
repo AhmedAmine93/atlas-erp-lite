@@ -8,11 +8,13 @@ use App\Models\Product;
 use App\Services\TenantContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 class DashboardController extends Controller
 {
     public function __invoke(Request $r)
     {
+        Gate::authorize('dashboardRead');
         $d = $r->validate(['from' => 'nullable|date_format:Y-m-d', 'to' => 'nullable|date_format:Y-m-d|after_or_equal:from']);
         $from = $d['from'] ?? now()->startOfMonth()->toDateString();
         $to = $d['to'] ?? now()->toDateString();
