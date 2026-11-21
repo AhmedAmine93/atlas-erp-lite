@@ -583,7 +583,8 @@ function DashboardView({
               .map((s) => (
               <article
                 className={`stat-card ${s.featured ? "featured" : ""}`}
-                key={s.title}
+                data-widget={s.id}
+                key={s.id}
               >
                 <div className="stat-top">
                   <span>{s.title}</span>
