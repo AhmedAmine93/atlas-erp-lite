@@ -78,3 +78,5 @@ printf 'F17 actual PostgreSQL password authentication: PASS\nF17 migration/DDL d
 echo 'F17 PASS: authenticated runtime is active. Next CI smoke and Playwright run with this identity.'
 # F18 runs in this process while the ephemeral credential remains available.
 bash scripts/verify-f18.sh
+# F19 also runs before F17 destroys the ephemeral authenticated credential.
+bash scripts/verify-f19.sh
