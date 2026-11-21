@@ -238,6 +238,11 @@ export default function Workspace() {
           setUser(u);
           setView("dashboard");
           setError("");
+          // The login response does not carry company memberships.
+          // Hydrate the full tenant-aware profile before enabling tenant navigation.
+          api<User>("me")
+            .then(setUser)
+            .catch((e: Error) => setError("Impossible de charger les entreprises autorisées : " + e.message));
         }}
       />
     );
