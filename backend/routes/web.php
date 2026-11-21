@@ -31,6 +31,9 @@ Route::prefix('api')->group(function () {
         Route::get('dashboard', DashboardController::class);
         Route::get('purchasing/requests', [PurchaseRequestController::class, 'index']);
         Route::post('purchasing/requests', [PurchaseRequestController::class, 'store']);
+        Route::post('purchasing/requests/{id}/submit', [PurchaseRequestController::class, 'submit'])->whereNumber('id');
+        Route::post('purchasing/requests/{id}/decision', [PurchaseRequestController::class, 'decision'])->whereNumber('id');
+        Route::get('purchasing/requests/{id}/history', [PurchaseRequestController::class, 'history'])->whereNumber('id');
         Route::get('search', GlobalSearchController::class);
         Route::get('stock-movements', [ProductController::class, 'movements']);
         Route::get('products', [ProductController::class, 'index']);
