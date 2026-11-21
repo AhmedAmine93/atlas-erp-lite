@@ -41,6 +41,7 @@ import { api, send, all, fetchTenantBlob, setVerifiedCompanyContext, resetTenant
 import { nav, navigationSections, type View } from "@/lib/navigation";
 import { canEditWorkspaceView, canOpenWorkspaceView, parseWorkspacePath, workspaceHref, type WorkspaceRoute } from "@/lib/workspaceRoutes";
 import OrganizationWorkspace from "@/components/OrganizationWorkspace";
+import DomainWorkspace, { domainViews } from "@/components/DomainWorkspace";
 import SupportIncidents from "@/components/SupportIncidents";
 import Login from "@/components/auth/Login";
 import WorkspaceSidebar from "@/components/layout/WorkspaceSidebar";
@@ -512,7 +513,7 @@ export default function Workspace() {
                 "invoices",
                 "admin-companies",
                 "support-incidents",
-              ].includes(view) && (
+              ].includes(view) && !domainViews.has(view) && (
                 <button
                   className="button primary"
                   onClick={() => setEditor({ kind: view })}
@@ -558,6 +559,8 @@ export default function Workspace() {
             </>
           ) : view === "support-incidents" ? (
             <SupportIncidents canDiagnose={["admin", "support_n3"].includes(user.role.name)} />
+          ) : domainViews.has(view) ? (
+            <DomainWorkspace key={view} view={view} activeCompanyId={user.active_company_id ?? null} />
           ) : view === "admin-companies" ? (
             <OrganizationWorkspace
               activeCompanyId={user.active_company_id ?? null}
