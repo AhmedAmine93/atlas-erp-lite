@@ -11,6 +11,14 @@ test("P06: refreshed dashboard and modular navigation preserve real routes", asy
 
   await expect(page.getByRole("heading", { name: "Pilotez votre activité avec une seule vue." })).toBeVisible();
   await expect(page.getByRole("region", { name: "Accès rapides" })).toBeVisible();
+  // Share the existing admin login with the role-dashboard checks so
+  // browser smoke stays under Laravel's per-account login throttle.
+  const support = page.getByRole("region", { name: "Pilotage support" });
+  await expect(support).toBeVisible();
+  await expect(support.getByText("Incidents en cours")).toBeVisible();
+  await expect(support.getByText("Escalades N3")).toBeVisible();
+  await expect(support.getByText("SLA résolution dépassé")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Le rythme de vos ventes" })).toBeVisible();
   await expect(page.getByRole("combobox", { name: "Entreprise active" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Voir les modules prévus" })).toBeVisible();
 
