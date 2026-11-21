@@ -38,7 +38,7 @@ class HotelBookingDraftTest extends TestCase
         $this->postJson('/api/hotel-bookings',array_merge($data,['reference'=>'INVALID','departure_date'=>'2026-12-01']))
             ->assertUnprocessable();
         $this->postJson('/api/hotel-bookings',array_merge($data,['reference'=>'R-2026']))
-            ->assertStatus(500); // replaced by explicit 422 uniqueness validation below
+            ->assertUnprocessable();
         $this->admin($b,'b');
         $this->postJson('/api/hotel-bookings',array_merge($data,['reference'=>'FOREIGN']))
             ->assertNotFound();
