@@ -31,8 +31,11 @@ test("F07-F09: support incident, N3 escalation, comments and SLA", async ({ page
   await detail.getByLabel("Commentaire support").fill("Diagnostic N2 sur des données de démonstration.");
   await detail.getByRole("button", { name: "Ajouter un commentaire" }).click();
   await expect(detail.getByText("Diagnostic N2 sur des données de démonstration.")).toBeVisible();
+  await expect(page.getByRole("status").getByText("Commentaire ajouté.")).toBeVisible();
 
   await detail.getByLabel("Motif d'escalade N3").fill("Analyse des plans d'exécution Oracle nécessaire.");
+  await expect(detail.getByLabel("Motif d'escalade N3")).toHaveValue("Analyse des plans d'exécution Oracle nécessaire.");
+  await expect(detail.getByRole("button", { name: "Escalader vers N3" })).toBeEnabled();
   await detail.getByRole("button", { name: "Escalader vers N3" }).click();
   await expect(detail.getByText("Niveau d'escalade : N3")).toBeVisible();
 
