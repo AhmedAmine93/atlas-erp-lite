@@ -1,5 +1,6 @@
 "use client";
 import {
+  Fragment,
   useEffect,
   useState,
   useRef,
@@ -601,10 +602,10 @@ function DashboardView({
             ))}
           </div>
           <div className="dashboard-grid">
+            {([
+              { id: "revenue-chart" as const, element: (
             <section className="panel revenue-panel atlas-dashboard-widget"
-              data-widget="revenue-chart"
-              hidden={!widgets.visible("revenue-chart")}
-              style={{ order: widgets.order("revenue-chart") }}>
+              data-widget="revenue-chart">
               <div className="panel-heading">
                 <div>
                   <h2>Le rythme de vos ventes</h2>
@@ -623,10 +624,10 @@ function DashboardView({
                 </strong>
               </div>
             </section>
+              ) },
+              { id: "top-products" as const, element: (
             <section className="panel top-products atlas-dashboard-widget"
-              data-widget="top-products"
-              hidden={!widgets.visible("top-products")}
-              style={{ order: widgets.order("top-products") }}>
+              data-widget="top-products">
               <div className="panel-heading">
                 <div>
                   <h2>Vos meilleures ventes</h2>
@@ -662,10 +663,10 @@ function DashboardView({
                 <ArrowRight size={16} />
               </button>
             </section>
+              ) },
+              { id: "recent-orders" as const, element: (
             <section className="panel recent-orders atlas-dashboard-widget"
-              data-widget="recent-orders"
-              hidden={!widgets.visible("recent-orders")}
-              style={{ order: widgets.order("recent-orders") }}>
+              data-widget="recent-orders">
               <div className="panel-heading">
                 <div>
                   <h2>Les dernières commandes</h2>
@@ -705,10 +706,10 @@ function DashboardView({
                 {!data.recent_orders.length && <Empty />}
               </DataTableFrame>
             </section>
+              ) },
+              { id: "stock-alerts" as const, element: (
             <section className="panel stock-alerts atlas-dashboard-widget"
-              data-widget="stock-alerts"
-              hidden={!widgets.visible("stock-alerts")}
-              style={{ order: widgets.order("stock-alerts") }}>
+              data-widget="stock-alerts">
               <div className="panel-heading">
                 <div>
                   <h2>
@@ -747,6 +748,11 @@ function DashboardView({
                 <ArrowRight size={16} />
               </button>
             </section>
+              ) },
+            ])
+              .filter((panel) => widgets.visible(panel.id))
+              .sort((a, b) => widgets.order(a.id) - widgets.order(b.id))
+              .map((panel) => <Fragment key={panel.id}>{panel.element}</Fragment>)}
           </div>
           <div className="insight-strip">
             <span className="insight-icon">
