@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AiWorkspaceController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ContactController;
@@ -126,6 +127,30 @@ Route::prefix('api')->group(function () {
         Route::get('data/ingestion-batches', [DataIngestionBatchController::class, 'index']);
         Route::post('data/ingestion-batches', [DataIngestionBatchController::class, 'store']);
         Route::post('data/ingestion-batches/{id}/ingest-csv', [DataCsvIngestionController::class, 'ingest'])->whereNumber('id');
+        // M16: all routes require an authenticated, tenant-bound session and admin Gate.
+        Route::get('ai/v1/models', [AiWorkspaceController::class, 'models']);
+        Route::post('ai/v1/models', [AiWorkspaceController::class, 'createModel']);
+        Route::post('ai/v1/models/{id}/activate', [AiWorkspaceController::class, 'activateModel'])->whereNumber('id');
+        Route::get('ai/v1/agents', [AiWorkspaceController::class, 'agents']);
+        Route::post('ai/v1/agents', [AiWorkspaceController::class, 'createAgent']);
+        Route::post('ai/v1/agents/{id}/activate', [AiWorkspaceController::class, 'activateAgent'])->whereNumber('id');
+        Route::get('ai/v1/documents', [AiWorkspaceController::class, 'documents']);
+        Route::post('ai/v1/documents', [AiWorkspaceController::class, 'createDocument']);
+        Route::post('ai/v1/documents/{id}/revoke', [AiWorkspaceController::class, 'revokeDocument'])->whereNumber('id');
+        Route::get('ai/v1/search', [AiWorkspaceController::class, 'search']);
+        Route::post('ai/v1/assistant', [AiWorkspaceController::class, 'assistant'])->middleware('throttle:10,1');
+        Route::get('ai/v1/runs', [AiWorkspaceController::class, 'runs']);
+        Route::get('ai/v1/anomalies', [AiWorkspaceController::class, 'anomalies']);
+        Route::post('ai/v1/anomalies', [AiWorkspaceController::class, 'createAnomaly']);
+        Route::post('ai/v1/anomalies/{id}/review', [AiWorkspaceController::class, 'reviewAnomaly'])->whereNumber('id');
+        Route::get('ai/v1/forecasts', [AiWorkspaceController::class, 'forecasts']);
+        Route::post('ai/v1/forecasts', [AiWorkspaceController::class, 'createForecast']);
+        Route::post('ai/v1/forecasts/{id}/stale', [AiWorkspaceController::class, 'staleForecast'])->whereNumber('id');
+        Route::get('ai/v1/suggestions', [AiWorkspaceController::class, 'suggestions']);
+        Route::post('ai/v1/suggestions', [AiWorkspaceController::class, 'propose']);
+        Route::post('ai/v1/suggestions/{id}/decision', [AiWorkspaceController::class, 'decide'])->whereNumber('id');
+        Route::post('ai/v1/suggestions/{id}/execute', [AiWorkspaceController::class, 'execute'])->whereNumber('id');
+        Route::get('ai/v1/events', [AiWorkspaceController::class, 'events']);
         Route::get('search', GlobalSearchController::class);
         Route::get('stock-movements', [ProductController::class, 'movements']);
         Route::get('products', [ProductController::class, 'index']);
