@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { api, send } from "@/lib/api";
+import { api } from "@/lib/api";
 import type { Page, User } from "@/lib/types";
 
 type Module = "quality-controls" | "nonconformities" | "corrective-actions" | "quality-audits" | "compliance-docs";
@@ -85,7 +85,7 @@ const formatDate=(date: unknown) => typeof date === "string" && date
   ? new Date(date).toLocaleDateString("fr-FR") : "—";
 const itemLabel=(item: QualityRecord) =>
   String(item.reference ?? item.code ?? item.title ?? item.id);
-const scope = (row: QualityRecord, fields: string[]) =>
+const scope = (row: Record<string, unknown>, fields: string[]) =>
   fields.reduce<Record<string, unknown>>((obj, key) => { if (row[key] != null) obj[key] = row[key]; return obj; }, {});
 
 export default function QualityWorkspace({ view, user }: { view: Module; user: User }) {
@@ -93,6 +93,7 @@ export default function QualityWorkspace({ view, user }: { view: Module; user: U
   const role=user.role.name;
   const isManager=["admin","quality_manager"].includes(role);
   const canWrite=isManager || role==="quality_operator" || role==="quality_auditor";
+  const canCreate=canWrite && (!["quality-controls","quality-audits"].includes(view) || isManager) && view!=="corrective-actions" || (view==="corrective-actions"&&canWrite);
   const [records,setRecords]=useState<QualityRecord[]>([]);
   const [selected,setSelected]=useState<QualityRecord | null>(null);
   const [users,setUsers]=useState<{id:number;name:string}[]>([]);
@@ -136,7 +137,7 @@ export default function QualityWorkspace({ view, user }: { view: Module; user: U
   const changed=()=>{setRevision(n=>n+1);setMessage("Modification enregistrée.");};
   const write=async (path:string,data:Record<string,unknown>)=>{
     const key="atlas-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2);
-    return send<unknown>("quality/"+path,"POST",data); // Server supports optional idempotency keys.
+    return api<unknown>("quality/"+path,{method:"POST",headers:{"Idempotency-Key":key},body:JSON.stringify(data)});
   };
   const newEntity=async(e:FormEvent)=>{
     e.preventDefault();setBusy(true);setError("");setMessage("");
@@ -240,7 +241,7 @@ export default function QualityWorkspace({ view, user }: { view: Module; user: U
   return <section aria-label={config.title}>
     <div className="page-heading"><div><span className="eyebrow">QUALITÉ & CONFORMITÉ · M12</span>
       <h2>{config.title}</h2><p>{config.intro}</p></div>
-      {canWrite && <button className="button primary" disabled={busy} onClick={()=>{setCreating(true);setForm({});setSelected(null);}}>
+      {canCreate && <button className="button primary" disabled={busy} onClick={()=>{setCreating(true);setForm({});setSelected(null);}}>
         {config.create}</button>}
     </div>
     <div className="panel" style={{padding:"1rem",marginBottom:"1rem"}}>

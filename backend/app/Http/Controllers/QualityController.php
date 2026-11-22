@@ -67,9 +67,9 @@ final class QualityController extends Controller
      * The full response is recorded inside the same transaction as the write.
      * Duplicate keys with the same body return the original result, not another write.
      */
-    private function perform(Request $r, string $operation, callable $work)
+    private function perform(Request $r, string $operation, callable $work, array $roles = self::WRITE_ROLES)
     {
-        $actor = $this->actor($r, self::WRITE_ROLES);
+        $actor = $this->actor($r, $roles);
         $key = $r->header('Idempotency-Key');
         if ($key !== null) abort_unless(preg_match('/^[A-Za-z0-9._:-]{8,128}$/D', $key), 422, 'Idempotency-Key invalide.');
         return DB::transaction(function () use ($r, $operation, $work, $actor, $key) {
@@ -114,7 +114,7 @@ final class QualityController extends Controller
         $table = self::MODULES[$module][0];
         $params = $r->validate(['status' => 'nullable|string|max:32', 'search' => 'nullable|string|max:100', 'per_page' => 'nullable|integer|min:1|max:100']);
         $q = $this->items($table);
-        if (!empty($params['status'])) $q->where('status', $params['status']);
+        if (!empty($params['status']) && $module !== 'controls' && $module !== 'documents') $q->where('status', $params['status']);
         if (!empty($params['search'])) {
             $field = match ($module) { 'controls' => 'code', 'documents' => 'title', 'actions' => 'title', 'audits' => 'reference', default => 'reference' };
             $q->where($field, 'ilike', '%' . str_replace(['%', '_'], ['\%', '\_'], $params['search']) . '%');
@@ -173,7 +173,7 @@ final class QualityController extends Controller
             $id=$this->add('quality_plans', [...$d, 'approved_by'=>$actor,'created_by'=>$actor]);
             $this->event('controls',$id,'plan.approved',$actor);
             return (array)$this->object('quality_plans',$id);
-        });
+        }, self::APPROVERS);
     }
     public function executeCheck(Request $r, int $planId)
     {
@@ -204,7 +204,7 @@ final class QualityController extends Controller
                     'reference'=>'NC-'.$this->tenant().'-'.$id,
                     'title'=>'Écart sur '.$d['source_ref'],
                     'severity'=>'major','scope'=>$d['source_type'].': '.$d['source_ref'],
-                    'quarantine_units'=>max(1,(int)$d['rejected_units']),
+                    'quarantine_units'=>(int)$d['rejected_units'] > 0 ? (int)$d['rejected_units'] : (int)$d['inspected_units'],
                     'owner_id'=>$actor,'reported_by'=>$actor,'status'=>'open',
                 ]);
                 $action=$this->add('quality_actions',[
@@ -357,7 +357,7 @@ final class QualityController extends Controller
             $id=$this->add('quality_audits',[...$d,'created_by'=>$actor,'status'=>'planned']);
             $this->event('audits',$id,'created',$actor);
             return (array)$this->object('quality_audits',$id);
-        });
+        }, self::APPROVERS);
     }
     public function addFinding(Request $r,int $auditId)
     {
@@ -372,7 +372,7 @@ final class QualityController extends Controller
             $id=$this->add('quality_findings',[...$d,'audit_id'=>$auditId,'recorded_by'=>$actor]);
             $this->event('audits',$auditId,'finding.recorded',$actor,['finding_id'=>$id]);
             return (array)$this->object('quality_findings',$id);
-        });
+        }, self::READ_ROLES);
     }
     public function transitionAudit(Request $r,int $id)
     {

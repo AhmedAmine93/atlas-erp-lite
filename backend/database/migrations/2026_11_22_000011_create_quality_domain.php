@@ -235,6 +235,21 @@ SQL);
         foreach (self::INSERT_ONLY as $table) {
             DB::statement("CREATE TRIGGER {$table}_immutable BEFORE UPDATE OR DELETE ON public.\"{$table}\" FOR EACH ROW EXECUTE FUNCTION atlas_quality_immutable()");
         }
+        DB::statement(<<<'SQL'
+CREATE FUNCTION atlas_quality_version_protect() RETURNS trigger LANGUAGE plpgsql AS $body$
+BEGIN
+    IF OLD.content IS DISTINCT FROM NEW.content
+       OR OLD.sha256 IS DISTINCT FROM NEW.sha256
+       OR OLD.revision IS DISTINCT FROM NEW.revision
+       OR OLD.document_id IS DISTINCT FROM NEW.document_id
+       OR OLD.company_id IS DISTINCT FROM NEW.company_id THEN
+        RAISE EXCEPTION 'M12: protected document version cannot be changed';
+    END IF;
+    RETURN NEW;
+END
+$body$
+SQL);
+        DB::statement('CREATE TRIGGER quality_document_versions_guard BEFORE UPDATE ON public.quality_document_versions FOR EACH ROW EXECUTE FUNCTION atlas_quality_version_protect()');
         foreach (self::TABLES as $table) {
             $rights = in_array($table, self::INSERT_ONLY, true) ? 'SELECT, INSERT' : 'SELECT, INSERT, UPDATE';
             DB::statement("GRANT {$rights} ON public.\"{$table}\" TO atlas_app_runtime");
@@ -255,6 +270,7 @@ SQL);
             }
         }
         foreach (array_reverse(self::TABLES) as $table) Schema::dropIfExists($table);
+        if (DB::getDriverName() === 'pgsql') DB::statement('DROP FUNCTION IF EXISTS atlas_quality_version_protect()');
         if (DB::getDriverName() === 'pgsql') DB::statement('DROP FUNCTION IF EXISTS atlas_quality_immutable()');
     }
 };
