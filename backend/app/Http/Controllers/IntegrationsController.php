@@ -98,7 +98,7 @@ final class IntegrationsController extends Controller
                 'api' => 'event_id', 'imports' => 'mapping_version',
                 default => 'source_reference',
             };
-            $q->where($column,'ilike', '%'.addcslashes($search,'%_\\').'%');
+            $q->whereRaw('LOWER("'.$column.'") LIKE ?', ['%'.strtolower(addcslashes($search,'%_\\')).'%']);
         }
         return $q->orderByDesc('id')->paginate(20);
     }
@@ -156,7 +156,7 @@ final class IntegrationsController extends Controller
                 'company_id'=>$company,'created_at'=>now(),'updated_at'=>now(),
             ]));
             $this->audit($area,$id,'created');
-            return response()->json($this->row($table,$id),201)->withHeaders([]);
+            return response()->json($this->scoped($table)->where('id',$id)->first(self::SAFE_FIELDS[$area]),201);
         });
     }
 
