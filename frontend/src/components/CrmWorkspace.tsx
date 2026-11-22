@@ -1,6 +1,7 @@
 "use client";
 import {useEffect,useState,type FormEvent} from "react";
 import {api,send,fetchTenantBlob} from "@/lib/api";
+import CrmExternalIdentities from "@/components/CrmExternalIdentities";
 
 type View="prospects"|"crm-contacts"|"opportunities"|"crm-activities"|"customer-segments";
 type Row={id:number;revision:number;status?:string;stage?:string;[key:string]:unknown};
@@ -277,6 +278,8 @@ export default function CrmWorkspace({view,activeCompanyId,canEdit}:{view:View;a
     {canEdit&&resource==="prospects"&&selected.status==="qualified"&&
       <button type="button" disabled={busy} className="button primary"
         onClick={()=>void convert(selected)}>Convertir en client</button>}
+    {canEdit&&resource==="prospects"&&<CrmExternalIdentities kind="prospects" entityId={selected.id}/>}
+    {canEdit&&resource==="contacts"&&<CrmExternalIdentities kind="contacts" entityId={selected.id}/>}
     {resource==="opportunities"&&<section aria-label="Devis rattachés">
       <h3>Devis commerciaux liés à l'opportunité</h3>
       {quotes.length===0&&<p>Aucun devis rattaché.</p>}
