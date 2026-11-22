@@ -95,7 +95,7 @@ export const navigationSections: NavigationSection[] = [
     items: [
       { id: "products", label: "Produits & stocks", ready: true },
       { id: "stock-movements", label: "Mouvements", ready: true },
-      { id: "warehouses", label: "Dépôts et emplacements" },
+      { id: "warehouses", label: "Dépôts et emplacements", ready: true },
       { id: "stock-inventories", label: "Inventaires" },
       { id: "stock-transfers", label: "Transferts" },
       { id: "lots-serials", label: "Lots et numéros de série" },

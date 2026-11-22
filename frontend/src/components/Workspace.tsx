@@ -42,6 +42,7 @@ import { nav, navigationSections, type View } from "@/lib/navigation";
 import { canEditWorkspaceView, canOpenWorkspaceView, parseWorkspacePath, workspaceHref, type WorkspaceRoute } from "@/lib/workspaceRoutes";
 import OrganizationWorkspace from "@/components/OrganizationWorkspace";
 import DomainWorkspace, { domainViews } from "@/components/DomainWorkspace";
+import InventoryWarehouseWorkspace from "@/components/InventoryWarehouseWorkspace";
 import HotelHousekeepingWorkspace from "@/components/HotelHousekeepingWorkspace";
 import HotelMinibarWorkspace from "@/components/HotelMinibarWorkspace";
 import HotelAvailabilityWorkspace from "@/components/HotelAvailabilityWorkspace";
@@ -493,6 +494,7 @@ export default function Workspace() {
                           "Des relations durables, un suivi simplifié.",
                         suppliers: "Vos partenaires, réunis au même endroit.",
                         products: "Le bon produit, au bon moment.",
+                        "warehouses": "Dépôts et emplacements par entreprise.",
                         "stock-movements":
                           "Chaque entrée et chaque sortie, en toute transparence.",
                         quotes: "De la première proposition à la commande.",
@@ -512,6 +514,7 @@ export default function Workspace() {
               ![
                 "dashboard",
                 "stock-movements",
+                "warehouses",
                 "audit-logs",
                 "invoices",
                 "admin-companies",
@@ -560,6 +563,8 @@ export default function Workspace() {
               <WorkspaceWelcome user={user} onNavigate={go} />
               <DashboardView refresh={refresh} go={go} user={user} />
             </>
+          ) : view === "warehouses" ? (
+            <InventoryWarehouseWorkspace key={"warehouses-"+user.active_company_id} role={user.role.name} activeCompanyId={user.active_company_id ?? null} />
           ) : view === "support-incidents" ? (
             <SupportIncidents canDiagnose={["admin", "support_n3"].includes(user.role.name)} />
           ) : view === "hotel-minibar" ? (
