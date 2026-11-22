@@ -8,6 +8,8 @@ type Daily={lines:Line[];total_cents:number;by_room:Record<string,number>;by_sku
 type Mapping={mode:string;delimiter:string;amount_unit:string;date_header:string;room_header:string;amount_header:string;sku_header?:string};
 type ReconciliationLine={room_number:string;sku:string|null;atlas_cents:number;pms_cents:number;delta_cents:number;pms_line_count:number;status:string;possible_breakfast_difference:boolean};
 type Reconciliation={import_id:number;import_mode:string;atlas_total_cents:number;pms_total_cents:number;delta_cents:number;counts:Record<string,number>;manual_review_required:boolean;lines:ReconciliationLine[]};
+type MonthDay={business_date:string;atlas_total_cents:number;pms_total_cents:number|null;delta_cents:number|null;import_id:number|null;anomalies_count:number|null};
+type Monthly={month:string;atlas_total_cents:number;compared_atlas_cents:number;compared_pms_cents:number;compared_delta_cents:number;compared_days:number;uncompared_days:number;anomalies_count:number;days:MonthDay[]};
 const reconciliationLabels:Record<string,string>={matched:"Conforme",amount_mismatch:"Écart",missing_in_pms:"Absent du PMS",missing_in_atlas:"Absent d’ATLAS",duplicate_pms:"Doublon PMS"};
 const initial:Mapping={mode:"room",delimiter:";",amount_unit:"cents",date_header:"business_date",room_header:"room_number",amount_header:"total_cents",sku_header:"sku"};
 const money=(value:number)=>new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR"}).format(value/100);
@@ -16,6 +18,7 @@ export default function MinibarReports({hotel,day,refresh}:{hotel:number;day:str
   const base="hotels/"+hotel+"/minibar",query="?business_date="+day;
   const [report,setReport]=useState<Daily|null>(null),[mapping,setMapping]=useState<Mapping>(initial);
   const [reconciliation,setReconciliation]=useState<Reconciliation|null>(null);
+  const [monthly,setMonthly]=useState<Monthly|null>(null);
   const [error,setError]=useState(""),[notice,setNotice]=useState(""),[busy,setBusy]=useState(false);
   const [revision,setRevision]=useState(0);
   useEffect(()=>{
@@ -35,6 +38,12 @@ export default function MinibarReports({hotel,day,refresh}:{hotel:number;day:str
       .catch(e=>{if(live&&!(e instanceof ApiError&&e.status===404))setError(e.message);});
     return ()=>{live=false;};
   },[base,query,refresh,revision]);
+  useEffect(()=>{
+    let live=true;setMonthly(null);
+    api<Monthly>(base+"/monthly?month="+day.slice(0,7)).then(value=>{if(live)setMonthly(value);})
+      .catch(e=>{if(live)setError(e.message);});
+    return ()=>{live=false;};
+  },[base,day,refresh,revision]);
   async function download(path:string,name:string){
     setError("");
     try{
@@ -80,6 +89,23 @@ export default function MinibarReports({hotel,day,refresh}:{hotel:number;day:str
         <button type="button" onClick={()=>void download("/reconciliation/export"+query+"&import_id="+reconciliation.import_id,"rapprochement-minibar-"+hotel+"-"+day+".csv")}>Exporter les écarts CSV</button>
       </>}
     </section>
+    <details><summary>Tableau de bord mensuel · {day.slice(0,7)}</summary>
+      {monthly&&<>
+        <p>Total ATLAS : <strong>{money(monthly.atlas_total_cents)}</strong> · Journées rapprochées : {monthly.compared_days} · Journées sans import : {monthly.uncompared_days} · Anomalies : {monthly.anomalies_count}</p>
+        {monthly.compared_days>0&&<p>Écart sur journées comparables : {money(monthly.compared_delta_cents)} (ATLAS {money(monthly.compared_atlas_cents)} / PMS {money(monthly.compared_pms_cents)})</p>}
+        <div aria-label="Tendance quotidienne des consommations mini-bar" style={{display:"flex",height:110,alignItems:"end",gap:3}}>
+          {monthly.days.map(d=><div key={d.business_date} title={d.business_date+" · "+money(d.atlas_total_cents)}
+            style={{flex:1,minWidth:2,height:Math.max(2,100*d.atlas_total_cents/Math.max(1,...monthly.days.map(x=>x.atlas_total_cents)))+"%",background:"currentColor",opacity:d.import_id===null?.3:.85}} />)}
+        </div>
+        <div className="table-scroll"><table><thead><tr><th>Journée</th><th>ATLAS</th><th>PMS</th><th>Écart</th><th>Anomalies</th></tr></thead>
+          <tbody>{monthly.days.map(d=><tr key={d.business_date}>
+            <td>{d.business_date}</td><td>{money(d.atlas_total_cents)}</td>
+            <td>{d.pms_total_cents===null?"Non importé":money(d.pms_total_cents)}</td>
+            <td>{d.delta_cents===null?"Non rapproché":money(d.delta_cents)}</td>
+            <td>{d.anomalies_count??"Non rapproché"}</td>
+          </tr>)}</tbody></table></div>
+      </>}
+    </details>
     <details><summary>Importer un CSV PMS fictif</summary><form onSubmit={upload}>
       <label>Rapprochement <select value={mapping.mode} onChange={e=>setMapping({...mapping,mode:e.target.value})}>
         <option value="room">Total par chambre</option><option value="room_product">Total par chambre et article</option></select></label>
