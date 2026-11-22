@@ -561,12 +561,14 @@ export default function Workspace() {
             </>
           ) : view === "support-incidents" ? (
             <SupportIncidents canDiagnose={["admin", "support_n3"].includes(user.role.name)} />
+          ) : view === "hotel-checkin" ? (
+            <DomainWorkspace key={"reception-"+user.active_company_id} view="hotel-bookings" activeCompanyId={user.active_company_id ?? null} />
           ) : view === "hotel-availability" ? (
             <HotelAvailabilityWorkspace key={"hotel-availability-"+user.active_company_id} activeCompanyId={user.active_company_id ?? null} />
           ) : view === "hotel-housekeeping" ? (
             <HotelHousekeepingWorkspace key={"hotel-housekeeping-"+user.active_company_id} activeCompanyId={user.active_company_id ?? null} />
           ) : domainViews.has(view) ? (
-            <DomainWorkspace key={view} view={view} activeCompanyId={user.active_company_id ?? null} />
+            <DomainWorkspace key={view+"-"+user.active_company_id} view={view} activeCompanyId={user.active_company_id ?? null} />
           ) : view === "admin-companies" ? (
             <OrganizationWorkspace
               activeCompanyId={user.active_company_id ?? null}
