@@ -11,9 +11,56 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 final class DataIngestionBatchController extends Controller {
+    /**
+     * Page-bounded data-quality telemetry: aggregates only persisted CSV rows
+     * in the verified tenant, never exposes external_id or raw uploaded data.
+     *
+     * Each statistic is calculated from the actual stored rows (not the
+     * declared manifest). A registered lot is PENDING, not an empty success.
+     */
     public function index() {
         Gate::authorize('admin');
-        return DataIngestionBatch::query()->latest('id')->paginate(20);
+        $page = DataIngestionBatch::query()->latest('id')->paginate(20);
+        $ids = $page->getCollection()->pluck('id')->all();
+        if ($ids === []) {
+            return $page;
+        }
+
+        $tenantId = app(TenantContext::class)->requireId();
+        $stats = DB::table('data_ingested_csv_rows')
+            ->where('company_id', $tenantId)
+            ->whereIn('batch_id', $ids)
+            ->selectRaw(
+                'batch_id, COUNT(*) AS actual_rows, '.
+                'COALESCE(SUM(amount_cents), 0) AS amount_total_cents, '.
+                'SUM(CASE WHEN amount_cents > 0 THEN 1 ELSE 0 END) AS positive_rows, '.
+                'SUM(CASE WHEN amount_cents < 0 THEN 1 ELSE 0 END) AS negative_rows, '.
+                'SUM(CASE WHEN amount_cents = 0 THEN 1 ELSE 0 END) AS zero_rows'
+            )
+            ->groupBy('batch_id')
+            ->get()
+            ->keyBy('batch_id');
+
+        foreach ($page->getCollection() as $batch) {
+            $aggregate = $stats->get($batch->id);
+            $actual = (int) ($aggregate?->actual_rows ?? 0);
+            $processed = $batch->status === 'processed';
+            $matches = $processed ? $actual === (int) $batch->expected_rows : null;
+
+            $batch->setAttribute('quality_summary', [
+                'state' => ! $processed ? 'PENDING'
+                    : ($matches ? 'CONSISTENT' : 'ROW_COUNT_MISMATCH'),
+                'actual_rows' => $actual,
+                'expected_rows' => (int) $batch->expected_rows,
+                'row_count_matches_manifest' => $matches,
+                'amount_total_cents' => (int) ($aggregate?->amount_total_cents ?? 0),
+                'positive_rows' => (int) ($aggregate?->positive_rows ?? 0),
+                'negative_rows' => (int) ($aggregate?->negative_rows ?? 0),
+                'zero_rows' => (int) ($aggregate?->zero_rows ?? 0),
+            ]);
+        }
+
+        return $page;
     }
     public function store(Request $request) {
         Gate::authorize('admin');
