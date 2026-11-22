@@ -83,6 +83,10 @@ export default function PurchasingWorkspace({view,activeCompanyId}:{view:string;
   const [editing,setEditing]=useState(false),[values,setValues]=useState<Record<string,string>>({currency:"EUR"});
   const [lines,setLines]=useState<Line[]>([blankLine()]);
   const [editingRequestLines,setEditingRequestLines]=useState<number|null>(null);
+  const [delegationsOpen,setDelegationsOpen]=useState(false);
+  const [delegationUser,setDelegationUser]=useState(""),[delegationLimit,setDelegationLimit]=useState("");
+  const [delegationCurrency,setDelegationCurrency]=useState("EUR");
+  const [tenantUsers,setTenantUsers]=useState<RecordRow[]>([]);
   const [details,setDetails]=useState<{id:number;label:string;rows:RecordRow[]}|null>(null);
   const [comparison,setComparison]=useState<{purchase_request_id:number;currency:string;offers:RecordRow[]}|null>(null);
   useEffect(()=>{
@@ -101,6 +105,23 @@ export default function PurchasingWorkspace({view,activeCompanyId}:{view:string;
     return()=>{live=false;};
   },[screen,refresh,activeCompanyId]);
 
+  async function openDelegations() {
+    setError("");setDelegationsOpen(true);
+    try {
+      const [people,entries]=await Promise.all([all<RecordRow>("users"),
+        all<RecordRow>("purchasing/delegations")]);
+      setTenantUsers(people.filter(u=>String((u.role as {name?:string}|undefined)?.name??"")==="admin"));
+      setDetails({id:0,label:"Plafonds de délégation d’achats",rows:entries});
+    }catch(e){setError((e as Error).message);}
+  }
+  async function saveDelegation(event:FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await perform("purchasing/delegations",{
+      user_id:Number(delegationUser),currency:delegationCurrency,
+      max_amount_cents:Number(delegationLimit),active:true
+    });
+    setDelegationsOpen(false);
+  }
   async function downloadCsv() {
     setError("");
     try {
@@ -284,12 +305,32 @@ export default function PurchasingWorkspace({view,activeCompanyId}:{view:string;
     <div className="atlas-domain-toolbar">
       <div><h2>{screen.title}</h2><p>{screen.description}</p></div>
       <div className="atlas-domain-actions">
+        {view==="purchase-requests"&&<button type="button" className="button secondary" onClick={()=>void openDelegations()}>Délégations d’achat</button>}
         <button className="button secondary" disabled={busy} type="button" onClick={()=>void downloadCsv()}>Exporter CSV</button>
         <button className="button primary" type="button" onClick={openCreate}>+ Nouvelle fiche</button>
       </div>
     </div>
     {notice&&<p role="status" className="notice">{notice}</p>}
     {error&&<p role="alert" className="error">{error}</p>}
+    {view==="purchase-requests"&&delegationsOpen&&<form className="atlas-domain-form" onSubmit={e=>void saveDelegation(e)}>
+      <div className="atlas-domain-form-heading">
+        <h3>Configurer une délégation d’approbation</h3>
+        <button type="button" className="button secondary" onClick={()=>setDelegationsOpen(false)}>Fermer</button>
+      </div>
+      <p>Une fois les plafonds activés pour une devise, les approbations sont limitées aux délégataires habilités. Impossible de se déléguer à soi-même.</p>
+      <div className="atlas-domain-fields">
+        <label><span>Approbateur</span><select required value={delegationUser} onChange={e=>setDelegationUser(e.target.value)}>
+          <option value="">Sélectionner un administrateur…</option>
+          {tenantUsers.map(u=><option key={u.id} value={u.id}>{asText(u.name)} (#{u.id})</option>)}
+        </select></label>
+        <label><span>Devise</span><select value={delegationCurrency} onChange={e=>setDelegationCurrency(e.target.value)}>
+          {["EUR","USD","GBP"].map(c=><option key={c} value={c}>{c}</option>)}
+        </select></label>
+        <label><span>Plafond en centimes</span><input type="number" min={1} required
+          value={delegationLimit} onChange={e=>setDelegationLimit(e.target.value)}/></label>
+      </div>
+      <button type="submit" className="button primary" disabled={busy}>Enregistrer le plafond</button>
+    </form>}
     {editingRequestLines!==null&&<form className="atlas-domain-form" onSubmit={e=>void saveRequestLines(e)}>
       <div className="atlas-domain-form-heading"><h3>Révision des lignes — demande #{editingRequestLines}</h3>
         <button type="button" className="button secondary" onClick={()=>setEditingRequestLines(null)}>Fermer</button>
