@@ -5,6 +5,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PilotageController;
+use App\Http\Controllers\OpsController;
 use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\MetricsController;
@@ -52,6 +53,14 @@ Route::prefix('api')->group(function () {
         Route::post('tenant/switch', [TenantContextController::class, 'switch']);
         Route::post('logout', [AuthController::class, 'logout']);
         Route::get('dashboard', DashboardController::class);
+        // M18: only administrator-operated evidence API; no arbitrary remote execution.
+        Route::get('ops/overview', [OpsController::class, 'overview']);
+        Route::get('ops/{section}', [OpsController::class, 'index'])
+            ->whereIn('section', ['health', 'logs', 'jobs', 'backups', 'deployments']);
+        Route::post('ops/{section}', [OpsController::class, 'store'])
+            ->whereIn('section', ['health', 'logs', 'jobs', 'backups', 'deployments']);
+        Route::post('ops/{section}/{id}/transition', [OpsController::class, 'transition'])
+            ->whereIn('section', ['jobs', 'backups', 'deployments'])->whereNumber('id');
         Route::get('pilotage/{section}', [PilotageController::class, 'show'])
             ->whereIn('section', ['direction','sales','finance','logistics','alerts']);
         Route::get('pilotage/alerts/rules', [PilotageController::class, 'rules']);
