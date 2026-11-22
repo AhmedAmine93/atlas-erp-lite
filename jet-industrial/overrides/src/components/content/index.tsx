@@ -1,12 +1,14 @@
 import { h } from "preact";
 import { useEffect, useMemo, useState } from "preact/hooks";
 import "ojs/ojbutton";
+import { PlanningWorkspace, TeamWorkspace, ReportWorkspace } from "./planning";
 import {
   api,fetchPages,post,resetSession,setSession,
-  type Site,type Asset,type Intervention,type WorkOrder,type SessionProfile
+  type Site,type Asset,type Intervention,type WorkOrder,type SessionProfile,
+  type MaintenanceTeam,type MaintenanceTechnician,type MaintenanceSlot,type MaintenanceReport
 } from "./atlas-api";
 
-type Tab="overview"|"assets"|"requests"|"orders";
+type Tab="overview"|"assets"|"requests"|"orders"|"teams"|"planning"|"reports";
 const priorities=["low","normal","high","critical"] as const;
 const statusLabels:Record<string,string>={
  new:"Nouvelle",qualified:"Qualifiée",open:"Ouvert",in_progress:"En cours",
@@ -25,6 +27,10 @@ export function Content(){
  const [assets,setAssets]=useState<Asset[]>([]);
  const [requests,setRequests]=useState<Intervention[]>([]);
  const [orders,setOrders]=useState<WorkOrder[]>([]);
+ const [teams,setTeams]=useState<MaintenanceTeam[]>([]);
+ const [technicians,setTechnicians]=useState<MaintenanceTechnician[]>([]);
+ const [slots,setSlots]=useState<MaintenanceSlot[]>([]);
+ const [report,setReport]=useState<MaintenanceReport|null>(null);
  const [busy,setBusy]=useState(false);
  const [loading,setLoading]=useState(true);
  const [error,setError]=useState("");
@@ -51,15 +57,21 @@ export function Content(){
    const p=await api<SessionProfile>("me");
    if(p.role.name!=="admin"){resetSession();throw Error("Ce poste GMAO requiert actuellement le rôle administrateur de la société.");}
    setSession(p);
-   const [s,a,r,o]=await Promise.all([
+   const [s,a,r,o,t,tech,planning,summary]=await Promise.all([
     fetchPages<Site>("maintenance/sites"),
     fetchPages<Asset>("maintenance/assets"),
     fetchPages<Intervention>("maintenance/requests"),
-    fetchPages<WorkOrder>("maintenance/work-orders")
+    fetchPages<WorkOrder>("maintenance/work-orders"),
+    fetchPages<MaintenanceTeam>("maintenance/teams"),
+    fetchPages<MaintenanceTechnician>("maintenance/technicians"),
+    fetchPages<MaintenanceSlot>("maintenance/planning"),
+    api<MaintenanceReport>("maintenance/reports/summary")
    ]);
    setProfile(p);setSites(s);setAssets(a);setRequests(r);setOrders(o);
+   setTeams(t);setTechnicians(tech);setSlots(planning);setReport(summary);
   }catch(e){
    setProfile(null);setSites([]);setAssets([]);setRequests([]);setOrders([]);
+   setTeams([]);setTechnicians([]);setSlots([]);setReport(null);
    setError(localizedError(e));
   }finally{setLoading(false);}
  }
@@ -122,7 +134,8 @@ export function Content(){
     <p>POSTE INDUSTRIEL</p>
     {([
      ["overview","Vue d’ensemble"],["assets","Sites et équipements"],
-     ["requests","Demandes d’intervention"],["orders","Bons de travail"]
+     ["requests","Demandes d’intervention"],["orders","Bons de travail"],
+     ["teams","Techniciens & équipes"],["planning","Planning technique"],["reports","Rapports GMAO"]
     ] as [Tab,string][]).map(([id,name])=>
      <button type="button" key={id} class={tab===id?"active":""} aria-current={tab===id?"page":undefined}
       onClick={()=>setTab(id)}>{name}</button>
@@ -136,7 +149,8 @@ export function Content(){
     <div class="atlas-jet-toolbar">
      <div><span class="atlas-jet-overline">MAINTENANCE · WORKSPACE</span>
       <h1>{tab==="overview"?"Pilotage industriel":tab==="assets"?"Parc technique":
-       tab==="requests"?"Demandes d’intervention":"Bons de travail"}</h1>
+       tab==="requests"?"Demandes d’intervention":tab==="orders"?"Bons de travail":
+       tab==="teams"?"Équipes et techniciens":tab==="planning"?"Planning technique":"Rapports industriels"}</h1>
       <p>Opérations réelles via les API métier ATLAS ONE, sans écriture directe dans PostgreSQL.</p></div>
      <div class="atlas-jet-actions">
       {canWrite&&tab==="assets"&&<><oj-button onojAction={()=>setOpenForm("site")}>+ Site</oj-button>
@@ -186,6 +200,9 @@ export function Content(){
          {r.status==="qualified"&&canWrite&&<oj-button disabled={busy} onojAction={()=>void execute("BT créé ou retrouvé",()=>post("maintenance/requests/"+r.id+"/work-orders"))}>Créer / voir BT</oj-button>}
         </td></tr>)}</tbody></table></div>
       </div>}
+     {tab==="teams"&&<TeamWorkspace teams={teams} technicians={technicians} busy={busy} execute={execute}/>}
+     {tab==="planning"&&<PlanningWorkspace slots={slots} technicians={technicians} orders={orders} busy={busy} execute={execute}/>}
+     {tab==="reports"&&<ReportWorkspace report={report}/>}
      {tab==="orders"&&<div class="atlas-jet-card"><h2>Bons de travail (BT)</h2>
        <div class="atlas-jet-scroll"><table><thead><tr><th>BT</th><th>DI</th><th>Équipement</th><th>Priorité</th><th>État</th><th>Action</th></tr></thead>
        <tbody>{orders.map(o=><tr key={o.id}><td>BT-{o.id}</td><td>DI-{o.maintenance_request_id}</td>

@@ -4,6 +4,10 @@ export interface Site {id:number;code:string;name:string;active:boolean;}
 export interface Asset {id:number;asset_code:string;name:string;site_id:number;status:string;}
 export interface Intervention {id:number;reference:string;title:string;description?:string|null;asset_id:number;priority:string;status:string;}
 export interface WorkOrder {id:number;maintenance_request_id:number;asset_id:number;status:string;priority:string;summary:string;due_at?:string|null;resolution?:string|null;}
+export interface MaintenanceTeam {id:number;code:string;name:string;active:boolean;}
+export interface MaintenanceTechnician {id:number;code:string;name:string;team_id:number|null;active:boolean;}
+export interface MaintenanceSlot {id:number;work_order_id:number;technician_id:number;starts_at:string;ends_at:string;status:"scheduled"|"cancelled";cancellation_reason?:string|null;technician?:MaintenanceTechnician;work_order?:WorkOrder;}
+export interface MaintenanceReport {period:{from:string;to:string};generated_at:string;work_orders_by_status:Record<string,number>;requests_by_priority:Record<string,number>;overdue_work_orders:number;schedules_by_status:Record<string,number>;technicians_scheduled:{technician_id:number;name:string;scheduled:number}[];}
 export interface SessionProfile {name:string;email:string;active_company_id:number;role:{name:string};companies:{id:number;name:string;}[];}
 export class HttpError extends Error {
   constructor(public readonly status:number,message:string,public readonly stale=false){super(message);}

@@ -60,3 +60,20 @@
 button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:2px solid #268861;outline-offset:2px;}
 @media(max-width:980px){.atlas-jet-metrics{grid-template-columns:repeat(2,minmax(0,1fr));}.atlas-jet-main{padding:21px;}}
 @media(max-width:720px){.atlas-jet-body{grid-template-columns:1fr;}.atlas-jet-nav{flex-direction:row;flex-wrap:wrap;border-right:0;border-bottom:1px solid var(--atlas-line);padding:10px;}.atlas-jet-nav>p,.atlas-jet-nav-info{display:none;}.atlas-jet-nav button{font-size:11px;}.atlas-jet-main{padding:14px;}.atlas-jet-metrics{gap:9px;}.atlas-jet-header{padding:10px 15px;}}
+
+/* P068 maintenance workforce and technical planning */
+.atlas-jet-two-col{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;}
+.atlas-jet-inline-form{display:grid;gap:10px;margin:14px 0 22px;}
+.atlas-jet-planning-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:18px;}
+.atlas-jet-inline-form label,.atlas-jet-planning-form label{display:grid;gap:6px;color:var(--atlas-ink);font-size:12px;font-weight:700;}
+.atlas-jet-inline-form input,.atlas-jet-inline-form select,.atlas-jet-planning-form input,.atlas-jet-planning-form select{font:inherit;color:var(--atlas-ink);background:#fff;border:1px solid #cbd9d0;border-radius:8px;padding:11px;width:100%;min-width:0;}
+.atlas-jet-inline-form button,.atlas-jet-planning-form button,.atlas-jet-scroll button,.atlas-jet-report-top button{border:1px solid #bcd1c4;border-radius:8px;background:#166a50;color:#fff;font:inherit;font-weight:700;padding:11px 16px;cursor:pointer;}
+.atlas-jet-inline-form button:disabled,.atlas-jet-planning-form button:disabled,.atlas-jet-scroll button:disabled,.atlas-jet-report-top button:disabled{opacity:.5;cursor:not-allowed;}
+.atlas-jet-scroll button{padding:7px 10px;font-size:11px;}
+.atlas-jet-directory{list-style:none;padding:0;margin:0;display:grid;gap:8px;max-height:410px;overflow:auto;}
+.atlas-jet-directory li{border:1px solid var(--atlas-line);border-radius:7px;padding:10px 13px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;}
+.atlas-jet-directory li span{font-size:11px;color:var(--atlas-muted);}
+.atlas-jet-report-top{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:16px;}
+.atlas-jet-card h3{font-size:15px;margin:25px 0 8px;}
+@media(max-width:1024px){.atlas-jet-two-col{grid-template-columns:1fr;}}
+@media(max-width:680px){.atlas-jet-planning-form{grid-template-columns:1fr;}.atlas-jet-report-top button{width:100%;}}
