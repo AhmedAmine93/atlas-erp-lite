@@ -188,6 +188,42 @@ final class HotelMinibarTest extends TestCase
         $this->getJson("$this->base/monthly?month=2026-03")->assertNotFound();
     }
 
+    public function test_runtime_rls_isolates_minibar_consumptions_and_pms_imports(): void
+    {
+        $this->consume()->assertCreated()->assertJsonPath('total_cents', 500);
+        $this->importCsv("jour;chambre;total\n2026-03-03;101;5,00\n")->assertCreated();
+        $foreign = Company::create(['code'=>'MB_RUNTIME_B','name'=>'Entreprise B fictive'])->id;
+
+        DB::transaction(function () use ($foreign): void {
+            DB::statement('SET LOCAL ROLE atlas_app_runtime');
+            DB::selectOne("SELECT set_config('atlas.tenant_id', ?, true)", [(string) $this->company]);
+            $this->assertSame(1, DB::table('minibar_consumptions')->count());
+            $this->assertSame(1, DB::table('minibar_pms_imports')->count());
+
+            DB::selectOne("SELECT set_config('atlas.tenant_id', ?, true)", [(string) $foreign]);
+            $this->assertSame(0, DB::table('minibar_consumptions')->count());
+            $this->assertSame(0, DB::table('minibar_pms_imports')->count());
+
+            DB::selectOne("SELECT set_config('atlas.tenant_id', '', true)");
+            $this->assertSame(0, DB::table('minibar_consumptions')->count());
+            $this->assertSame(0, DB::table('minibar_pms_imports')->count());
+            DB::statement('RESET ROLE');
+        });
+    }
+
+    public function test_reconciliation_breakfast_hypothesis_requires_exact_nonzero_five_euro_multiple(): void
+    {
+        $this->consume(['quantity'=>4])->assertCreated()->assertJsonPath('total_cents', 1000);
+        $id = $this->importCsv("jour;chambre;total\n2026-03-03;101;5,00\n")
+            ->assertCreated()->json('id');
+        $this->getJson("$this->base/reconciliation?business_date=2026-03-03&import_id=$id")
+            ->assertOk()->assertJsonPath('delta_cents', 500)
+            ->assertJsonPath('lines.0.possible_breakfast_difference', true)
+            ->assertJsonPath('lines.0.status', 'amount_mismatch')
+            ->assertJsonPath('manual_review_required', true);
+        $this->assertSame(1, DB::table('minibar_consumptions')->count());
+    }
+
     public function test_runtime_isolates_catalog_and_cannot_rewrite_historical_prices(): void
     {
         DB::transaction(function () {
