@@ -437,9 +437,14 @@ final class ProcurementController extends Controller
                 ->where('r.purchase_order_id',$order->id)
                 ->select('l.purchase_order_line_id',DB::raw('SUM(l.accepted_quantity) AS qty'))
                 ->groupBy('l.purchase_order_line_id')->get()->keyBy('purchase_order_line_id');
+            $signedServices=DB::table('purchase_service_acceptances')
+                ->where('company_id',$this->company())->where('purchase_order_id',$order->id)
+                ->select('purchase_order_line_id',DB::raw('SUM(accepted_quantity) AS qty'))
+                ->groupBy('purchase_order_line_id')->get()->keyBy('purchase_order_line_id');
             $receivedTotal=0;
             foreach ($lineRows as $line) {
-                $qty=(int)($accepted->get($line->id)?->qty??0);
+                $qty=(int)($accepted->get($line->id)?->qty??0)
+                    +(int)($signedServices->get($line->id)?->qty??0);
                 $net=$qty*(int)$line->unit_price_cents;
                 $receivedTotal += $net + intdiv($net*(int)$line->vat_bps+5000,10000);
             }
