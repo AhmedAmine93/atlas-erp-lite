@@ -34,8 +34,8 @@ final class HotelMinibarMonthlyController extends Controller
             ->whereBetween('business_date', [$first, $last])
             ->groupBy('business_date')
             ->select('business_date')
-            ->selectRaw('SUM(total_cents)::bigint AS total_cents')
-            ->pluck('total_cents', 'business_date');
+            ->selectRaw('SUM(total_cents)::bigint AS total_cents, SUM(quantity)::bigint AS quantity')
+            ->get()->keyBy('business_date');
 
         $latestImports = DB::table('minibar_pms_imports')
             ->where('company_id', $property->company_id)
@@ -46,8 +46,28 @@ final class HotelMinibarMonthlyController extends Controller
             ->selectRaw('MAX(id) AS import_id')
             ->pluck('import_id', 'business_date');
 
+        $items = DB::table('minibar_consumptions as c')
+            ->join('minibar_products as p', function ($join): void {
+                $join->on('p.id', '=', 'c.product_id')
+                    ->on('p.company_id', '=', 'c.company_id')
+                    ->on('p.hotel_id', '=', 'c.hotel_id');
+            })
+            ->where('c.company_id', $property->company_id)
+            ->where('c.hotel_id', $hotel)
+            ->whereBetween('c.business_date', [$first, $last])
+            ->groupBy('p.sku', 'p.name')
+            ->select('p.sku', 'p.name')
+            ->selectRaw('SUM(c.quantity)::bigint AS quantity, SUM(c.total_cents)::bigint AS total_cents')
+            ->orderBy('p.sku')
+            ->get()->map(static fn ($row) => [
+                'sku' => $row->sku, 'name' => $row->name,
+                'quantity' => (int) $row->quantity,
+                'total_cents' => (int) $row->total_cents,
+            ])->values()->all();
+
         $days = [];
         $total = 0;
+        $totalQuantity = 0;
         $comparedAtlas = 0;
         $comparedPms = 0;
         $unresolved = 0;
@@ -55,8 +75,10 @@ final class HotelMinibarMonthlyController extends Controller
         $uncomparedDays = 0;
         for ($current = $start; $current->lte($end); $current = $current->addDay()) {
             $date = $current->toDateString();
-            $atlas = (int) ($atlasTotals[$date] ?? 0);
+            $atlas = (int) ($atlasTotals[$date]->total_cents ?? 0);
+            $quantity = (int) ($atlasTotals[$date]->quantity ?? 0);
             $total += $atlas;
+            $totalQuantity += $quantity;
             $importId = isset($latestImports[$date]) ? (int) $latestImports[$date] : null;
             $pms = null;
             $delta = null;
@@ -76,6 +98,7 @@ final class HotelMinibarMonthlyController extends Controller
             $days[] = [
                 'business_date' => $date,
                 'atlas_total_cents' => $atlas,
+                'quantity' => $quantity,
                 'pms_total_cents' => $pms,
                 'delta_cents' => $delta,
                 'import_id' => $importId,
@@ -88,6 +111,8 @@ final class HotelMinibarMonthlyController extends Controller
             'month' => $data['month'],
             'currency' => 'EUR',
             'atlas_total_cents' => $total,
+            'total_quantity' => $totalQuantity,
+            'by_article' => $items,
             'compared_atlas_cents' => $comparedAtlas,
             'compared_pms_cents' => $comparedPms,
             'compared_delta_cents' => $comparedAtlas - $comparedPms,
