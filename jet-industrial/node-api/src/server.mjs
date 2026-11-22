@@ -5,6 +5,8 @@
  */
 import http from "node:http";
 import { createClient } from "redis";
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const PATH_PREFIX="/api/industrial-jet/";
 const ROUTES=new Map([
@@ -35,7 +37,7 @@ export function createHandler({upstream,redis=null}){
  if(typeof upstream!=="function")throw Error("upstream fetch required");
  const cacheGet=async key=>{try{return redis?.isReady?await redis.get(key):null;}catch{return null;}};
  const cacheSet=async(key,value)=>{try{if(redis?.isReady)await redis.set(key,value,{EX:TTL});}catch{/* fail-open */}};
- const version=async company=>{try{return redis?.isReady?(await redis.get(VERSION_KEY(company))??"1"):"0";}catch{return "0";}};
+ const version=async company=>{try{return redis?.isReady?(await redis.get(VERSION_KEY(company))??"0"):"0";}catch{return "0";}};
  const invalidate=async company=>{
   try{if(redis?.isReady){const next=await redis.incr(VERSION_KEY(company));
    await redis.publish(PUBLISH_TOPIC,JSON.stringify({company_id:company,revision:next,at:new Date().toISOString()}));
@@ -142,6 +144,6 @@ export async function start(){
  server.headersTimeout=10000;
  server.listen(port,ownerHost,()=>console.log("Industrial Node BFF active on "+ownerHost+":"+port));
 }
-if(import.meta.url===new URL(process.argv[1]??"/", "file://").href){
+if(process.argv[1] && fileURLToPath(import.meta.url)===resolve(process.argv[1])){
  await start();
 }
