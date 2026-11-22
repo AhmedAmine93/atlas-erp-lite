@@ -34,6 +34,9 @@ export default function HotelOperationsWorkspace({view,activeCompanyId}:{
  const [transferEntry,setTransferEntry] = useState("");
  const [transferAmount,setTransferAmount] = useState("");
  const [transferReason,setTransferReason] = useState("");
+ const [correctionEntry,setCorrectionEntry] = useState("");
+ const [correctionAmount,setCorrectionAmount] = useState("");
+ const [correctionReason,setCorrectionReason] = useState("");
  const [kind,setKind] = useState("charge");
  const [sourceType,setSourceType] = useState("manual");
  const [amount,setAmount] = useState("");
@@ -148,6 +151,16 @@ export default function HotelOperationsWorkspace({view,activeCompanyId}:{
     <label>Montant à transférer en centimes <input type="number" min="1" required value={transferAmount} onChange={e=>setTransferAmount(e.target.value)}/></label>
     <label>Motif <input required minLength={5} maxLength={300} value={transferReason} onChange={e=>setTransferReason(e.target.value)}/></label>
     <button className="button secondary" disabled={working || !hotel}>Transférer et tracer les deux écritures</button>
+   </form>
+   <h3>Corriger une écriture sans effacer l’original</h3>
+   <form onSubmit={e=>void submit(e,`${base}/folios/${folioId}/entries/${correctionEntry}/correct`,{
+    business_date:date,amount_cents:Number(correctionAmount),
+    reason:correctionReason,request_id:crypto.randomUUID()})}>
+    <label>Folio <input type="number" required min="1" value={folioId} onChange={e=>setFolioId(e.target.value)}/></label>
+    <label>ID écriture d’origine <input type="number" required min="1" value={correctionEntry} onChange={e=>setCorrectionEntry(e.target.value)}/></label>
+    <label>Montant de la correction en centimes <input type="number" required min="1" value={correctionAmount} onChange={e=>setCorrectionAmount(e.target.value)}/></label>
+    <label>Motif détaillé <input required minLength={5} maxLength={300} value={correctionReason} onChange={e=>setCorrectionReason(e.target.value)}/></label>
+    <button className="button secondary" disabled={working || !hotel}>Créer une contre-écriture auditée</button>
    </form>
   </div>}
   {view==="hotel-channel" && <div className="atlas-domain-form">
