@@ -116,6 +116,9 @@ final class HotelBookingController extends Controller
             abort_unless($booking->arrival_date <= $today && $today < $booking->departure_date,
                 409, 'Check-in hors de la période du séjour.');
 
+            abort_if(HotelBooking::query()->where('room_id', $room->id)
+                ->where('status', 'checked_in')->exists(), 409, 'Le séjour précédent est encore en cours.');
+
             $inspection = HotelHousekeepingTask::query()
                 ->where('hotel_id', $hotel->id)
                 ->where('room_id', $room->id)
@@ -130,6 +133,7 @@ final class HotelBookingController extends Controller
             );
             abort_if($reasons !== [], 409, 'Check-in interdit : '.implode(', ', $reasons));
 
+            $booking->checked_in_on = $today;
             $booking->status = 'checked_in';
             $booking->save();
             Audit::record('hotel.booking.checked_in', $booking, [
@@ -138,6 +142,53 @@ final class HotelBookingController extends Controller
                 'housekeeping_task_id' => $inspection->id,
             ]);
 
+            return response()->json($booking);
+        }, 3);
+    }
+
+    public function checkout(Request $request, int $id)
+    {
+        Gate::authorize('admin');
+
+        return DB::transaction(function () use ($request, $id) {
+            $booking = HotelBooking::query()->lockForUpdate()->findOrFail($id);
+            abort_unless($booking->status === 'checked_in', 409, 'Le séjour doit être en cours.');
+            $room = HotelRoom::query()->where('hotel_id', $booking->hotel_id)
+                ->lockForUpdate()->findOrFail($booking->room_id);
+            $hotel = HotelProperty::query()->findOrFail($room->hotel_id);
+            $today = \Carbon\CarbonImmutable::now($hotel->timezone)->toDateString();
+            abort_if($today < ($booking->checked_in_on ?? $booking->arrival_date),
+                409, 'Départ antérieur à l’arrivée effective.');
+            $early = $today < $booking->departure_date;
+            $data = $request->validate([
+                'reason' => [$early ? 'required' : 'nullable', 'string', 'max:300'],
+                'company_id' => 'prohibited', 'room_id' => 'prohibited', 'hotel_id' => 'prohibited',
+                'status' => 'prohibited', 'business_date' => 'prohibited', 'checked_out_on' => 'prohibited',
+            ]);
+            // A same-day turnover needs a fresh inspection before the next arrival.
+            $task = HotelHousekeepingTask::query()->where('room_id', $room->id)
+                ->whereDate('business_date', $today)->lockForUpdate()->first();
+            if ($task && $task->status !== 'dirty') {
+                $before = $task->status;
+                $task->status = 'dirty';
+                $task->inspected_by = null;
+                $task->inspected_at = null;
+                $task->save();
+                DB::table('hotel_room_status_events')->insert([
+                    'company_id' => $booking->company_id, 'task_id' => $task->id,
+                    'room_id' => $room->id, 'actor_id' => $request->user()->id,
+                    'from_status' => $before, 'to_status' => 'dirty', 'reason' => 'Check-out',
+                    'created_at' => now(), 'updated_at' => now(),
+                ]);
+            }
+            $booking->checked_out_on = $today;
+            $booking->status = 'checked_out';
+            $booking->save();
+            Audit::record('hotel.booking.checked_out', $booking, [
+                'room_id' => $room->id, 'business_date' => $today,
+                'scheduled_departure' => $booking->departure_date, 'early' => $early,
+                'reason' => $data['reason'] ?? null,
+            ]);
             return response()->json($booking);
         }, 3);
     }
