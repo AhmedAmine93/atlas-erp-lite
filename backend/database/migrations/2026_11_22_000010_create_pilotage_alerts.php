@@ -41,6 +41,9 @@ return new class extends Migration {
         if (DB::getDriverName() !== 'pgsql') return;
         DB::statement("ALTER TABLE pilotage_alert_rules ADD CONSTRAINT pilotage_metric_check CHECK (metric IN ('low_stock','unpaid_invoice_age_days'))");
         DB::statement("ALTER TABLE pilotage_alert_rules ADD CONSTRAINT pilotage_dates_check CHECK (effective_to IS NULL OR effective_to >= effective_from)");
+        // Rehearsal F14 migrates legacy data before the F14 composite indexes exist.
+        // Make the tenant-owned FK prerequisites self-contained.
+        DB::statement("CREATE UNIQUE INDEX IF NOT EXISTS pilotage_products_tenant_id_uq ON public.products (company_id, id)");
         DB::statement("CREATE UNIQUE INDEX IF NOT EXISTS pilotage_invoices_tenant_id_uq ON public.invoices (company_id, id)");
         DB::statement("ALTER TABLE pilotage_alert_acknowledgements ADD CONSTRAINT pilotage_entity_check CHECK ((entity_type = 'product' AND product_id = entity_id AND invoice_id IS NULL) OR (entity_type = 'invoice' AND invoice_id = entity_id AND product_id IS NULL))");
         DB::statement("ALTER TABLE pilotage_alert_acknowledgements ADD CONSTRAINT pilotage_ack_product_tenant_fk FOREIGN KEY (company_id, product_id) REFERENCES public.products (company_id, id)");
@@ -66,6 +69,9 @@ return new class extends Migration {
         }
         Schema::dropIfExists('pilotage_alert_acknowledgements');
         Schema::dropIfExists('pilotage_alert_rules');
-        if (DB::getDriverName() === 'pgsql') DB::statement('DROP INDEX IF EXISTS public.pilotage_invoices_tenant_id_uq');
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement('DROP INDEX IF EXISTS public.pilotage_invoices_tenant_id_uq');
+            DB::statement('DROP INDEX IF EXISTS public.pilotage_products_tenant_id_uq');
+        }
     }
 };
