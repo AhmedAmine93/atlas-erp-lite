@@ -241,7 +241,7 @@ final class CrmWorkspaceController extends Controller
             'expected_revision'=>'required|integer|min:1',
         ]);
         $transitions = [
-            'prospects'=>['new'=>['qualified','lost'],'qualified'=>['lost']],
+            'prospects'=>['new'=>['qualified','lost'],'qualified'=>['lost'],'lost'=>['qualified']],
             'opportunities'=>['new'=>['qualified','lost'],'qualified'=>['proposal','lost'],'proposal'=>['won','lost']],
             'activities'=>['planned'=>['completed','cancelled']],
         ];
@@ -250,7 +250,8 @@ final class CrmWorkspaceController extends Controller
             $field = $resource === 'opportunities' ? 'stage' : 'status';
             abort_unless((int)$data['expected_revision'] === (int)$row->revision,409,'Version périmée.');
             abort_unless(in_array($data['target'],$transitions[$resource][$row->$field] ?? [],true),409,'Transition interdite.');
-            if (in_array($data['target'],['lost','won','completed','cancelled'],true)) {
+            if (in_array($data['target'],['lost','won','completed','cancelled'],true)
+                || ($resource === 'prospects' && $row->status === 'lost')) {
                 abort_unless(strlen(trim((string)($data['reason']??''))) >= 3,422,'Motif ou résultat obligatoire.');
             }
             $update = [$field=>$data['target'],'revision'=>$row->revision+1,'updated_at'=>now()];
@@ -262,6 +263,32 @@ final class CrmWorkspaceController extends Controller
             DB::table($this->table($resource))->where('company_id',$this->company())->where('id',$id)->update($update);
             $this->audit('transitioned',$resource,$id,['from'=>$row->$field,'to'=>$data['target']]);
             return response()->json($this->row($resource,$id));
+        });
+    }
+
+    /** Audit every postponement; completion never rewrites its original due date. */
+    public function reschedule(Request $request, int $id)
+    {
+        Gate::authorize('crm');
+        $data=$request->validate([
+            'due_at'=>'required|date|after:now',
+            'reason'=>'required|string|min:3|max:1000',
+            'expected_revision'=>'required|integer|min:1',
+        ]);
+        return DB::transaction(function()use($id,$data){
+            $row=$this->row('activities',$id,true);
+            abort_unless($row->status==='planned',409,'Activité déjà clôturée.');
+            abort_unless((int)$row->revision===(int)$data['expected_revision'],409,'Version périmée.');
+            DB::table('crm_activities')->where('company_id',$this->company())->where('id',$id)->update([
+                'due_at'=>$data['due_at'],'reschedule_reason'=>$data['reason'],
+                'reschedule_count'=>$row->reschedule_count+1,
+                'revision'=>$row->revision+1,'updated_at'=>now(),
+            ]);
+            $this->audit('rescheduled','activities',$id,[
+                'previous_due_at'=>$row->due_at,'new_due_at'=>$data['due_at'],
+                'reason'=>$data['reason'],
+            ]);
+            return response()->json($this->row('activities',$id));
         });
     }
 
