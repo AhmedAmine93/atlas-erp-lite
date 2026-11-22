@@ -379,6 +379,38 @@ final class CrmWorkspaceTest extends TestCase
         ])->assertUnprocessable();
     }
 
+    public function test_segment_marketing_preview_excludes_unconsented_inactive_and_other_tenant_contacts(): void
+    {
+        $customer=Customer::create(['name'=>'Client segmenté','email'=>'segmented@example.test']);
+        $segment=$this->postJson('/api/crm/segments',[
+            'code'=>'OPTIN','name'=>'Cible autorisée','mode'=>'static'
+        ])->assertCreated()->json('id');
+        $this->putJson('/api/crm/segments/'.$segment.'/members',[
+            'customer_id'=>$customer->id,'active'=>true
+        ])->assertOk();
+        $this->postJson('/api/crm/contacts',[
+            'customer_id'=>$customer->id,'first_name'=>'Oui','last_name'=>'Consentement',
+            'email'=>'yes-audience@example.test','consent'=>'granted'
+        ])->assertCreated();
+        $this->postJson('/api/crm/contacts',[
+            'customer_id'=>$customer->id,'first_name'=>'Non','last_name'=>'Consentement',
+            'email'=>'no-audience@example.test','consent'=>'refused'
+        ])->assertCreated();
+        $this->postJson('/api/crm/contacts',[
+            'customer_id'=>$customer->id,'first_name'=>'Ancien','last_name'=>'Contact',
+            'email'=>'inactive-audience@example.test','consent'=>'granted','active'=>false
+        ])->assertCreated();
+        $this->getJson('/api/crm/segments/'.$segment.'/marketing-audience')
+            ->assertOk()->assertJsonPath('total',1)
+            ->assertJsonPath('data.0.email','yes-audience@example.test');
+        $this->assertDatabaseHas('audit_logs',['action'=>'crm.segment.marketing_audience.previewed']);
+        $this->login('reader','audience-read',$this->company);
+        $this->getJson('/api/crm/segments/'.$segment.'/marketing-audience')->assertForbidden();
+        $companyB=Company::create(['code'=>'CRM_AUDIENCE_B','name'=>'Other Audience Tenant'])->id;
+        $this->login('admin','audience-b',$companyB);
+        $this->getJson('/api/crm/segments/'.$segment.'/marketing-audience')->assertNotFound();
+    }
+
     public function test_pg_runtime_rls_isolates_all_new_crm_tables(): void
     {
         if (DB::getDriverName()!=='pgsql') $this->markTestSkipped('RLS PostgreSQL uniquement.');
