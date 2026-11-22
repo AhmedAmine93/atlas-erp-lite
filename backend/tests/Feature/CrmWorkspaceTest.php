@@ -448,6 +448,35 @@ final class CrmWorkspaceTest extends TestCase
         $this->getJson($route)->assertForbidden();
     }
 
+    public function test_archived_customer_can_be_restored_but_not_while_duplicate_link_is_active(): void
+    {
+        $client=Customer::create(['name'=>'Archived restore','email'=>'restorable@example.test']);
+        $canonical=Customer::create(['name'=>'Canonical restore','email'=>'canonical-restore@example.test']);
+        $this->postJson('/api/crm/customers/'.$client->id.'/archive',[
+            'reason'=>'Relation terminée',
+        ])->assertOk();
+        $this->getJson('/api/crm/customers/archived')->assertOk()->assertJsonPath('total',1);
+        $this->postJson('/api/crm/customers/'.$client->id.'/restore',[
+            'reason'=>'Relation commerciale reprise',
+        ])->assertOk();
+        $this->assertNull($client->fresh()->archived_at);
+        $this->postJson('/api/crm/customers/'.$client->id.'/restore',[
+            'reason'=>'Double restauration',
+        ])->assertConflict();
+        $link=$this->postJson('/api/crm/customers/duplicate-links',[
+            'duplicate_customer_id'=>$client->id,'canonical_customer_id'=>$canonical->id,
+            'reason'=>'Identité commune vérifiée',
+        ])->assertCreated()->json('id');
+        $this->postJson('/api/crm/customers/'.$client->id.'/restore',[
+            'reason'=>'Restauration sans annulation',
+        ])->assertConflict();
+        $this->postJson('/api/crm/customers/duplicate-links/'.$link.'/reverse',[
+            'reason'=>'Fiches distinctes constatées','expected_revision'=>1,
+        ])->assertOk();
+        $this->assertNull($client->fresh()->archived_at);
+        $this->assertDatabaseHas('audit_logs',['action'=>'crm.customer.restored']);
+    }
+
     public function test_pg_runtime_rls_isolates_all_new_crm_tables(): void
     {
         if (DB::getDriverName()!=='pgsql') $this->markTestSkipped('RLS PostgreSQL uniquement.');
