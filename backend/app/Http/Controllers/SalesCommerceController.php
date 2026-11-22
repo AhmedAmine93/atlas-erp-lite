@@ -167,7 +167,7 @@ class SalesCommerceController extends Controller
         return $this->idempotent($r,'convert-revision-'.$revision,function () use ($r,$revision) {
             $rev=$this->lock('sales_quote_revisions',$revision);
             $q=Quote::lockForUpdate()->findOrFail($rev->quote_id);
-            if ($rev->status!=='accepted'||$q->status!=='accepted'||$rev->revision_no!==$q->revision_no) $this->error('Seule la révision acceptée courante peut être convertie.');
+            if ($rev->status!=='accepted'||$q->status!=='accepted'||(int)$rev->revision_no!==(int)$q->revision_no) $this->error('Seule la révision acceptée courante peut être convertie.');
             if ($rev->valid_until<now()->toDateString()) $this->error('Révision expirée.');
             if (Order::where('quote_id',$q->id)->exists()) $this->error('Devis déjà converti.');
             $snapshot=json_decode($rev->snapshot,true,512,JSON_THROW_ON_ERROR);
@@ -239,8 +239,10 @@ class SalesCommerceController extends Controller
             ]);
             foreach ($lines as $line) {
                 $res=$reservations[$line['order_item_id']];
-                app(StockService::class)->move($products[$res->product_id],-$line['quantity'],'Expédition '.$delivery->number,$order);
+                // Reduce the outstanding reservation first so StockService can
+                // enforce physical stock >= other outstanding reservations.
                 $this->updateRow('sales_reservations',$res->id,['quantity_shipped'=>$res->quantity_shipped+$line['quantity']]);
+                app(StockService::class)->move($products[$res->product_id],-$line['quantity'],'Expédition '.$delivery->number,$order);
                 $this->inserted('sales_delivery_lines',array_merge(['delivery_id'=>$delivery->id],$line));
             }
             $open=(int)$this->rows('sales_reservations')->where('order_id',$order)
