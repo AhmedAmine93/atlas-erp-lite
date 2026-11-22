@@ -362,6 +362,23 @@ final class CrmWorkspaceTest extends TestCase
         ])->assertConflict();
     }
 
+    public function test_single_contact_can_represent_customer_and_supplier_in_same_tenant(): void
+    {
+        $customer=Customer::create(['name'=>'Groupe Alpha client','email'=>'role-client@example.test']);
+        $supplier=\App\Models\Supplier::create(['name'=>'Groupe Alpha fournisseur','email'=>'role-supplier@example.test']);
+        $this->postJson('/api/crm/contacts',[
+            'first_name'=>'Nora','last_name'=>'Relations',
+            'email'=>'nora-roles@example.test',
+            'customer_id'=>$customer->id,'supplier_id'=>$supplier->id,
+        ])->assertCreated()->assertJsonPath('supplier_id',$supplier->id)
+            ->assertJsonPath('customer_id',$customer->id);
+        $foreign=\App\Models\Company::create(['code'=>'CRM_CONTACT_SUP_B','name'=>'Another Supplier Tenant'])->id;
+        $this->login('admin','contact-supplier',$foreign);
+        $this->postJson('/api/crm/contacts',[
+            'first_name'=>'Nora','last_name'=>'Cross tenant','supplier_id'=>$supplier->id,
+        ])->assertUnprocessable();
+    }
+
     public function test_pg_runtime_rls_isolates_all_new_crm_tables(): void
     {
         if (DB::getDriverName()!=='pgsql') $this->markTestSkipped('RLS PostgreSQL uniquement.');
