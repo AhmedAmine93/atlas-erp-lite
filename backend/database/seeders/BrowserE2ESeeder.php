@@ -36,6 +36,14 @@ final class BrowserE2ESeeder extends Seeder
             ['name' => 'ATLAS V5 · Compte de recette fictif', 'password' => $password, 'role_id' => $admin->id],
         );
         $user->companies()->syncWithoutDetaching([$tenant->id => ['role_id' => $admin->id]]);
-        $this->command?->info('Compte isolé de recette navigateur activé.');
+
+        // The DI/BT E2E scenario has its own synthetic login bucket.
+        // Production's five-logins-per-minute limit remains unchanged.
+        $maintenanceUser = User::firstOrCreate(
+            ['email' => 'v5-browser-e2e-maintenance@atlas.example'],
+            ['name' => 'ATLAS V5 · Recette DI/BT fictive', 'password' => $password, 'role_id' => $admin->id],
+        );
+        $maintenanceUser->companies()->syncWithoutDetaching([$tenant->id => ['role_id' => $admin->id]]);
+        $this->command?->info('Comptes isolés de recette navigateur activés.');
     }
 }
