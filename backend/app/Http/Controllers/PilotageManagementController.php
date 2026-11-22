@@ -119,7 +119,13 @@ final class PilotageManagementController extends Controller
             $query = DB::table('pilotage_target_versions')->where('company_id',$company)
                 ->where('metric',$data['metric'])
                 ->where('period_from',$data['period_from'])->where('period_to',$data['period_to']);
-            $next = ((int) $query->max('version')) + 1;
+            $latest = (clone $query)->orderByDesc('version')->first();
+            // Identical retries cannot silently create additional versions.
+            if ($latest && (int) $latest->target_value === (int) $data['target_value']
+                && $latest->reason === $data['reason']) {
+                return response()->json(['id'=>$latest->id,'version'=>$latest->version,'replayed'=>true]);
+            }
+            $next = ((int) ($latest?->version ?? 0)) + 1;
             $id = DB::table('pilotage_target_versions')->insertGetId([
                 'company_id'=>$company,
                 'metric'=>$data['metric'],
