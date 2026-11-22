@@ -49,7 +49,7 @@ final class FinanceMenuTest extends TestCase
         ])->assertCreated()->json('id');
         $this->postJson('/api/orders/'.$order.'/validate')->assertOk();
         $invoice=$this->postJson('/api/invoices',['order_id'=>$order])->assertCreated()->json('id');
-        $this->patchJson('/api/invoices/'.$invoice,['status'=>'issued'])->assertOk();
+        $this->patchJson('/api/invoices/'.$invoice,['status'=>'issued','due_at'=>'2026-11-01'])->assertOk();
         $this->assertDatabaseHas('invoices',['id'=>$invoice,'total_cents'=>12000,'status'=>'issued']);
         return (int)$invoice;
     }
@@ -122,7 +122,6 @@ final class FinanceMenuTest extends TestCase
         $second=$this->member($company,'admin','m06-reminder-b@example.test');
         $this->login($first,$company);
         $invoice=$this->fixtureInvoice();
-        \App\Models\Invoice::findOrFail($invoice)->update(['due_at'=>'2026-11-01']);
         $this->putJson('/api/finance/reminder-policy',[
             'cadence_days'=>7,'enabled'=>true,'template_version'=>'fake-v1',
         ])->assertOk();
