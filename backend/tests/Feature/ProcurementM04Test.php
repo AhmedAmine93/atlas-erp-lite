@@ -126,6 +126,43 @@ class ProcurementM04Test extends TestCase
         $this->getJson('/api/purchasing/invoices')->assertForbidden();
     }
 
+    public function test_procurement_reporting_export_is_tenant_scoped_and_sanitizes_spreadsheet_formulas(): void
+    {
+        $company=Company::where('code','ATLAS_DEMO')->firstOrFail();
+        $other=Company::create(['code'=>'M04_EXPORT_B','name'=>'Export other company']);
+        $admin=$this->member($company,'export-admin');
+        $reader=$this->member($company,'export-reader','reader');
+        $foreign=$this->member($other,'export-foreign');
+        $this->as($admin,$company);
+        $this->postJson('/api/suppliers',[
+            'name'=>'=DANGEROUS()','email'=>'safe-export@example.test'
+        ])->assertCreated();
+        $this->getJson('/api/purchasing/reporting/summary')->assertOk()
+            ->assertJsonPath('suppliers',1);
+        $csv=$this->get('/api/purchasing/reporting/suppliers/export')->assertOk();
+        $this->assertStringContainsString("'=DANGEROUS()", $csv->streamedContent());
+        $this->assertStringNotContainsString('encrypted_iban', $csv->streamedContent());
+        $this->as($reader,$company);
+        $this->get('/api/purchasing/reporting/suppliers/export')->assertForbidden();
+        $this->as($foreign,$other);
+        $this->getJson('/api/purchasing/reporting/summary')->assertOk()
+            ->assertJsonPath('suppliers',0);
+        $this->get('/api/purchasing/reporting/suppliers/export')
+            ->assertOk()->assertDontSee('DANGEROUS');
+    }
+
+    public function test_invalid_iban_checksum_is_rejected_without_persisting_plaintext(): void
+    {
+        $company=Company::where('code','ATLAS_DEMO')->firstOrFail();
+        $user=$this->member($company,'iban-checksum');
+        $this->as($user,$company);
+        $supplier=$this->supplier();
+        $this->postJson("/api/purchasing/suppliers/$supplier/bank-changes",[
+            'iban'=>'FR7630006000011234567890188'
+        ])->assertStatus(422);
+        $this->assertDatabaseCount('supplier_bank_changes',0);
+    }
+
     public function test_bank_change_must_be_approved_by_second_actor_and_never_exposes_iban(): void
     {
         $company=Company::where('code','ATLAS_DEMO')->firstOrFail();
