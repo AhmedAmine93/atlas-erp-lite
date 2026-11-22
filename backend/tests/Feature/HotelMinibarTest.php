@@ -166,6 +166,28 @@ final class HotelMinibarTest extends TestCase
             ->assertJsonPath('manual_review_required', true);
     }
 
+    public function test_monthly_dashboard_distinguishes_unimported_days_from_zero_variance(): void
+    {
+        $this->consume(['quantity'=>4])->assertCreated();
+        $this->importCsv("jour;chambre;total\n2026-03-03;101;6,00\n")->assertCreated();
+        $this->getJson("$this->base/monthly?month=2026-03")->assertOk()
+            ->assertJsonPath('month','2026-03')
+            ->assertJsonPath('atlas_total_cents',1000)
+            ->assertJsonPath('compared_atlas_cents',1000)
+            ->assertJsonPath('compared_pms_cents',600)
+            ->assertJsonPath('compared_delta_cents',400)
+            ->assertJsonPath('compared_days',1)
+            ->assertJsonPath('uncompared_days',30)
+            ->assertJsonPath('anomalies_count',1)
+            ->assertJsonPath('days.2.business_date','2026-03-03')
+            ->assertJsonPath('days.2.delta_cents',400)
+            ->assertJsonPath('days.0.pms_total_cents',null);
+        $this->getJson("$this->base/monthly?month=2026-99")->assertUnprocessable();
+        $foreign = Company::create(['code'=>'MB_MONTH_B','name'=>'Société B fictive'])->id;
+        $this->loginFor($foreign,'monthly-b');
+        $this->getJson("$this->base/monthly?month=2026-03")->assertNotFound();
+    }
+
     public function test_runtime_isolates_catalog_and_cannot_rewrite_historical_prices(): void
     {
         DB::transaction(function () {
