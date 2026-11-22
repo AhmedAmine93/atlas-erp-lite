@@ -142,14 +142,21 @@ final class HotelHousekeepingController extends Controller
             ->where('room_id', $room->id)
             ->whereDate('business_date', $data['business_date'])
             ->first();
-        $physical = $room->room_status === 'available';
+        // These fields describe the physical and cleaning state only.
+        // They are NOT booking availability: confirmed stays and holds are not evaluated here.
+        $housekeepingReady = $task?->status === 'inspected';
+        $readyForCheckin = $housekeepingReady && $room->room_status === 'available';
         return response()->json([
             'room_id' => $room->id,
             'hotel_id' => $room->hotel_id,
             'business_date' => $data['business_date'],
             'physical_status' => $room->room_status,
             'housekeeping_status' => $task?->status,
-            'ready_for_sale' => $physical && $task?->status === 'inspected',
+            'housekeeping_ready' => $housekeepingReady,
+            'ready_for_checkin' => $readyForCheckin,
+            // Deprecated: maintained for existing Next.js clients until a versioned migration.
+            // Never use this legacy key to decide whether a reservation can be sold.
+            'ready_for_sale' => $readyForCheckin,
             'advisory_only' => true,
         ]);
     }

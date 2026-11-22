@@ -52,7 +52,11 @@ final class HotelHousekeepingTest extends TestCase
             'room_id' => $room, 'business_date' => $date,
         ])->assertStatus(409);
         $this->getJson("/api/hotels/housekeeping/readiness?room_id=$room&business_date=$date")
-            ->assertOk()->assertJsonPath('ready_for_sale', false);
+            ->assertOk()
+            ->assertJsonPath('housekeeping_ready', false)
+            ->assertJsonPath('ready_for_checkin', false)
+            ->assertJsonPath('advisory_only', true)
+            ->assertJsonPath('ready_for_sale', false);
         $this->postJson("/api/hotels/housekeeping/tasks/$task/transition", [
             'status' => 'inspected',
         ])->assertStatus(409);
@@ -65,11 +69,17 @@ final class HotelHousekeepingTest extends TestCase
             'status' => 'dirty',
         ])->assertUnprocessable();
         $this->getJson("/api/hotels/housekeeping/readiness?room_id=$room&business_date=$date")
-            ->assertOk()->assertJsonPath('ready_for_sale', true);
+            ->assertOk()
+            ->assertJsonPath('housekeeping_ready', true)
+            ->assertJsonPath('ready_for_checkin', true)
+            ->assertJsonPath('ready_for_sale', true);
 
         DB::table('hotel_rooms')->where('id', $room)->update(['room_status' => 'out_of_service']);
         $this->getJson("/api/hotels/housekeeping/readiness?room_id=$room&business_date=$date")
-            ->assertOk()->assertJsonPath('ready_for_sale', false)
+            ->assertOk()
+            ->assertJsonPath('housekeeping_ready', true)
+            ->assertJsonPath('ready_for_checkin', false)
+            ->assertJsonPath('ready_for_sale', false)
             ->assertJsonPath('physical_status', 'out_of_service');
         $this->assertDatabaseCount('hotel_room_status_events', 4);
 
