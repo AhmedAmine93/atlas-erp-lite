@@ -43,6 +43,7 @@ import { canEditWorkspaceView, canOpenWorkspaceView, parseWorkspacePath, workspa
 import OrganizationWorkspace from "@/components/OrganizationWorkspace";
 import DomainWorkspace, { domainViews } from "@/components/DomainWorkspace";
 import InventoryWarehouseWorkspace from "@/components/InventoryWarehouseWorkspace";
+import InventoryOperationsWorkspace from "@/components/InventoryOperationsWorkspace";
 import HotelHousekeepingWorkspace from "@/components/HotelHousekeepingWorkspace";
 import HotelMinibarWorkspace from "@/components/HotelMinibarWorkspace";
 import HotelAvailabilityWorkspace from "@/components/HotelAvailabilityWorkspace";
@@ -565,6 +566,8 @@ export default function Workspace() {
             </>
           ) : view === "warehouses" ? (
             <InventoryWarehouseWorkspace key={"warehouses-"+user.active_company_id} role={user.role.name} activeCompanyId={user.active_company_id ?? null} />
+          ) : ["stock-inventories","stock-transfers","lots-serials","replenishment"].includes(view) ? (
+            <InventoryOperationsWorkspace key={view+"-"+user.active_company_id} view={view as "stock-inventories" | "stock-transfers" | "lots-serials" | "replenishment"} role={user.role.name} activeCompanyId={user.active_company_id ?? null} />
           ) : view === "support-incidents" ? (
             <SupportIncidents canDiagnose={["admin", "support_n3"].includes(user.role.name)} />
           ) : view === "hotel-minibar" ? (
