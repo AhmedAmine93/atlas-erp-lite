@@ -81,7 +81,9 @@ class MaintenanceOperationsV51Test extends TestCase
         ])->assertStatus(409);
         $this->postJson('/api/maintenance/spares/'.$reservation.'/release',[
             'quantity'=>1,'reason'=>'Pièce réservée non utilisée',
-        ])->assertOk()->assertJsonPath('released_quantity',1);
+            'operation_key'=>'release-once-0001',
+        ])->assertCreated()->assertJsonPath('quantity',1);
+        $this->assertDatabaseHas('maintenance_spare_reservations', ['id'=>$reservation,'released_quantity'=>1]);
         $this->getJson('/api/maintenance/work-orders/'.$o['wo'].'/costs')
             ->assertOk()->assertJsonPath('spares_cost_cents',2000);
         $this->getJson('/api/maintenance/dashboard')->assertOk()->assertJsonPath('spare_cost_cents',2000);
