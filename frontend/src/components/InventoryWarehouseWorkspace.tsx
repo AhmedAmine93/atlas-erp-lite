@@ -1,18 +1,30 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { api, send } from "@/lib/api";
-import type { Page } from "@/lib/types";
+import { all, send } from "@/lib/api";
 
 type Warehouse = { id: number; code: string; name: string; active: boolean };
 type Location = { id: number; warehouse_id: number; code: string; name: string; condition_code: "normal" | "quarantine" | "regulated"; active: boolean };
 type Props = { activeCompanyId: number | null; role: string };
+type ProductOption = { id: number; reference: string; name: string; stock: number };
+type LotOption = { id: number; product_id: number; code: string; status: string };
+type Balance = { id: number; product_id: number; location_id: number; lot_id: number | null; quantity: number };
 
 const conditions = { normal: "Normal", quarantine: "Quarantaine", regulated: "Réglementé" };
 
 export default function InventoryWarehouseWorkspace({ activeCompanyId, role }: Props) {
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
+  const [products, setProducts] = useState<ProductOption[]>([]);
+  const [lots, setLots] = useState<LotOption[]>([]);
+  const [balances, setBalances] = useState<Balance[]>([]);
+  const [stockMode, setStockMode] = useState<"allocate"|"receive">("allocate");
+  const [stockProduct, setStockProduct] = useState("");
+  const [stockLocation, setStockLocation] = useState("");
+  const [stockLot, setStockLot] = useState("");
+  const [stockQuantity, setStockQuantity] = useState("1");
+  const [stockReference, setStockReference] = useState("");
+  const [stockReason, setStockReason] = useState("");
   const [warehouseCode, setWarehouseCode] = useState("");
   const [warehouseName, setWarehouseName] = useState("");
   const [locationWarehouse, setLocationWarehouse] = useState("");
@@ -31,13 +43,19 @@ export default function InventoryWarehouseWorkspace({ activeCompanyId, role }: P
     setLoading(true);
     setError("");
     Promise.all([
-      api<Page<Warehouse>>("inventory/warehouses"),
-      api<Page<Location>>("inventory/locations"),
-    ]).then(([w, l]) => {
+      all<Warehouse>("inventory/warehouses"),
+      all<Location>("inventory/locations"),
+      all<ProductOption>("products"),
+      all<LotOption>("inventory/lots"),
+      all<Balance>("inventory/balances"),
+    ]).then(([w, l, p, t, b]) => {
       if (!active) return;
-      setWarehouses(w.data);
-      setLocations(l.data);
-      // API is paginated: counts reflect current page, never imply all are loaded.
+      setWarehouses(w);
+      setLocations(l);
+      setProducts(p);
+      setLots(t);
+      setBalances(b);
+      // Every page is loaded under the verified company context.
     }).catch((err: Error) => { if (active) setError(err.message); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
@@ -76,6 +94,24 @@ export default function InventoryWarehouseWorkspace({ activeCompanyId, role }: P
     try {
       await send("inventory/" + kind + "/" + id, "PATCH", { active: !active });
       setNotice("Statut mis à jour avec historique d’audit.");
+      setRevision(x => x + 1);
+    } catch (err) { setError((err as Error).message); } finally { setBusy(false); }
+  }
+
+
+  async function saveStock(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!canWrite || busy) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      await send("inventory/" + stockMode, "POST", {
+        product_id: Number(stockProduct), location_id: Number(stockLocation),
+        ...(stockLot ? { lot_id: Number(stockLot) } : {}),
+        quantity: Number(stockQuantity), source_reference: stockReference.trim(),
+        reason: stockReason.trim(), operation_key: crypto.randomUUID(),
+      });
+      setStockReference(""); setStockReason("");
+      setNotice(stockMode === "allocate" ? "Stock historique affecté sans quantité supplémentaire." : "Réception inscrite au journal et au solde global.");
       setRevision(x => x + 1);
     } catch (err) { setError((err as Error).message); } finally { setBusy(false); }
   }
@@ -137,6 +173,58 @@ export default function InventoryWarehouseWorkspace({ activeCompanyId, role }: P
           </form>}
         </section>
       </div>
+
+      <section className="panel inventory-panel" aria-label="Allocation et réception des stocks">
+        <h2>Stock physique par emplacement</h2>
+        <p>Les anciens stocks restent globaux tant qu’une affectation explicite n’a pas été effectuée. Une affectation conserve le total ; une livraison externe augmente le stock.</p>
+        {canWrite && <form className="inventory-form" onSubmit={saveStock}>
+          <label>Opération
+            <select value={stockMode} onChange={e => setStockMode(e.target.value as "allocate"|"receive")}>
+              <option value="allocate">Affecter un stock existant</option><option value="receive">Recevoir une livraison externe</option>
+            </select>
+          </label>
+          <label>Produit
+            <select required value={stockProduct} onChange={e => {setStockProduct(e.target.value);setStockLot("");}}>
+              <option value="">Choisir un produit</option>
+              {products.map(p => <option key={p.id} value={p.id}>{p.reference} · {p.name} (stock global {p.stock})</option>)}
+            </select>
+          </label>
+          <label>Emplacement
+            <select required value={stockLocation} onChange={e => setStockLocation(e.target.value)}>
+              <option value="">Choisir un emplacement actif</option>
+              {locations.filter(l => l.active && (role === "admin" || l.condition_code !== "regulated") &&
+                warehouses.some(w => w.id === l.warehouse_id && w.active)).map(l =>
+                <option key={l.id} value={l.id}>{l.code} · {l.name} ({conditions[l.condition_code]})</option>)}
+            </select>
+          </label>
+          <label>Lot (facultatif)
+            <select value={stockLot} onChange={e => setStockLot(e.target.value)}>
+              <option value="">Sans lot</option>
+              {lots.filter(l => String(l.product_id) === stockProduct).map(l =>
+                <option key={l.id} value={l.id}>{l.code} ({l.status})</option>)}
+            </select>
+          </label>
+          <label>Quantité
+            <input required type="number" min="1" max="1000000" step="1" value={stockQuantity} onChange={e => setStockQuantity(e.target.value)} />
+          </label>
+          <label>Référence du document source
+            <input required maxLength={160} value={stockReference} onChange={e => setStockReference(e.target.value)} />
+          </label>
+          <label>Motif
+            <input required minLength={5} maxLength={500} value={stockReason} onChange={e => setStockReason(e.target.value)} />
+          </label>
+          <button className="button primary" disabled={busy} type="submit">{busy?"Traitement…":stockMode==="allocate"?"Affecter":"Réceptionner"}</button>
+        </form>}
+        <div className="table-scroll"><table>
+          <thead><tr><th>Produit</th><th>Emplacement</th><th>Lot</th><th>Quantité</th></tr></thead>
+          <tbody>{balances.map(b => <tr key={b.id}>
+            <td>{products.find(p => p.id === b.product_id)?.reference ?? "#" + b.product_id}</td>
+            <td>{locations.find(l => l.id === b.location_id)?.code ?? "#" + b.location_id}</td>
+            <td>{lots.find(l => l.id === b.lot_id)?.code ?? "—"}</td>
+            <td>{b.quantity}</td>
+          </tr>)}</tbody>
+        </table></div>
+      </section>
     </div>
   );
 }
