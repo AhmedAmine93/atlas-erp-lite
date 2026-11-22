@@ -42,6 +42,7 @@ import { nav, navigationSections, type View } from "@/lib/navigation";
 import { canEditWorkspaceView, canOpenWorkspaceView, parseWorkspacePath, workspaceHref, type WorkspaceRoute } from "@/lib/workspaceRoutes";
 import OrganizationWorkspace from "@/components/OrganizationWorkspace";
 import DomainWorkspace, { domainViews } from "@/components/DomainWorkspace";
+import MaintenanceWorkspace from "@/components/MaintenanceWorkspace";
 import PilotageWorkspace from "@/components/PilotageWorkspace";
 import HotelHousekeepingWorkspace from "@/components/HotelHousekeepingWorkspace";
 import HotelMinibarWorkspace from "@/components/HotelMinibarWorkspace";
@@ -578,6 +579,11 @@ export default function Workspace() {
             <HotelAvailabilityWorkspace key={"hotel-availability-"+user.active_company_id} activeCompanyId={user.active_company_id ?? null} />
           ) : view === "hotel-housekeeping" ? (
             <HotelHousekeepingWorkspace key={"hotel-housekeeping-"+user.active_company_id} activeCompanyId={user.active_company_id ?? null} />
+          ) : view.startsWith("maintenance-") ? (
+            <div key={view+"-"+user.active_company_id}>
+              {domainViews.has(view) && <DomainWorkspace view={view} activeCompanyId={user.active_company_id ?? null} />}
+              <MaintenanceWorkspace view={view} activeCompanyId={user.active_company_id ?? null} />
+            </div>
           ) : domainViews.has(view) ? (
             <DomainWorkspace key={view+"-"+user.active_company_id} view={view} activeCompanyId={user.active_company_id ?? null} />
           ) : view === "admin-companies" ? (
