@@ -102,6 +102,9 @@ CREATE TRIGGER atlas_platform_audit_to_outbox
 AFTER INSERT ON public.audit_logs
 FOR EACH ROW EXECUTE FUNCTION public.atlas_platform_enqueue_audit()
 SQL);
+        // Creation does not activate the pipeline in production or base CI.
+        // Only the explicit, local-only artisan command may enable it.
+        DB::statement('ALTER TABLE public.audit_logs DISABLE TRIGGER atlas_platform_audit_to_outbox');
     }
 
     public function down(): void
