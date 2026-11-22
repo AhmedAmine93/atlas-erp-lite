@@ -127,9 +127,11 @@ final class ProcurementCompletionController extends Controller
             abort_if(DB::table('purchase_order_amendments')->where('company_id',$this->tenant())
                 ->where('purchase_order_line_id',$line->id)->where('status','pending')->exists(),
                 409,'Avenant déjà en attente.');
-            $delta=((int)$line->quantity-(int)$data['new_quantity'])*(int)$line->unit_price_cents;
-            $tax=intdiv($delta*(int)$line->vat_bps+5000,10000);
-            $after=(int)$order->total_cents-$delta-$tax;
+            $beforeNet=(int)$line->quantity*(int)$line->unit_price_cents;
+            $afterNet=(int)$data['new_quantity']*(int)$line->unit_price_cents;
+            $beforeGross=$beforeNet+intdiv($beforeNet*(int)$line->vat_bps+5000,10000);
+            $afterGross=$afterNet+intdiv($afterNet*(int)$line->vat_bps+5000,10000);
+            $after=(int)$order->total_cents-$beforeGross+$afterGross;
             abort_if($after<0,409,'Montant incohérent.');
             $id=DB::table('purchase_order_amendments')->insertGetId([
                 'company_id'=>$this->tenant(),'purchase_order_id'=>$orderId,
@@ -164,6 +166,13 @@ final class ProcurementCompletionController extends Controller
                     ->where('id',$line->id)->update(['quantity'=>$amendment->new_quantity,'updated_at'=>now()]);
                 DB::table('purchase_orders')->where('company_id',$this->tenant())
                     ->where('id',$order->id)->update(['total_cents'=>$amendment->total_after_cents,'updated_at'=>now()]);
+                $release=(int)$amendment->total_before_cents-(int)$amendment->total_after_cents;
+                if ($release>0) DB::table('purchase_commitment_events')->insert([
+                    'company_id'=>$this->tenant(),'purchase_order_id'=>$order->id,
+                    'event_key'=>'amendment:'.$amendment->id,'kind'=>'release',
+                    'amount_cents'=>$release,'recorded_by'=>$request->user()->id,
+                    'recorded_at'=>now(),'created_at'=>now(),'updated_at'=>now(),
+                ]);
             }
             DB::table('purchase_order_amendments')->where('company_id',$this->tenant())
                 ->where('id',$id)->update(['status'=>$data['decision'],
