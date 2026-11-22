@@ -27,7 +27,7 @@ final class CrmWorkspaceController extends Controller
     ];
     private const FIELDS = [
         'prospects' => ['name','email','phone','source','owner_id','opt_out'],
-        'contacts' => ['customer_id','first_name','last_name','email','phone','job_title','consent','active','valid_from','valid_to'],
+        'contacts' => ['customer_id','supplier_id','first_name','last_name','email','phone','job_title','consent','active','valid_from','valid_to'],
         'opportunities' => ['customer_id','prospect_id','owner_id','title','amount_cents','currency','probability_bps','expected_close_at'],
         'activities' => ['customer_id','prospect_id','contact_id','opportunity_id','owner_id','title','type','purpose','priority','due_at','timezone'],
         'segments' => ['code','name','mode','criteria'],
@@ -82,7 +82,7 @@ final class CrmWorkspaceController extends Controller
                 'owner_id' => 'nullable|integer|min:1', 'opt_out' => 'sometimes|boolean',
             ],
             'contacts' => [
-                'customer_id' => 'nullable|integer|min:1', 'first_name' => 'sometimes|required|string|max:120',
+                'customer_id' => 'nullable|integer|min:1', 'supplier_id' => 'nullable|integer|min:1', 'first_name' => 'sometimes|required|string|max:120',
                 'last_name' => 'sometimes|required|string|max:120', 'email' => 'nullable|email|max:255',
                 'phone' => 'nullable|string|max:40', 'job_title' => 'nullable|string|max:150',
                 'consent' => ['sometimes',Rule::in(['unknown','granted','refused'])],
@@ -119,7 +119,7 @@ final class CrmWorkspaceController extends Controller
 
     private function checkReferences(string $resource, array $data): void
     {
-        foreach (['customer_id'=>'customers','prospect_id'=>'crm_prospects',
+        foreach (['customer_id'=>'customers','supplier_id'=>'suppliers','prospect_id'=>'crm_prospects',
                   'contact_id'=>'crm_contacts','opportunity_id'=>'crm_opportunities'] as $column => $table) {
             if (array_key_exists($column, $data)) $this->owned($table, $data[$column]);
         }
