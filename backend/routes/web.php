@@ -35,6 +35,7 @@ use App\Http\Controllers\MaintenancePreventiveController;
 use App\Http\Controllers\PurchaseRequestController;
 use App\Http\Controllers\ProcurementController;
 use App\Http\Controllers\ProcurementCompletionController;
+use App\Http\Controllers\ProcurementInvoiceDecisionController;
 use App\Http\Controllers\DashboardLayoutController;
 use App\Http\Controllers\DataCanonicalSchemaController;
 use App\Http\Controllers\FormSchemaController;
@@ -84,6 +85,9 @@ Route::prefix('api')->group(function () {
         Route::get('purchasing/receipts', [ProcurementController::class, 'receipts']);
         Route::post('purchasing/receipts', [ProcurementController::class, 'receive']);
         Route::get('purchasing/receipts/{id}/lines', [ProcurementController::class, 'receiptLines'])->whereNumber('id');
+        Route::post('purchasing/invoices/{id}/rematch', [ProcurementInvoiceDecisionController::class, 'rematch'])->whereNumber('id');
+        Route::post('purchasing/invoices/{id}/authorize-payment', [ProcurementInvoiceDecisionController::class, 'paymentSignoff'])->whereNumber('id');
+        Route::get('purchasing/invoices/{id}/authorizations', [ProcurementInvoiceDecisionController::class, 'authorizations'])->whereNumber('id');
         Route::get('purchasing/invoices', [ProcurementController::class, 'invoices']);
         Route::post('purchasing/invoices', [ProcurementController::class, 'createInvoice']);
         Route::get('purchasing/invoices/{id}/credits', [ProcurementController::class, 'invoiceCredits'])->whereNumber('id');
