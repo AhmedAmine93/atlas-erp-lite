@@ -517,7 +517,7 @@ export default function Workspace() {
                 "invoices",
                 "admin-companies",
                 "support-incidents",
-              ].includes(view) && !domainViews.has(view) && !salesCommerceViews.has(view as any) && (
+              ].includes(view) && !domainViews.has(view) && (!salesCommerceViews.has(view as any) || ["quotes", "orders"].includes(view)) && (
                 <button
                   className="button primary"
                   onClick={() => setEditor({ kind: view })}
