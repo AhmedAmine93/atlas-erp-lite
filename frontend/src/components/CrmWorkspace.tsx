@@ -33,6 +33,7 @@ const configs:Record<View,Config>={
     {key:"customer_id",label:"ID client",type:"number"},{key:"prospect_id",label:"ID prospect",type:"number"},
     {key:"contact_id",label:"ID contact",type:"number"},{key:"opportunity_id",label:"ID opportunité",type:"number"},
     {key:"type",label:"Type",type:"select",options:["call","meeting","email","task"]},
+    {key:"purpose",label:"Finalité",type:"select",options:["service","sales","marketing"]},
     {key:"priority",label:"Priorité",type:"select",options:["low","normal","high"]},
     {key:"due_at",label:"Échéance",type:"datetime-local",required:true},
     {key:"timezone",label:"Fuseau",type:"select",options:["Europe/Paris","UTC"]}
@@ -51,10 +52,10 @@ const transitions:Record<string,Record<string,string[]>>={
 };
 const labels:Record<string,string>={new:"Nouveau",qualified:"Qualifié",lost:"Perdu",
   won:"Gagnée",proposal:"Proposition",planned:"Prévu",completed:"Terminé",cancelled:"Annulé",
-  unknown:"Non renseigné",granted:"Accord",refused:"Refus",static:"Statique",dynamic:"Dynamique"};
+  unknown:"Non renseigné",granted:"Accord",refused:"Refus",static:"Statique",dynamic:"Dynamique",service:"Service client",sales:"Suivi commercial",marketing:"Prospection marketing"};
 function shown(v:unknown){if(v==null||v==="")return "—";if(typeof v==="boolean")return v?"Oui":"Non";return labels[String(v)]??String(v);}
 function defaultValues():Record<string,string|boolean>{return {active:true,opt_out:false,consent:"unknown",
-  currency:"EUR",probability_bps:"0",amount_cents:"0",type:"call",priority:"normal",mode:"static",
+  currency:"EUR",probability_bps:"0",amount_cents:"0",type:"call",purpose:"service",priority:"normal",mode:"static",
   timezone:"Europe/Paris",criteria_field:"",criteria_value:""};}
 
 export default function CrmWorkspace({view,activeCompanyId,canEdit}:{view:View;activeCompanyId:number|null;canEdit:boolean}){
