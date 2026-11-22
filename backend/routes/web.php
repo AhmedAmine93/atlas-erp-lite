@@ -10,6 +10,7 @@ use App\Http\Controllers\MetricsController;
 use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\InventoryLocationController;
+use App\Http\Controllers\InventoryStockController;
 use App\Http\Controllers\SalesController;
 use App\Http\Controllers\TenantContextController;
 use App\Http\Controllers\SupportIncidentController;
@@ -129,6 +130,10 @@ Route::prefix('api')->group(function () {
         Route::post('data/ingestion-batches/{id}/ingest-csv', [DataCsvIngestionController::class, 'ingest'])->whereNumber('id');
         Route::get('search', GlobalSearchController::class);
         // M05.03: versioned by business domain, authenticated and tenant-scoped.
+        Route::get('inventory/balances', [InventoryStockController::class, 'balances']);
+        Route::get('inventory/ledger', [InventoryStockController::class, 'ledger']);
+        Route::post('inventory/allocate', [InventoryStockController::class, 'allocate']);
+        Route::post('inventory/receive', [InventoryStockController::class, 'receive']);
         Route::get('inventory/warehouses', [InventoryLocationController::class, 'warehouses']);
         Route::post('inventory/warehouses', [InventoryLocationController::class, 'createWarehouse']);
         Route::patch('inventory/warehouses/{id}', [InventoryLocationController::class, 'updateWarehouse'])->whereNumber('id');

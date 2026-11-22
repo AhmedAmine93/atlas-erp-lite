@@ -27,6 +27,13 @@ class StockService
         if ($balance < 0 || $balance > 100000000) {
             throw ValidationException::withMessages(['stock' => 'Stock insuffisant ou capacité dépassée : '.$product->name]);
         }
+        if ($quantity < 0) {
+            // Existing global stock remains authoritative during M05 transition.
+            // Exclude blocked lots, quarantine and in-transit inventory.
+            app(InventoryStockService::class)->consumeForLegacyMove(
+                $product, -$quantity, $reason
+            );
+        }
         $product->update(['stock' => $balance]);
         StockMovement::create(['product_id' => $product->id, 'quantity' => $quantity, 'balance_after' => $balance,
             'reason' => $reason, 'order_id' => $orderId, 'user_id' => auth()->id()]);
