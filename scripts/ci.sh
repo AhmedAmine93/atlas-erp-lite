@@ -34,6 +34,7 @@ bash scripts/verify-rc1.sh
 # Following HTTP/browser tests now run against the restricted runtime service.
 bash scripts/verify-f17.sh
 "${dc[@]}" run --rm tests php tests/concurrency.php
+"${dc[@]}" run --rm tests php tests/hotel_concurrency.php
 # Separate dedicated browser account; login throttling remains intact.
 "${dc[@]}" exec -T -e ATLAS_BROWSER_E2E_CONFIRM=YES_ISOLATED_CI backend php artisan db:seed --class=BrowserE2ESeeder --force
 "${dc[@]}" run --rm tests composer validate --strict
