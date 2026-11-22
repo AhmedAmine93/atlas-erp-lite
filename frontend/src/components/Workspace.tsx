@@ -574,7 +574,7 @@ export default function Workspace() {
           ) : domainViews.has(view) ? (
             <DomainWorkspace key={view+"-"+user.active_company_id} view={view} activeCompanyId={user.active_company_id ?? null} />
           ) : salesCommerceViews.has(view as any) && !["quotes","orders"].includes(view) ? (
-            <SalesCommerceWorkspace key={view+"-"+user.active_company_id} view={view as "deliveries"|"sales-contracts"|"sales-returns"|"pricing"} activeCompanyId={user.active_company_id ?? null} canWrite={can(view)} />
+            <SalesCommerceWorkspace key={view+"-"+user.active_company_id} view={view as "deliveries"|"sales-contracts"|"sales-returns"|"pricing"} activeCompanyId={user.active_company_id ?? null} canWrite={can(view)} canApprove={user.role.name === "admin"} />
           ) : view === "admin-companies" ? (
             <OrganizationWorkspace
               activeCompanyId={user.active_company_id ?? null}
@@ -595,7 +595,7 @@ export default function Workspace() {
               busy={busy}
             />
           )}
-          {["quotes","orders"].includes(view) && <SalesCommerceWorkspace key={"sales-v5-"+view+"-"+user.active_company_id} view={view as "quotes"|"orders"} activeCompanyId={user.active_company_id ?? null} canWrite={can(view)} embedded />}
+          {["quotes","orders"].includes(view) && <SalesCommerceWorkspace key={"sales-v5-"+view+"-"+user.active_company_id} view={view as "quotes"|"orders"} activeCompanyId={user.active_company_id ?? null} canWrite={can(view)} canApprove={user.role.name === "admin"} embedded />}
           <footer className="page-footer">
             <span>ATLAS ONE</span>
             <span>Un peu moins de gestion. Un peu plus de perspective.</span>
