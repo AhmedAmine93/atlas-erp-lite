@@ -33,9 +33,8 @@ class SupportSlaController extends Controller
         ]);
         abort_if($data['response_minutes'] > $data['resolution_minutes'], 422, 'Réponse après résolution.');
         return DB::transaction(function () use ($request, $data) {
-            $company = app(TenantContext::class)->requireId();
             $version = (int) (SupportSlaPolicy::where('severity', $data['severity'])
-                ->lockForUpdate()->max('version') ?? 0) + 1;
+                ->orderByDesc('version')->lockForUpdate()->value('version') ?? 0) + 1;
             $item = SupportSlaPolicy::create([
                 ...$data, 'version' => $version, 'published' => false, 'created_by' => $request->user()->id,
             ]);
