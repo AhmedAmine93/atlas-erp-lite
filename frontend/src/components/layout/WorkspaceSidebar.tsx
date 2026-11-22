@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Search, ChevronRight, LogOut } from "lucide-react";
 import { navigationSections, type View } from "@/lib/navigation";
 import { canOpenWorkspaceView } from "@/lib/workspaceRoutes";
@@ -31,6 +31,11 @@ export default function WorkspaceSidebar({
 }: SidebarProps) {
   const [navSearch, setNavSearch] = useState("");
   const [showPlanned, setShowPlanned] = useState(false);
+  // Local gateway only, never advertise the development proxy to production users.
+  const [localJetLink, setLocalJetLink] = useState(false);
+  useEffect(() => {
+    setLocalJetLink(["127.0.0.1", "localhost"].includes(window.location.hostname));
+  }, []);
   const [expandedSections, setExpandedSections] = useState<string[]>(() =>
     navigationSections
       .filter((section) => section.items.some((item) => item.ready))
@@ -169,6 +174,18 @@ export default function WorkspaceSidebar({
             );
           })}
         </nav>
+        {localJetLink && user.role.name === "admin" && (
+          <a
+            className="nav-entry"
+            href="http://127.0.0.1:8100"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Oracle JET GMAO — passerelle locale"
+            title="Nécessite le serveur Oracle JET et la passerelle locale"
+          >
+            Oracle JET GMAO · local
+          </a>
+        )}
         <div className="sidebar-bottom">
           <div className="demo-card">
             <span className="demo-pill">ENVIRONNEMENT DÉMO</span>
