@@ -28,9 +28,9 @@ test("P06: refreshed dashboard and modular navigation preserve real routes", asy
   await page.getByRole("button", { name: "Voir les modules prévus" }).click();
   const crmGroup = page.getByRole("button", { name: "CRM & Relations clients" });
   if (await crmGroup.getAttribute("aria-expanded") === "false") await crmGroup.click();
-  await expect(page.getByRole("button", { name: "Prospects", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: /Prospects/ })).toBeDisabled();
   await page.getByRole("button", { name: "Masquer les modules prévus" }).click();
-  await expect(page.getByRole("button", { name: "Prospects", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /Prospects/ })).toHaveCount(0);
 
   // Quick actions use the original routes and permissions, never mock API data.
   await page.getByRole("region", { name: "Accès rapides" })
