@@ -273,11 +273,11 @@ export const navigationSections: NavigationSection[] = [
     label: "Exploitation & DevOps",
     icon: History,
     items: [
-      { id: "ops-overview", label: "Supervision générale" , ready: true }
-      { id: "ops-logs", label: "Journaux techniques" , ready: true }
-      { id: "ops-health", label: "État des services" , ready: true }
-      { id: "ops-jobs", label: "Jobs et batchs" , ready: true }
-      { id: "ops-backups", label: "Sauvegardes" , ready: true }
+      { id: "ops-overview", label: "Supervision générale" , ready: true },
+      { id: "ops-logs", label: "Journaux techniques" , ready: true },
+      { id: "ops-health", label: "État des services" , ready: true },
+      { id: "ops-jobs", label: "Jobs et batchs" , ready: true },
+      { id: "ops-backups", label: "Sauvegardes" , ready: true },
       { id: "ops-deployments", label: "Déploiements et CI/CD" , ready: true }
     ],
   },
