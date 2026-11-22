@@ -224,16 +224,44 @@ final class PilotageController extends Controller
                 }
             }
             $acks = DB::table('pilotage_alert_acknowledgements')->where('company_id',$company)
-                ->whereIn('rule_id',$rules->pluck('id')->all())->get()
+                ->whereIn('rule_id',$rules->pluck('id')->all())->limit(10000)->get()
                 ->keyBy(fn ($a) => $a->rule_id.':'.$a->entity_type.':'.$a->entity_id);
-            $rows = array_slice(array_map(function ($r) use ($acks) {
-                $key = $r['rule_id'].':'.$r['entity_type'].':'.$r['entity_id'];
-                $r['acknowledged_at'] = $acks->get($key)?->acknowledged_at;
-                return $r;
-            },$list),0,200);
+            $events = DB::table('pilotage_alert_events')->where('company_id',$company)
+                ->whereIn('rule_id',$rules->pluck('id')->all())->limit(20000)->get()
+                ->groupBy(fn ($e) => $e->rule_id.':'.$e->entity_type.':'.$e->entity_id);
+            $rowsByKey = [];
+            foreach ($list as $row) {
+                $key = $row['rule_id'].':'.$row['entity_type'].':'.$row['entity_id'];
+                $row['acknowledged_at'] = $acks->get($key)?->acknowledged_at;
+                $row['is_active'] = true;
+                $row['escalated_at'] = $events->get($key)?->firstWhere('action','escalated')?->created_at;
+                $row['resolved_at'] = $events->get($key)?->firstWhere('action','resolved')?->created_at;
+                $rowsByKey[$key] = $row;
+            }
+            // Keep acknowledged but no-longer-anomalous entries visible until
+            // a human records the resolution. An ack is never a resolution.
+            foreach ($acks as $key => $ack) {
+                if (isset($rowsByKey[$key]) || $events->get($key)?->firstWhere('action','resolved')) continue;
+                $rule = $rules->firstWhere('id',$ack->rule_id);
+                if (!$rule) continue;
+                $entity = $ack->entity_type==='product'
+                    ? Product::whereKey($ack->entity_id)->select('id','name')->first()
+                    : Invoice::whereKey($ack->entity_id)->select('id','number')->first();
+                if (!$entity) continue;
+                $rowsByKey[$key] = [
+                    'rule_id'=>$ack->rule_id,'rule'=>$rule->name,
+                    'entity_type'=>$ack->entity_type,'entity_id'=>$ack->entity_id,
+                    'label'=>$ack->entity_type==='product' ? $entity->name : $entity->number,
+                    'observed'=>null,'threshold'=>$rule->threshold,'acknowledged_at'=>$ack->acknowledged_at,
+                    'is_active'=>false,'escalated_at'=>$events->get($key)?->firstWhere('action','escalated')?->created_at,
+                    'resolved_at'=>null,
+                ];
+            }
+            $rows = array_slice(array_values($rowsByKey),0,200);
             $cards = $this->cards([
                 'rules_count'=>$rules->count(), 'alerts_count'=>count($rows),
                 'unacknowledged_count'=>count(array_filter($rows,fn ($r)=>!$r['acknowledged_at'])),
+                'pending_resolution_count'=>count(array_filter($rows,fn ($r)=>$r['acknowledged_at'] && !$r['is_active'] && !$r['resolved_at'])),
             ]);
             $notes[] = 'Alertes calculées à la date courante, indépendamment du filtre de période ; un accusé de réception ne clôture pas le défaut sous-jacent.';
             $notes[] = 'Chaque règle est datée ; l’escalade automatique et les objectifs budgétaires sont non disponibles.';
