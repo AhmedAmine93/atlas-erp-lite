@@ -219,6 +219,12 @@ class SupportCaseController extends Controller
             abort_if(in_array($item->status, ['closed','cancelled','rejected','completed','rolled_back'], true), 409, 'Dossier non modifiable.');
             unset($data['version']);
             $item->fill($data);
+            if ($kind === 'service' && $item->status === 'approved') {
+                // A changed service request must be approved again.
+                $item->approved_by = null;
+                $item->approved_version = null;
+                $item->status = 'awaiting_approval';
+            }
             if ($kind === 'change') {
                 $item->approved_by = null;
                 $item->approved_version = null;
