@@ -142,6 +142,8 @@ Route::prefix('api')->group(function () {
         Route::get('crm/{resource}/{id}', [CrmWorkspaceController::class,'show'])->whereIn('resource',['prospects','contacts','opportunities','activities','segments'])->whereNumber('id');
         Route::put('crm/{resource}/{id}', [CrmWorkspaceController::class,'update'])->whereIn('resource',['prospects','contacts','opportunities','activities','segments'])->whereNumber('id');
         Route::post('crm/{resource}/{id}/transition', [CrmWorkspaceController::class,'transition'])->whereIn('resource',['prospects','opportunities','activities'])->whereNumber('id');
+        Route::get('crm/opportunities/{id}/quotes', [CrmWorkspaceController::class,'opportunityQuotes'])->whereNumber('id');
+        Route::post('crm/opportunities/{id}/quotes', [CrmWorkspaceController::class,'linkQuote'])->whereNumber('id');
         Route::post('crm/activities/{id}/reschedule', [CrmWorkspaceController::class,'reschedule'])->whereNumber('id');
         Route::post('crm/prospects/{id}/convert', [CrmWorkspaceController::class,'convert'])->whereNumber('id');
         Route::post('crm/customers/{id}/archive', [CrmWorkspaceController::class,'archiveCustomer'])->whereNumber('id');
