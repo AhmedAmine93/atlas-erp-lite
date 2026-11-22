@@ -41,7 +41,7 @@ const operations: Record<string, Operation[]> = {
  "maintenance-spares": [
   {label:"Réserver",path:v=>"maintenance/work-orders/"+v.work_order_id+"/spares",fields:[wo,lookup("product_id","Produit","products"),quantity,key]},
   {label:"Consommer",path:v=>"maintenance/spares/"+v.reservation_id+"/consume",fields:[lookup("reservation_id","Réservation","maintenance/spares"),quantity,key]},
-  {label:"Libérer",path:v=>"maintenance/spares/"+v.reservation_id+"/release",fields:[lookup("reservation_id","Réservation","maintenance/spares"),quantity,reason]}
+  {label:"Libérer",path:v=>"maintenance/spares/"+v.reservation_id+"/release",fields:[lookup("reservation_id","Réservation","maintenance/spares"),quantity,reason,key]}
  ],
  "maintenance-contracts": [
   {label:"Créer un contrat",path:()=>"maintenance/contracts",fields:[field("code","Code"),field("name","Nom"),lookup("site_id","Site","maintenance/sites"),field("response_hours","Délai réponse (heures)","number"),field("starts_on","Début","date"),field("ends_on","Fin","date"),field("calendar_timezone","Fuseau IANA")]},
