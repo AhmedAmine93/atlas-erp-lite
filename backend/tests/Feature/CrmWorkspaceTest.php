@@ -222,6 +222,34 @@ final class CrmWorkspaceTest extends TestCase
             ->assertJsonPath('forecast_cents',0);
     }
 
+    public function test_crm_csv_export_is_scoped_audited_and_blocks_spreadsheet_formulas(): void
+    {
+        Customer::create(['name'=>'=HYPERLINK("https://example.invalid")','email'=>'formula-export@example.test']);
+        $response=$this->get('/api/crm/export/customers')->assertOk()
+            ->assertHeader('content-type','text/csv; charset=UTF-8');
+        $csv=$response->getContent();
+        $this->assertStringContainsString('formula-export@example.test',$csv);
+        $this->assertStringContainsString("'=HYPERLINK", $csv);
+        $this->assertStringNotContainsString('password',$csv);
+        $this->assertDatabaseHas('audit_logs',['action'=>'crm.export.downloaded']);
+
+        $prospect=$this->postJson('/api/crm/prospects',[
+            'name'=>'Export lead','email'=>'exportlead@example.test',
+        ])->assertCreated()->json('id');
+        $this->get('/api/crm/export/prospects')->assertOk()
+            ->assertSee('Export lead');
+        $this->get('/api/crm/export/invoices')->assertNotFound();
+
+        $foreign=Company::create(['code'=>'CRM_EXPORT_B','name'=>'Exports B'])->id;
+        $this->login('admin','export-b',$foreign);
+        $this->get('/api/crm/export/customers')->assertOk()->assertDontSee('formula-export@example.test');
+        $this->get('/api/crm/export/prospects')->assertOk()->assertDontSee('exportlead@example.test');
+
+        $this->login('reader','export-reader',$this->company);
+        $this->get('/api/crm/export/customers')->assertForbidden();
+        $this->get('/api/crm/export/contacts')->assertForbidden();
+    }
+
     public function test_pg_runtime_rls_isolates_all_new_crm_tables(): void
     {
         if (DB::getDriverName()!=='pgsql') $this->markTestSkipped('RLS PostgreSQL uniquement.');
