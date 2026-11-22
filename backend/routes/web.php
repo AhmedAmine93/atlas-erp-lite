@@ -5,6 +5,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\CrmWorkspaceController;
 use App\Http\Controllers\CrmCustomerImportController;
+use App\Http\Controllers\CrmExportController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PilotageController;
 use App\Http\Controllers\GlobalSearchController;
@@ -143,6 +144,7 @@ Route::prefix('api')->group(function () {
         Route::post('products/{id}/stock', [ProductController::class, 'adjust'])->whereNumber('id');
         // M02 CRM: explicit allowlisted resources, always behind auth + tenant middleware.
         Route::get('crm/summary', [CrmWorkspaceController::class,'summary']);
+        Route::get('crm/export/{resource}', [CrmExportController::class,'download'])->whereIn('resource',['customers','prospects','contacts','opportunities','activities','segments']);
         Route::post('crm/customers/import', [CrmCustomerImportController::class,'store']);
         Route::get('crm/{resource}', [CrmWorkspaceController::class,'index'])->whereIn('resource',['prospects','contacts','opportunities','activities','segments']);
         Route::post('crm/{resource}', [CrmWorkspaceController::class,'store'])->whereIn('resource',['prospects','contacts','opportunities','activities','segments']);
