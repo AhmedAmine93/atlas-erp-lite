@@ -13,6 +13,9 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\SalesController;
 use App\Http\Controllers\TenantContextController;
 use App\Http\Controllers\SupportIncidentController;
+use App\Http\Controllers\SupportCaseController;
+use App\Http\Controllers\SupportSlaController;
+use App\Http\Controllers\SupportKnowledgeController;
 use App\Http\Controllers\SupportDiagnosticController;
 use App\Http\Controllers\DataCsvIngestionController;
 use App\Http\Controllers\DataIngestionBatchController;
@@ -154,6 +157,28 @@ Route::prefix('api')->group(function () {
         Route::get('invoices/{id}', [InvoiceController::class, 'show'])->whereNumber('id');
         Route::patch('invoices/{id}', [InvoiceController::class, 'transition'])->whereNumber('id');
         Route::get('invoices/{id}/pdf', [InvoiceController::class, 'pdf'])->whereNumber('id');
+        // M11 ITSM workflows: tenant middleware, explicit gates, versioned writes.
+        Route::get('support/cases/{kind}', [SupportCaseController::class, 'index'])->whereIn('kind', ['ticket','problem','service','change']);
+        Route::post('support/cases/{kind}', [SupportCaseController::class, 'store'])->whereIn('kind', ['ticket','problem','service','change']);
+        Route::get('support/cases/{kind}/{id}', [SupportCaseController::class, 'show'])->whereIn('kind', ['ticket','problem','service','change'])->whereNumber('id');
+        Route::patch('support/cases/{kind}/{id}', [SupportCaseController::class, 'update'])->whereIn('kind', ['ticket','problem','service','change'])->whereNumber('id');
+        Route::post('support/cases/{kind}/{id}/transition', [SupportCaseController::class, 'transition'])->whereIn('kind', ['ticket','problem','service','change'])->whereNumber('id');
+        Route::post('support/cases/{kind}/{id}/incidents', [SupportCaseController::class, 'linkIncident'])->whereIn('kind', ['ticket','problem','service','change'])->whereNumber('id');
+        Route::get('support/catalog', [SupportCaseController::class, 'catalog']);
+        Route::post('support/catalog', [SupportCaseController::class, 'createCatalog']);
+        Route::get('support/sla/policies', [SupportSlaController::class, 'policies']);
+        Route::post('support/sla/policies', [SupportSlaController::class, 'createPolicy']);
+        Route::post('support/sla/policies/{id}/publish', [SupportSlaController::class, 'publish'])->whereNumber('id');
+        Route::get('support/sla/metrics', [SupportSlaController::class, 'metrics']);
+        Route::get('support/sla/escalations', [SupportSlaController::class, 'escalations']);
+        Route::post('support/sla/escalations', [SupportSlaController::class, 'raise']);
+        Route::post('support/sla/escalations/{id}/acknowledge', [SupportSlaController::class, 'acknowledge'])->whereNumber('id');
+        Route::get('support/knowledge', [SupportKnowledgeController::class, 'index']);
+        Route::post('support/knowledge', [SupportKnowledgeController::class, 'create']);
+        Route::get('support/knowledge/{id}', [SupportKnowledgeController::class, 'show'])->whereNumber('id');
+        Route::patch('support/knowledge/{id}', [SupportKnowledgeController::class, 'update'])->whereNumber('id');
+        Route::post('support/knowledge/{id}/decision', [SupportKnowledgeController::class, 'decision'])->whereNumber('id');
+        Route::get('support/knowledge/{id}/revisions', [SupportKnowledgeController::class, 'revisions'])->whereNumber('id');
         Route::get('support/incidents/summary', [SupportIncidentController::class, 'summary']);
         Route::get('support/incidents/{id}/diagnostics', [SupportDiagnosticController::class, 'index'])->whereNumber('id')
             ->middleware('throttle:support-diagnostics');
