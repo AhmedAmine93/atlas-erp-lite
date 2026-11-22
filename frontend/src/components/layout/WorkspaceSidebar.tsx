@@ -23,6 +23,8 @@ const roleLabels: Record<string, string> = {
   reader: "Lecture seule",
   support_n2: "Support N2",
   support_n3: "Support N3",
+  ops_viewer: "Observateur exploitation",
+  ops_operator: "Opérateur DevOps",
 };
 
 /** Sidebar owns menu-search/expansion state; authentication and tenant state live in Workspace. */
@@ -40,7 +42,8 @@ export default function WorkspaceSidebar({
   const accessibleSections = navigationSections
     .filter((section) =>
       (!section.adminOnly || user.role.name === "admin") &&
-      (section.id !== "itsm" || ["admin", "support_n2", "support_n3"].includes(user.role.name))
+      (section.id !== "itsm" || ["admin", "support_n2", "support_n3"].includes(user.role.name)) &&
+      (section.id !== "operations" || ["admin", "ops_viewer", "ops_operator"].includes(user.role.name))
     )
     .map((section) => ({
       ...section,
