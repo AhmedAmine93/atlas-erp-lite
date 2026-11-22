@@ -23,14 +23,14 @@ test("P06: refreshed dashboard and modular navigation preserve real routes", asy
   await expect(page.getByRole("combobox", { name: "Entreprise active" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Voir les modules prévus" })).toBeVisible();
 
-  // M01 direction is an enabled route, while the remaining CRM module stays disabled.
+  // M01 direction and completed M02 CRM routes are enabled; planned modules stay separate.
   await expect(page.getByRole("button", { name: "Tableau de bord direction" })).toBeEnabled();
   await page.getByRole("button", { name: "Voir les modules prévus" }).click();
   const crmGroup = page.getByRole("button", { name: "CRM & Relations clients" });
   if (await crmGroup.getAttribute("aria-expanded") === "false") await crmGroup.click();
-  await expect(page.getByRole("button", { name: /Prospects/ })).toBeDisabled();
+  await expect(page.getByRole("button", { name: /Prospects/ })).toBeEnabled();
   await page.getByRole("button", { name: "Masquer les modules prévus" }).click();
-  await expect(page.getByRole("button", { name: /Prospects/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /Prospects/ })).toBeVisible();
 
   // Quick actions use the original routes and permissions, never mock API data.
   await page.getByRole("region", { name: "Accès rapides" })
