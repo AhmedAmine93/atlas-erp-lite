@@ -66,6 +66,7 @@ export default function SupportIncidents({ canDiagnose }: { canDiagnose: boolean
   const [diagnosticRuns, setDiagnosticRuns] = useState<DiagnosticRun[]>([]);
   const [comment, setComment] = useState("");
   const [escalationReason, setEscalationReason] = useState("");
+  const [reopenReason, setReopenReason] = useState("");
   const [page, setPage] = useState(1);
   const [lastPage, setLastPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -201,12 +202,25 @@ export default function SupportIncidents({ canDiagnose }: { canDiagnose: boolean
       await send(`support/incidents/${selected.id}/escalate`, "POST", { reason: escalationReason.trim() });
       await showDetail(selected, false);
       setRevision(n => n + 1);
-      setNotice("Incident escaladé au niveau N3.");
+      setNotice(`Incident escaladé au niveau N${Math.min(3, selected.escalation_level + 1)}.`);
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setSaving(false);
     }
+  }
+
+  async function reopen() {
+    if (!selected || reopenReason.trim().length < 5) return;
+    setSaving(true); setError("");
+    try {
+      await send('support/incidents/' + selected.id + '/reopen', 'POST', { reason: reopenReason.trim() });
+      await showDetail(selected, false);
+      setReopenReason("");
+      setRevision(n => n + 1);
+      setNotice("Incident rouvert, historique préservé.");
+    } catch (e) { setError((e as Error).message); }
+    finally { setSaving(false); }
   }
 
   async function runDiagnostic() {
@@ -365,13 +379,22 @@ export default function SupportIncidents({ canDiagnose }: { canDiagnose: boolean
                 onClick={() => void addComment()}>Ajouter un commentaire</button>
               {selected.escalation_level < 3 && selected.status !== "closed" && (
                 <>
-                  <label>Motif d'escalade N3
+                  <label>Motif d'escalade N{selected.escalation_level + 1}
                     <textarea rows={2} value={escalationReason} onChange={e => setEscalationReason(e.target.value)}
                       placeholder="Motif technique de l'escalade..." />
                   </label>
                   <button className="button secondary" disabled={saving || escalationReason.trim().length < 5}
-                    onClick={() => void escalate()}>Escalader vers N3</button>
+                    onClick={() => void escalate()}>Escalader vers N{selected.escalation_level + 1}</button>
                 </>
+              )}
+              {["resolved","closed"].includes(selected.status) && (
+                <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
+                  <label>Motif de réouverture
+                    <textarea rows={2} value={reopenReason} onChange={e => setReopenReason(e.target.value)} />
+                  </label>
+                  <button className="button secondary" disabled={saving || reopenReason.trim().length < 5}
+                    onClick={() => void reopen()}>Rouvrir l'incident</button>
+                </div>
               )}
               {canDiagnose && selected.escalation_level === 3 && (
                 <section aria-label="Diagnostics N3" className="panel" style={{ padding: "1rem", marginTop: "1rem" }}>
