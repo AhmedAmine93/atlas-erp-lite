@@ -52,7 +52,7 @@ class InventoryWorkflowM05Test extends TestCase
         ])->assertCreated();
         $count=$this->postJson('/api/inventory/counts',[
             'reference'=>'COUNT-A-01','product_id'=>$product->id,'location_id'=>$location,
-        ])->assertCreated()->assertJsonPath('snapshot_quantity',4)->json('id');
+        ])->assertCreated()->assertJsonMissingPath('snapshot_quantity')->json('id');
         $this->postJson('/api/inventory/counts',[
             'reference'=>'COUNT-A-02','product_id'=>$product->id,'location_id'=>$location,
         ])->assertConflict();
@@ -61,8 +61,9 @@ class InventoryWorkflowM05Test extends TestCase
             'reason'=>'Comptage non confirmé',
         ])->assertConflict();
         $this->actingAs($counter);
-        $this->postJson('/api/inventory/counts/'.$count.'/count',['quantity'=>2])
-            ->assertOk()->assertJsonPath('status','recounted');
+        $this->postJson('/api/inventory/counts/'.$count.'/count',[
+            'quantity'=>2,'reason'=>'Recomptage contradictoire',
+        ])->assertOk()->assertJsonPath('status','recounted');
         $this->actingAs($admin);
         $this->postJson('/api/inventory/counts/'.$count.'/approve',[
             'reason'=>'Écart confirmé par double comptage',
