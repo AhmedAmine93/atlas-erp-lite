@@ -418,6 +418,36 @@ final class CrmWorkspaceTest extends TestCase
         $this->getJson('/api/crm/segments/'.$segment.'/marketing-audience')->assertNotFound();
     }
 
+    public function test_external_identifiers_are_unique_versioned_and_tenant_restricted(): void
+    {
+        $client=Customer::create(['name'=>'Source référentiel','email'=>'ref-source@example.test']);
+        $other=Customer::create(['name'=>'Autre entité','email'=>'ref-other@example.test']);
+        $route='/api/crm/external-identifiers/customers/'.$client->id;
+        $payload=['source_system'=>'PMS','external_id'=>'PMS-CUST-009'];
+        $alias=$this->postJson($route,$payload)->assertCreated()
+            ->assertJsonPath('source_system','PMS')->json('id');
+        $this->postJson($route,$payload)->assertOk()->assertJsonPath('id',$alias);
+        $this->postJson('/api/crm/external-identifiers/customers/'.$other->id,$payload)
+            ->assertConflict();
+        $this->getJson($route)->assertOk()->assertJsonPath('total',1);
+        $this->postJson('/api/crm/external-identifiers/'.$alias.'/revoke',[
+            'expected_revision'=>1,'reason'=>'Référence ancienne invalide',
+        ])->assertOk()->assertJsonPath('revision',2);
+        $this->postJson($route,$payload)->assertConflict();
+        $this->postJson('/api/crm/external-identifiers/'.$alias.'/revoke',[
+            'expected_revision'=>1,'reason'=>'Deuxième révocation impossible',
+        ])->assertConflict();
+        $this->assertDatabaseHas('audit_logs',['action'=>'crm.external_identifier.linked']);
+        $this->assertDatabaseHas('audit_logs',['action'=>'crm.external_identifier.revoked']);
+        $foreign=Company::create(['code'=>'CRM_ALIAS_B','name'=>'Autre tenant identifiants'])->id;
+        $this->login('admin','external-b',$foreign);
+        $this->getJson($route)->assertNotFound();
+        $this->postJson($route,$payload)->assertNotFound();
+        $this->getJson('/api/crm/external-identifiers/customers/'.$other->id)->assertNotFound();
+        $this->login('reader','external-reader',$this->company);
+        $this->getJson($route)->assertForbidden();
+    }
+
     public function test_pg_runtime_rls_isolates_all_new_crm_tables(): void
     {
         if (DB::getDriverName()!=='pgsql') $this->markTestSkipped('RLS PostgreSQL uniquement.');
