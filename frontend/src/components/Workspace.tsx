@@ -42,6 +42,7 @@ import { nav, navigationSections, type View } from "@/lib/navigation";
 import { canEditWorkspaceView, canOpenWorkspaceView, parseWorkspacePath, workspaceHref, type WorkspaceRoute } from "@/lib/workspaceRoutes";
 import OrganizationWorkspace from "@/components/OrganizationWorkspace";
 import DomainWorkspace, { domainViews } from "@/components/DomainWorkspace";
+import CrmWorkspace from "@/components/CrmWorkspace";
 import HotelHousekeepingWorkspace from "@/components/HotelHousekeepingWorkspace";
 import HotelMinibarWorkspace from "@/components/HotelMinibarWorkspace";
 import HotelAvailabilityWorkspace from "@/components/HotelAvailabilityWorkspace";
@@ -560,6 +561,8 @@ export default function Workspace() {
               <WorkspaceWelcome user={user} onNavigate={go} />
               <DashboardView refresh={refresh} go={go} user={user} />
             </>
+          ) : ["prospects","crm-contacts","opportunities","crm-activities","customer-segments"].includes(view) ? (
+            <CrmWorkspace key={view+"-"+user.active_company_id} view={view as "prospects"|"crm-contacts"|"opportunities"|"crm-activities"|"customer-segments"} activeCompanyId={user.active_company_id ?? null} canEdit={["admin","commercial"].includes(user.role.name)} />
           ) : view === "support-incidents" ? (
             <SupportIncidents canDiagnose={["admin", "support_n3"].includes(user.role.name)} />
           ) : view === "hotel-minibar" ? (
