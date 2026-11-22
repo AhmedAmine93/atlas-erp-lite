@@ -20,7 +20,7 @@ class AdminController extends Controller
     {
         Gate::authorize('admin');
         $companyId = app(TenantContext::class)->requireId();
-        $page = User::whereHas('companies', fn ($query) => $query->whereKey($companyId))
+        $page = User::whereHas('companies', fn ($query) => $query->whereKey($companyId)->wherePivotNull('suspended_at'))
             ->orderBy('name')->paginate(20);
 
         // The legacy global User.role relation is for backward compatibility only.
@@ -96,7 +96,7 @@ class AdminController extends Controller
                     abort_if(
                         DB::table('company_user')
                             ->where('company_id', $companyId)
-                            ->where('role_id', $adminRoleId)->count() <= 1,
+                            ->where('role_id', $adminRoleId)->whereNull('suspended_at')->count() <= 1,
                         409,
                         'Le dernier administrateur de cette entreprise doit être conservé.',
                     );
