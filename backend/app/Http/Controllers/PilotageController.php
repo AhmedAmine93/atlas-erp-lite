@@ -86,25 +86,74 @@ final class PilotageController extends Controller
                 'validated_orders_count' => Order::where('status', 'validated')
                     ->whereDate('validated_at', '>=', $from)->whereDate('validated_at', '<=', $to)->count(),
             ]);
-            // Sales documents have no establishment_id in the current schema.
-            // Do NOT allocate company revenue to hotels or invent ADR/RevPAR.
-            $rows = DB::table('hotel_properties')->where('company_id', $company)
-                ->select('id', 'code', 'name')->orderBy('name')->limit(100)->get()->map(function ($hotel) use ($company, $from, $to) {
-                    $bookings = DB::table('hotel_bookings')->where('company_id', $company)
-                        ->where('hotel_id', $hotel->id)->whereNotIn('status', ['draft', 'cancelled', 'no_show'])
-                        ->where('arrival_date', '<=', $to)->where('departure_date', '>', $from);
-                    return [
-                        'id' => $hotel->id, 'code' => $hotel->code, 'name' => $hotel->name,
-                        'bookings_in_period' => (clone $bookings)->count(),
-                        'adr_cents' => null, 'revpar_cents' => null,
-                    ];
-                })->all();
-            $notes[] = 'Agrégats financiers au niveau entreprise : aucune allocation aux établissements sans clé métier.';
-            $notes[] = 'ADR, RevPAR, pickup et prévisions indisponibles : recettes et historique tarifaire hôtel absents.';
+            // Company sales invoices carry no hotel_id: never allocate their
+            // value to a property. Hotel room-nights are occupancy only.
+            $hotels = DB::table('hotel_properties')->where('company_id', $company)
+                ->select('id', 'code', 'name')->orderBy('name')->limit(100)->get();
+            $hotelIds = $hotels->pluck('id')->all();
+            $roomCounts = DB::table('hotel_rooms')->where('company_id',$company)
+                ->whereIn('hotel_id',$hotelIds)->selectRaw('hotel_id, count(*) AS total')
+                ->groupBy('hotel_id')->pluck('total','hotel_id');
+            $toExclusive = CarbonImmutable::parse($to)->addDay()->toDateString();
+            $hotelBookings = DB::table('hotel_bookings')->where('company_id',$company)
+                ->whereIn('hotel_id',$hotelIds)
+                ->whereIn('status',['confirmed','checked_in','checked_out'])
+                ->where('arrival_date','<',$toExclusive)
+                ->where('departure_date','>',$from)
+                ->select('hotel_id','arrival_date','departure_date','checked_out_on')
+                ->limit(50001)->get();
+            $hotelDataComplete = $hotelBookings->count() <= 50000;
+            $nightsByHotel = [];
+            $bookingsByHotel = [];
+            if ($hotelDataComplete) {
+                foreach ($hotelBookings as $booking) {
+                    $hotelId = (int) $booking->hotel_id;
+                    $end = $booking->checked_out_on && $booking->checked_out_on < $booking->departure_date
+                        ? $booking->checked_out_on : $booking->departure_date;
+                    $start = max($from, $booking->arrival_date);
+                    $end = min($toExclusive, $end);
+                    $nights = $start < $end ? (int) CarbonImmutable::parse($start)
+                        ->diffInDays(CarbonImmutable::parse($end)) : 0;
+                    $nightsByHotel[$hotelId] = ($nightsByHotel[$hotelId] ?? 0) + $nights;
+                    $bookingsByHotel[$hotelId] = ($bookingsByHotel[$hotelId] ?? 0) + 1;
+                }
+            }
+            $days = (int) CarbonImmutable::parse($from)
+                ->diffInDays(CarbonImmutable::parse($toExclusive));
+            $rows = $hotels->map(function ($hotel) use ($roomCounts,$nightsByHotel,$bookingsByHotel,$days,$hotelDataComplete) {
+                $capacity = ((int) ($roomCounts[$hotel->id] ?? 0)) * $days;
+                $nights = $hotelDataComplete ? ($nightsByHotel[$hotel->id] ?? 0) : null;
+                return [
+                    'id'=>$hotel->id,'code'=>$hotel->code,'name'=>$hotel->name,
+                    'bookings_in_period'=>$hotelDataComplete ? ($bookingsByHotel[$hotel->id] ?? 0) : null,
+                    'rooms_current'=>(int) ($roomCounts[$hotel->id] ?? 0),
+                    'theoretical_room_nights'=>$capacity,
+                    'occupied_room_nights'=>$nights,
+                    'indicative_occupancy_pct'=>$capacity > 0 && $nights !== null
+                        ? round(100 * $nights / $capacity,1) : null,
+                    'adr_cents'=>null,'revpar_cents'=>null,
+                ];
+            })->all();
+            $notes[] = 'Occupation indicative : nuits des réservations confirmées/en cours/terminées divisées par chambres actuellement référencées × jours. Les indisponibilités historiques et inventaires de chambres anciens ne sont pas encore reconstituables.';
+            if (!$hotelDataComplete) $notes[] = 'Détail hôtel incomplet au-delà de 50 000 réservations ; nuitées et occupation volontairement indisponibles.';
+            $notes[] = 'Les ventes facturées restent au niveau société : aucune allocation aux hôtels sans clé de rattachement sur les pièces.';
+            $notes[] = 'ADR, RevPAR, pickup et prévisions indisponibles sans revenu hôtelier, instantanés de réservation et historique tarifaire fiables.';
             $previousFrom = CarbonImmutable::parse($from)->subYear()->toDateString();
             $previousTo = CarbonImmutable::parse($to)->subYear()->toDateString();
             $previous = $this->invoiceQuery($previousFrom, $previousTo)->whereIn('status', ['issued','paid']);
             $cards[] = ['key' => 'prior_year_invoices_ht_cents', 'value' => (int) $previous->sum('subtotal_cents')];
+            $target = DB::table('pilotage_target_versions')->where('company_id',$company)
+                ->where('metric','issued_ht_cents')
+                ->where('period_from',$from)->where('period_to',$to)
+                ->orderByDesc('version')->first();
+            if ($target) {
+                $actual = (int) (clone $invoices)->sum('subtotal_cents');
+                $cards[] = ['key'=>'target_issued_ht_cents','value'=>(int) $target->target_value];
+                $cards[] = ['key'=>'target_issued_ht_delta_cents',
+                    'value'=>$actual-(int) $target->target_value];
+                $cards[] = ['key'=>'target_version','value'=>(int) $target->version];
+            } else $notes[] = 'Aucun objectif publié pour les dates exactes sélectionnées : comparaison budgétaire indisponible.';
+
         } elseif ($section === 'sales') {
             $quotes = Quote::query()->whereDate('created_at', '>=', $from)->whereDate('created_at', '<=', $to);
             $orders = Order::query()->whereDate('created_at', '>=', $from)->whereDate('created_at', '<=', $to);
@@ -148,6 +197,7 @@ final class PilotageController extends Controller
             $notes[] = 'Les mouvements de stock sont une mesure de flux distincte des factures.';
         } else {
             $rules = DB::table('pilotage_alert_rules')->where('company_id',$company)
+                ->when($role === 'stock',fn ($q) => $q->where('metric','low_stock'))
                 ->where('active',true)->whereDate('effective_from','<=',now()->toDateString())
                 ->where(fn ($q) => $q->whereNull('effective_to')->orWhereDate('effective_to','>=',now()->toDateString()))
                 ->orderBy('id')->limit(100)->get();
@@ -192,6 +242,7 @@ final class PilotageController extends Controller
             'section'=>$section, 'from'=>$from, 'to'=>$to,
             'scope'=>'Entreprise active uniquement', 'cards'=>$cards, 'rows'=>$rows,
             'notes'=>$notes, 'row_limit'=>($section === 'alerts' ? 200 : 100),
+            'generated_at'=>now()->toIso8601String(), 'currency'=>'EUR', 'data_status'=>'live',
         ])->header('Cache-Control','no-store');
     }
 
@@ -265,4 +316,102 @@ final class PilotageController extends Controller
             return response()->json(['acknowledged'=>true,'already_acknowledged'=>!$inserted]);
         },3);
     }
+
+    /** Same authorized tenant, role and period as on-screen; never accepts tenant/site IDs. */
+    public function export(Request $request, string $section)
+    {
+        $response = $this->show($request, $section);
+        $payload = $response->getData(true);
+        $company = app(TenantContext::class)->requireId();
+        $filename = "atlas-m01-{$section}-{$payload['from']}-{$payload['to']}.csv";
+        $rows = $payload['rows'];
+        $cards = $payload['cards'];
+        // CSV-formula injection protection, including whitespace/control prefixes.
+        $safe = static function ($value): string {
+            if ($value === null) return 'Non disponible';
+            $text = is_scalar($value) ? (string) $value : '';
+            if (preg_match('/^[\x00-\x20]*[=+\-@]/u', $text)) return "'".$text;
+            return $text;
+        };
+        Audit::record('pilotage.export',null,['section'=>$section,'from'=>$payload['from'],'to'=>$payload['to']]);
+        return response()->streamDownload(static function () use ($rows,$cards,$company,$payload,$safe) {
+            $handle = fopen('php://output','w');
+            fwrite($handle,"\xEF\xBB\xBF");
+            fputcsv($handle,['ATLAS M01','Entreprise',$company,'Période',$payload['from'],$payload['to']],';');
+            fputcsv($handle,['Données','EUR cents si suffixe _cents','Extrait le',$payload['generated_at']],';');
+            fputcsv($handle,['Indicateur','Valeur'],' ; '[1]);
+            foreach ($cards as $card) fputcsv($handle,[$safe($card['key']),$safe($card['value'])],';');
+            fputcsv($handle,[],';');
+            if ($rows) {
+                $columns = array_keys($rows[0]);
+                fputcsv($handle,$columns,';');
+                foreach ($rows as $row) {
+                    fputcsv($handle,array_map(fn ($column)=>$safe($row[$column] ?? null),$columns),';');
+                }
+            }
+            fclose($handle);
+        },$filename,['Content-Type'=>'text/csv; charset=UTF-8','Cache-Control'=>'no-store']);
+    }
+
+    /**
+     * Append-only escalation and resolution history. Resolution is forbidden
+     * while an alert's underlying anomaly is still present.
+     */
+    public function transitionAlert(Request $request)
+    {
+        $this->allowed($request,'alerts');
+        abort_unless($this->role($request)==='admin',403);
+        $d=$request->validate([
+            'rule_id'=>'required|integer|min:1',
+            'entity_type'=>['required',Rule::in(['product','invoice'])],
+            'entity_id'=>'required|integer|min:1',
+            'action'=>['required',Rule::in(['escalated','resolved'])],
+            'reason'=>'required|string|min:10|max:500',
+        ]);
+        $company=app(TenantContext::class)->requireId();
+        return DB::transaction(function () use ($d,$company,$request) {
+            $rule=DB::table('pilotage_alert_rules')->where('company_id',$company)
+                ->where('id',$d['rule_id'])->lockForUpdate()->first();
+            abort_unless($rule,404);
+            abort_unless(($rule->metric==='low_stock' && $d['entity_type']==='product')
+                || ($rule->metric==='unpaid_invoice_age_days' && $d['entity_type']==='invoice'),422);
+            $entity = $d['entity_type']==='product'
+                ? Product::whereKey($d['entity_id'])->firstOrFail()
+                : Invoice::whereKey($d['entity_id'])->firstOrFail();
+            $anomaly = $d['entity_type']==='product'
+                ? $entity->stock <= $rule->threshold
+                : ($entity->status === 'issued' && $entity->issued_at !== null
+                    && $entity->issued_at <= now()->subDays($rule->threshold));
+            // Same action and entity is replay-safe. A different reason is a conflict.
+            $existing = DB::table('pilotage_alert_events')->where('company_id',$company)
+                ->where('rule_id',$rule->id)->where('entity_type',$d['entity_type'])
+                ->where('entity_id',$d['entity_id'])->where('action',$d['action'])->first();
+            if ($existing) {
+                abort_if($existing->reason !== $d['reason'],409,'Événement déjà historisé avec un motif différent.');
+                return response()->json(['id'=>$existing->id,'replayed'=>true]);
+            }
+            if ($d['action']==='escalated') {
+                abort_unless($anomaly && $rule->active && $rule->effective_from <= now()->toDateString()
+                    && ($rule->effective_to===null || $rule->effective_to >= now()->toDateString()),409,
+                    'L’alerte doit être active pour une escalade.');
+            } else {
+                abort_if($anomaly,409,'L’anomalie est toujours présente : clôture refusée.');
+                abort_unless(DB::table('pilotage_alert_acknowledgements')
+                    ->where('company_id',$company)->where('rule_id',$rule->id)
+                    ->where('entity_type',$d['entity_type'])->where('entity_id',$d['entity_id'])->exists(),
+                    409,'Acquittement requis avant résolution.');
+            }
+            $id=DB::table('pilotage_alert_events')->insertGetId([
+                'company_id'=>$company,'rule_id'=>$rule->id,
+                'entity_type'=>$d['entity_type'],'entity_id'=>$d['entity_id'],
+                'product_id'=>$d['entity_type']==='product' ? $d['entity_id'] : null,
+                'invoice_id'=>$d['entity_type']==='invoice' ? $d['entity_id'] : null,
+                'action'=>$d['action'],'reason'=>$d['reason'],
+                'actor_id'=>$request->user()->id,'created_at'=>now(),
+            ]);
+            Audit::record('pilotage.alert.'.$d['action'],null,['rule_id'=>$rule->id,'event_id'=>$id]);
+            return response()->json(['id'=>$id,'replayed'=>false],201);
+        },3);
+    }
+
 }
