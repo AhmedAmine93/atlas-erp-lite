@@ -108,12 +108,12 @@ export const navigationSections: NavigationSection[] = [
     icon: Wallet,
     items: [
       { id: "invoices", label: "Factures", ready: true },
-      { id: "credit-notes", label: "Avoirs" },
-      { id: "collections", label: "Encaissements" },
-      { id: "payment-reminders", label: "Relances impayés" },
-      { id: "expenses", label: "Dépenses" },
-      { id: "budgets", label: "Budgets" },
-      { id: "accounting-exports", label: "Exports comptables" },
+      { id: "credit-notes", label: "Avoirs", ready: true },
+      { id: "collections", label: "Encaissements", ready: true },
+      { id: "payment-reminders", label: "Relances impayés", ready: true },
+      { id: "expenses", label: "Dépenses", ready: true },
+      { id: "budgets", label: "Budgets", ready: true },
+      { id: "accounting-exports", label: "Exports comptables", ready: true },
     ],
   },
   {
