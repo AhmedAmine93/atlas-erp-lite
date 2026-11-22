@@ -44,6 +44,13 @@ final class BrowserE2ESeeder extends Seeder
             ['name' => 'ATLAS V5 · Recette DI/BT fictive', 'password' => $password, 'role_id' => $admin->id],
         );
         $maintenanceUser->companies()->syncWithoutDetaching([$tenant->id => ['role_id' => $admin->id]]);
+        // M01 runs independently of the V5 navigation and maintenance smoke tests:
+        // a shared login bucket can trigger false negatives under Laravel throttling.
+        $pilotageUser = User::firstOrCreate(
+            ['email' => 'v5-browser-e2e-pilotage@atlas.example'],
+            ['name' => 'ATLAS V5 · Recette pilotage fictive', 'password' => $password, 'role_id' => $admin->id],
+        );
+        $pilotageUser->companies()->syncWithoutDetaching([$tenant->id => ['role_id' => $admin->id]]);
         $this->command?->info('Comptes isolés de recette navigateur activés.');
     }
 }

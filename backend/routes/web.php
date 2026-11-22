@@ -127,7 +127,6 @@ Route::prefix('api')->group(function () {
         Route::post('hotel-bookings/{id}/checkin', [HotelBookingController::class, 'checkin'])->whereNumber('id');
         Route::post('hotel-bookings/{id}/checkout', [HotelBookingController::class, 'checkout'])->whereNumber('id');
         Route::post('hotel-bookings/{id}/cancel', [HotelBookingController::class, 'cancel'])->whereNumber('id');
-        // M15 — tenant-scoped integration control plane
         Route::prefix('integrations/v1')->group(function () {
             Route::get('{area}', [IntegrationsController::class,'index'])->whereIn('area',['connectors','api','imports','jobs','errors','iot']);
             Route::post('{area}', [IntegrationsController::class,'store'])->whereIn('area',['connectors','jobs','iot']);
