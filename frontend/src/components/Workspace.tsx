@@ -560,6 +560,8 @@ export default function Workspace() {
               <WorkspaceWelcome user={user} onNavigate={go} />
               <DashboardView refresh={refresh} go={go} user={user} />
             </>
+          ) : ["analytics-sales", "analytics-finance", "analytics-stock", "analytics-suppliers", "analytics-custom", "analytics-exports"].includes(view) ? (
+            <BiReportingWorkspace key={view + "-" + user.active_company_id} view={view as "analytics-sales" | "analytics-finance" | "analytics-stock" | "analytics-suppliers" | "analytics-custom" | "analytics-exports"} activeCompanyId={user.active_company_id ?? null} />
           ) : view === "support-incidents" ? (
             <SupportIncidents canDiagnose={["admin", "support_n3"].includes(user.role.name)} />
           ) : view === "hotel-minibar" ? (
