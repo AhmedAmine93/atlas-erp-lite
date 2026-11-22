@@ -280,9 +280,9 @@ BEGIN
   IF TG_TABLE_NAME = 'invoices' THEN
     IF TG_OP = 'DELETE' AND OLD.status <> 'draft' THEN RAISE EXCEPTION 'issued_invoice_immutable'; END IF;
     IF TG_OP = 'UPDATE' AND OLD.status <> 'draft' AND
-      (NEW.number,NEW.order_id,NEW.snapshot,NEW.subtotal_cents,NEW.tax_cents,NEW.total_cents,NEW.currency)
+      (NEW.number,NEW.order_id,NEW.snapshot,NEW.subtotal_cents,NEW.tax_cents,NEW.total_cents,NEW.currency,NEW.due_at)
       IS DISTINCT FROM
-      (OLD.number,OLD.order_id,OLD.snapshot,OLD.subtotal_cents,OLD.tax_cents,OLD.total_cents,OLD.currency)
+      (OLD.number,OLD.order_id,OLD.snapshot,OLD.subtotal_cents,OLD.tax_cents,OLD.total_cents,OLD.currency,OLD.due_at)
       THEN RAISE EXCEPTION 'issued_invoice_immutable'; END IF;
     RETURN CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;
   END IF;
