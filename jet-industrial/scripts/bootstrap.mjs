@@ -8,11 +8,11 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 const here=dirname(fileURLToPath(import.meta.url));
 const root=resolve(here,"..");
-const app=resolve(root,"app");
+const app=resolve(root,"atlas-jet-gmao");
 const src=resolve(root,"overrides");
 if(!existsSync(resolve(app,"oraclejetconfig.json"))){
   const command=process.platform==="win32"?"npx.cmd":"npx";
-  const result=spawnSync(command,["--yes","@oracle/ojet-cli@21.0.0","create","app","--template=basic","--vdom"],
+  const result=spawnSync(command,["--yes","@oracle/ojet-cli@21.0.0","create","atlas-jet-gmao","--template=basic","--vdom"],
     {cwd:root,stdio:"inherit",shell:process.platform==="win32"});
   if(result.status!==0)process.exit(result.status??1);
 }
