@@ -43,6 +43,7 @@ import { canEditWorkspaceView, canOpenWorkspaceView, parseWorkspacePath, workspa
 import OrganizationWorkspace from "@/components/OrganizationWorkspace";
 import DomainWorkspace, { domainViews } from "@/components/DomainWorkspace";
 import PilotageWorkspace from "@/components/PilotageWorkspace";
+import FinanceWorkspace from "@/components/FinanceWorkspace";
 import HotelHousekeepingWorkspace from "@/components/HotelHousekeepingWorkspace";
 import HotelMinibarWorkspace from "@/components/HotelMinibarWorkspace";
 import HotelAvailabilityWorkspace from "@/components/HotelAvailabilityWorkspace";
@@ -568,6 +569,8 @@ export default function Workspace() {
             </>
           ) : ["direction-dashboard", "sales-dashboard", "finance-dashboard", "logistics-dashboard", "alerts-dashboard"].includes(view) ? (
             <PilotageWorkspace key={view + "-" + user.active_company_id} view={view} user={user} />
+          ) : ["credit-notes","collections","payment-reminders","expenses","budgets","accounting-exports"].includes(view) ? (
+            <FinanceWorkspace key={"finance-"+view+"-"+user.active_company_id} view={view} activeCompanyId={user.active_company_id ?? null} canWrite={user.role.name === "admin"} />
           ) : view === "support-incidents" ? (
             <SupportIncidents canDiagnose={["admin", "support_n3"].includes(user.role.name)} />
           ) : view === "hotel-minibar" ? (
