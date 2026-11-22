@@ -28,6 +28,9 @@ return new class extends Migration {
             $t->unsignedBigInteger('rule_id');
             $t->string('entity_type', 20);
             $t->unsignedBigInteger('entity_id');
+            // Typed references are checked by composite tenant FKs in PostgreSQL.
+            $t->unsignedBigInteger('product_id')->nullable();
+            $t->unsignedBigInteger('invoice_id')->nullable();
             $t->foreignId('acknowledged_by')->constrained('users')->restrictOnDelete();
             $t->timestamp('acknowledged_at');
             $t->string('comment', 500);
@@ -38,7 +41,10 @@ return new class extends Migration {
         if (DB::getDriverName() !== 'pgsql') return;
         DB::statement("ALTER TABLE pilotage_alert_rules ADD CONSTRAINT pilotage_metric_check CHECK (metric IN ('low_stock','unpaid_invoice_age_days'))");
         DB::statement("ALTER TABLE pilotage_alert_rules ADD CONSTRAINT pilotage_dates_check CHECK (effective_to IS NULL OR effective_to >= effective_from)");
-        DB::statement("ALTER TABLE pilotage_alert_acknowledgements ADD CONSTRAINT pilotage_entity_check CHECK (entity_type IN ('product','invoice'))");
+        DB::statement("CREATE UNIQUE INDEX IF NOT EXISTS pilotage_invoices_tenant_id_uq ON public.invoices (company_id, id)");
+        DB::statement("ALTER TABLE pilotage_alert_acknowledgements ADD CONSTRAINT pilotage_entity_check CHECK ((entity_type = 'product' AND product_id = entity_id AND invoice_id IS NULL) OR (entity_type = 'invoice' AND invoice_id = entity_id AND product_id IS NULL))");
+        DB::statement("ALTER TABLE pilotage_alert_acknowledgements ADD CONSTRAINT pilotage_ack_product_tenant_fk FOREIGN KEY (company_id, product_id) REFERENCES public.products (company_id, id)");
+        DB::statement("ALTER TABLE pilotage_alert_acknowledgements ADD CONSTRAINT pilotage_ack_invoice_tenant_fk FOREIGN KEY (company_id, invoice_id) REFERENCES public.invoices (company_id, id)");
         foreach (['pilotage_alert_rules' => 'SELECT, INSERT, UPDATE', 'pilotage_alert_acknowledgements' => 'SELECT, INSERT'] as $table => $rights) {
             DB::statement('GRANT '.$rights.' ON public."'.$table.'" TO atlas_app_runtime');
             DB::statement('REVOKE DELETE ON public."'.$table.'" FROM atlas_app_runtime');
@@ -54,10 +60,12 @@ return new class extends Migration {
     {
         // Rolling back an alert journal is destructive. Restrict to clean
         // ephemeral development environments; production uses forward fixes.
-        if (DB::table('pilotage_alert_acknowledgements')->exists()) {
+        if (DB::table('pilotage_alert_acknowledgements')->exists()
+            || DB::table('pilotage_alert_rules')->exists()) {
             throw new RuntimeException('Refus de supprimer des accusés de réception. Migration de correction requise.');
         }
         Schema::dropIfExists('pilotage_alert_acknowledgements');
         Schema::dropIfExists('pilotage_alert_rules');
+        if (DB::getDriverName() === 'pgsql') DB::statement('DROP INDEX IF EXISTS public.pilotage_invoices_tenant_id_uq');
     }
 };
