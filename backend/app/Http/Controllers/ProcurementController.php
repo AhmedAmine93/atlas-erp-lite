@@ -317,6 +317,20 @@ final class ProcurementController extends Controller
         },3);
     }
 
+    public function commitments(int $id)
+    {
+        $this->authorizePurchasing();
+        $this->row('purchase_orders',$id);
+        $events=DB::table('purchase_commitment_events')
+            ->where('company_id',$this->company())->where('purchase_order_id',$id)
+            ->orderBy('id')->get();
+        $reserved=(int)$events->where('kind','reserve')->sum('amount_cents');
+        $released=(int)$events->where('kind','release')->sum('amount_cents');
+        return response()->json(['purchase_order_id'=>$id,'reserved_cents'=>$reserved,
+            'released_cents'=>$released,'outstanding_cents'=>max(0,$reserved-$released),
+            'events'=>$events]);
+    }
+
     public function orderTransition(Request $request,int $id)
     {
         $this->authorizePurchasing();
@@ -336,6 +350,31 @@ final class ProcurementController extends Controller
                 'cancelled_at'=>$data['action']==='cancel_remainder'?now():null,
                 'cancellation_reason'=>$data['reason']??null,'updated_at'=>now(),
             ]);
+            if ($data['action']==='send') {
+                DB::table('purchase_commitment_events')->insert([
+                    'company_id'=>$this->company(),'purchase_order_id'=>$id,
+                    'event_key'=>'order-send:'.$id,'kind'=>'reserve',
+                    'amount_cents'=>$order->total_cents,'recorded_by'=>auth()->id(),
+                    'recorded_at'=>now(),'created_at'=>now(),'updated_at'=>now(),
+                ]);
+            }
+            if ($data['action']==='cancel_remainder') {
+                $release=0;
+                foreach (DB::table('purchase_order_lines')->where('company_id',$this->company())
+                    ->where('purchase_order_id',$id)->get() as $line) {
+                    $qty=max(0,(int)$line->quantity-(int)$line->received_quantity);
+                    $net=$qty*(int)$line->unit_price_cents;
+                    $release += $net+intdiv($net*(int)$line->vat_bps+5000,10000);
+                }
+                if($release>0) {
+                    DB::table('purchase_commitment_events')->insert([
+                        'company_id'=>$this->company(),'purchase_order_id'=>$id,
+                        'event_key'=>'order-cancel:'.$id,'kind'=>'release',
+                        'amount_cents'=>$release,'recorded_by'=>auth()->id(),
+                        'recorded_at'=>now(),'created_at'=>now(),'updated_at'=>now(),
+                    ]);
+                }
+            }
             $this->log('order.'.$data['action'],$id,['reason'=>$data['reason']??null]);
             return response()->json(['id'=>$id,'status'=>$to]);
         },3);
