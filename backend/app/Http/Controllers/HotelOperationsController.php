@@ -239,7 +239,7 @@ final class HotelOperationsController extends Controller
             $in = DB::table('hotel_folio_entries')->insertGetId($common + [
                 'folio_id' => $destination, 'kind' => 'transfer_in',
                 'source_reference' => 'folio:'.$folio,
-                'request_id' => (string)\\Illuminate\\Support\\Str::uuid(),
+                'request_id' => (string)\Illuminate\Support\Str::uuid(),
             ]);
             Audit::record('hotel.folio.transfer', $property, [
                 'out_id' => $out, 'in_id' => $in,
