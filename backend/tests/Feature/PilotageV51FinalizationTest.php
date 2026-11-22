@@ -3,6 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\Company;
+use App\Models\Customer;
+use App\Services\SalesService;
+use App\Services\InvoiceService;
 use App\Models\Product;
 use App\Models\Role;
 use App\Models\User;
@@ -201,4 +204,47 @@ final class PilotageV51FinalizationTest extends TestCase
             'company_id'=>$company->id,'action'=>'pilotage.export',
         ]);
     }
+    public function test_invoice_revenue_is_reconciled_with_issued_documents_and_cancelled_excluded(): void
+    {
+        $company=Company::where('code','ATLAS_DEMO')->firstOrFail();
+        $this->login($company,'admin','reconcile');
+        $customer=Customer::create([
+            'name'=>'Client fictif M01',
+            'email'=>'m01-revenue@example.test',
+        ]);
+        $product=Product::create([
+            'reference'=>'M01-REV','name'=>'Produit facturable fictif',
+            'category'=>'Recette','price_cents'=>5000,'vat_bps'=>2000,
+            'stock'=>10,'alert_threshold'=>1,
+        ]);
+        $day=now()->toDateString();
+        $path="/api/pilotage/finance?from={$day}&to={$day}";
+        $quote=app(SalesService::class)->create('quotes',[
+            'customer_id'=>$customer->id,
+            'items'=>[['product_id'=>$product->id,'quantity'=>2]],
+        ]);
+        $this->getJson($path)->assertJsonPath('cards.0.value',0);
+        $order=app(SalesService::class)->convert($quote->id);
+        app(SalesService::class)->validateOrder($order->id);
+        $this->getJson($path)->assertJsonPath('cards.0.value',0);
+        $invoice=app(InvoiceService::class)->create($order->id);
+        $this->getJson($path)->assertJsonPath('cards.0.value',0);
+        app(InvoiceService::class)->transition($invoice->id,'issued');
+        $this->getJson($path)->assertJsonPath('cards.0.value',10000)
+            ->assertJsonPath('cards.1.value',12000)
+            ->assertJsonPath('cards.2.value',12000)
+            ->assertJsonPath('cards.3.value',0);
+        $this->getJson("/api/pilotage/direction?from={$day}&to={$day}")
+            ->assertJsonPath('cards.0.value',10000)
+            ->assertJsonPath('cards.1.value',12000);
+        app(InvoiceService::class)->transition($invoice->id,'cancelled');
+        $this->getJson($path)->assertJsonPath('cards.0.value',0)
+            ->assertJsonPath('cards.2.value',0)
+            ->assertJsonPath('cards.4.value',1);
+        $this->assertDatabaseHas('invoices',[
+            'id'=>$invoice->id,'status'=>'cancelled','subtotal_cents'=>10000,
+            'total_cents'=>12000,
+        ]);
+    }
+
 }
