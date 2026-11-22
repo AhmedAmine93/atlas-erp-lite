@@ -46,6 +46,7 @@ import HotelHousekeepingWorkspace from "@/components/HotelHousekeepingWorkspace"
 import HotelMinibarWorkspace from "@/components/HotelMinibarWorkspace";
 import HotelAvailabilityWorkspace from "@/components/HotelAvailabilityWorkspace";
 import SupportIncidents from "@/components/SupportIncidents";
+import OperationsWorkspace from "@/components/OperationsWorkspace";
 import Login from "@/components/auth/Login";
 import WorkspaceSidebar from "@/components/layout/WorkspaceSidebar";
 import WorkspaceWelcome from "@/components/layout/WorkspaceWelcome";
@@ -560,6 +561,8 @@ export default function Workspace() {
               <WorkspaceWelcome user={user} onNavigate={go} />
               <DashboardView refresh={refresh} go={go} user={user} />
             </>
+          ) : view.startsWith("ops-") ? (
+            <OperationsWorkspace key={view+"-"+user.active_company_id} view={view} canWrite={["admin","ops_operator"].includes(user.role.name)} activeCompanyId={user.active_company_id ?? null} />
           ) : view === "support-incidents" ? (
             <SupportIncidents canDiagnose={["admin", "support_n3"].includes(user.role.name)} />
           ) : view === "hotel-minibar" ? (
