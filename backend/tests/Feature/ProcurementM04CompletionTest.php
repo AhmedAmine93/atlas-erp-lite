@@ -105,12 +105,34 @@ class ProcurementM04CompletionTest extends TestCase
         $this->getJson("/api/purchasing/orders/$orderId/services")
             ->assertOk()->assertJsonCount(1,'data');
 
-        $this->postJson('/api/purchasing/invoices',[
+        $invoiceId=$this->postJson('/api/purchasing/invoices',[
             'purchase_order_id'=>$orderId,'reference'=>'CONSULT-001',
             'total_cents'=>16000,
         ])->assertCreated()->assertJsonPath('matched_cents',12000)
             ->assertJsonPath('dispute_cents',4000)
-            ->assertJsonPath('status','disputed');
+            ->assertJsonPath('status','disputed')->json('id');
+        $this->postJson("/api/purchasing/invoices/$invoiceId/authorize-payment")
+            ->assertStatus(409);
+        $this->postJson("/api/purchasing/orders/$orderId/services",[
+            'purchase_order_line_id'=>$line,'reference'=>'PV-SVC-002',
+            'accepted_quantity'=>2,'evidence_reference'=>'SIGNED-PV-002'
+        ])->assertCreated();
+        $this->postJson("/api/purchasing/invoices/$invoiceId/rematch")
+            ->assertOk()->assertJsonPath('matched_cents',16000)
+            ->assertJsonPath('dispute_cents',0)->assertJsonPath('status','matched');
+        $this->postJson("/api/purchasing/invoices/$invoiceId/authorize-payment")
+            ->assertForbidden();
+        $this->as($buyer,$tenant);
+        $this->postJson("/api/purchasing/invoices/$invoiceId/authorize-payment")
+            ->assertCreated()->assertJsonPath('authorized_amount_cents',16000)
+            ->assertJsonPath('status','ready_for_payment');
+        $this->getJson("/api/purchasing/invoices/$invoiceId/authorizations")
+            ->assertOk()->assertJsonCount(1,'data');
+        $this->postJson("/api/purchasing/invoices/$invoiceId/authorize-payment")
+            ->assertStatus(409);
+        $this->postJson("/api/purchasing/invoices/$invoiceId/credits",[
+            'reference'=>'CREDIT-AFTER-APPROVAL','amount_cents'=>100
+        ])->assertStatus(409);
     }
 
     public function test_service_acceptance_needs_independent_signer_and_cannot_exceed_order(): void
