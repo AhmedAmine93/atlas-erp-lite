@@ -14,6 +14,7 @@ return new class extends Migration {
         'maintenance_locations', 'maintenance_asset_location_events',
         'maintenance_asset_downtimes', 'maintenance_work_order_time_entries',
         'maintenance_spare_reservations', 'maintenance_spare_consumptions',
+        'maintenance_spare_releases',
         'maintenance_contracts', 'maintenance_sla_events',
         'maintenance_field_events', 'maintenance_inspections',
     ];
@@ -140,6 +141,21 @@ return new class extends Migration {
             $t->foreign(['company_id','reservation_id'])->references(['company_id','id'])->on('maintenance_spare_reservations')->restrictOnDelete();
         });
         DB::statement('ALTER TABLE maintenance_spare_consumptions ADD CONSTRAINT m07_spare_consumption_positive CHECK (quantity > 0 AND total_cents >= 0)');
+
+        Schema::create('maintenance_spare_releases', function (Blueprint $t) {
+            $t->id();
+            $t->foreignId('company_id')->constrained('companies')->restrictOnDelete();
+            $t->unsignedBigInteger('reservation_id');
+            $t->unsignedInteger('quantity');
+            $t->string('operation_key',100);
+            $t->string('reason',500);
+            $t->foreignId('released_by')->constrained('users')->restrictOnDelete();
+            $t->timestamps();
+            $t->unique(['company_id','operation_key']);
+            $t->foreign(['company_id','reservation_id'])->references(['company_id','id'])
+                ->on('maintenance_spare_reservations')->restrictOnDelete();
+        });
+        DB::statement('ALTER TABLE maintenance_spare_releases ADD CONSTRAINT m07_release_positive CHECK (quantity > 0)');
 
         Schema::create('maintenance_contracts', function (Blueprint $t) {
             $t->id();
