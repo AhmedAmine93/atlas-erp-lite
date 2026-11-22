@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "company_code": "ATLAS_DEMO",
+  "source_code": "ATLAS_CSV_DEMO",
+  "batch_key": "P090_DEMO_001",
+  "file_name": "demo.csv",
+  "sha256": "5ede4147ca38389008e7f460339d5bc3c677bc9056162944d9933c6817a2b232",
+  "expected_rows": 3
+}
