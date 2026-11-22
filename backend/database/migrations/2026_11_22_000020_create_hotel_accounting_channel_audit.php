@@ -62,10 +62,12 @@ return new class extends Migration {
                 request_id uuid NOT NULL,
                 created_by bigint NOT NULL REFERENCES users(id),
                 created_at timestamptz NOT NULL DEFAULT now(),
+                UNIQUE(company_id,hotel_id,id),
                 UNIQUE(company_id,hotel_id,request_id),
                 FOREIGN KEY(company_id,hotel_id,folio_id)
                     REFERENCES hotel_folios(company_id,hotel_id,id),
-                FOREIGN KEY(related_entry_id) REFERENCES hotel_folio_entries(id),
+                FOREIGN KEY(company_id,hotel_id,related_entry_id)
+                    REFERENCES hotel_folio_entries(company_id,hotel_id,id),
                 CHECK(length(trim(note)) >= 3)
             );
             CREATE INDEX hotel_folio_entries_date_idx
