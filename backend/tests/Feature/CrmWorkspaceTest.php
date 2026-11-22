@@ -131,6 +131,20 @@ final class CrmWorkspaceTest extends TestCase
         $this->getJson('/api/customers/'.$customer->id)->assertOk();
     }
 
+    public function test_csv_customer_import_rejects_invalid_row_and_replays_without_duplicates(): void
+    {
+        $csv="name,email,phone\n";
+        for($i=1;$i<=9;$i++)$csv.="Client fictif $i,client-csv-$i@example.test,0102030405\n";
+        $csv.="Ligne invalide,pas-un-email,01\n";
+        $upload=fn()=>\Illuminate\Http\UploadedFile::fake()->createWithContent('crm.csv',$csv);
+        $this->post('/api/crm/customers/import',['file'=>$upload()],['Accept'=>'application/json'])
+            ->assertCreated()->assertJsonPath('accepted_rows',9)->assertJsonPath('rejected_rows',1);
+        $this->post('/api/crm/customers/import',['file'=>$upload()],['Accept'=>'application/json'])
+            ->assertOk()->assertJsonPath('replayed',true);
+        $this->assertSame(9,DB::table('customers')->where('email','like','client-csv-%')->count());
+        $this->assertSame(1,DB::table('crm_import_batches')->count());
+    }
+
     public function test_pg_runtime_rls_isolates_all_new_crm_tables(): void
     {
         if (DB::getDriverName()!=='pgsql') $this->markTestSkipped('RLS PostgreSQL uniquement.');
