@@ -70,6 +70,7 @@ export default function CrmWorkspace({view,activeCompanyId,canEdit}:{view:View;a
  const [members,setMembers]=useState<Array<{id:number;name:string;email:string}>>([]);
  const [memberId,setMemberId]=useState("");
  const [quoteId,setQuoteId]=useState("");
+ const [summary,setSummary]=useState<{customers_active:number;prospects_open:number;opportunities_open:number;forecast_cents:number;activities_overdue:number;activities_due_today:number}|null>(null);
  const [quotes,setQuotes]=useState<Array<{id:number;number:string;status:string;total_cents:number}>>([]);
  const resource=conf.resource;
  useEffect(()=>{setRows([]);setSelected(null);setForm(false);setEdit(null);setPage(1);setSearch("");setQuery("");},[view,activeCompanyId]);
@@ -81,6 +82,12 @@ export default function CrmWorkspace({view,activeCompanyId,canEdit}:{view:View;a
     .finally(()=>{if(live)setLoading(false);});
    return ()=>{live=false;};
  },[resource,page,query,refresh,activeCompanyId]);
+ useEffect(()=>{
+   let active=true;
+   api<typeof summary>("crm/summary").then(data=>{if(active)setSummary(data);})
+     .catch(()=>{if(active)setSummary(null);});
+   return ()=>{active=false;};
+ },[resource,refresh,activeCompanyId]);
  function start(row?:Row){
    setError("");setEdit(row??null);setForm(true);
    const next=defaultValues();
@@ -191,6 +198,14 @@ export default function CrmWorkspace({view,activeCompanyId,canEdit}:{view:View;a
    <p>Référentiel multi-entreprises, historique et contrôles métier côté serveur.</p></div>
    {canEdit&&<button type="button" className="button primary" onClick={()=>start()}>+ Nouvelle fiche</button>}
   </div>
+  {summary&&<div className="atlas-housekeeping-stats" aria-label="Indicateurs CRM">
+    <div><span>Clients actifs</span><strong>{summary.customers_active}</strong></div>
+    <div><span>Prospects ouverts</span><strong>{summary.prospects_open}</strong></div>
+    <div><span>Affaires en cours</span><strong>{summary.opportunities_open}</strong></div>
+    <div><span>Pipeline pondéré</span><strong>{new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR"}).format(summary.forecast_cents/100)}</strong></div>
+    <div><span>Relances en retard</span><strong>{summary.activities_overdue}</strong></div>
+    <div><span>Relances aujourd'hui</span><strong>{summary.activities_due_today}</strong></div>
+  </div>}
   {error&&<p role="alert" className="error">{error}</p>}
   {notice&&<p role="status" className="notice">{notice}</p>}
   <form className="atlas-domain-form" onSubmit={e=>{e.preventDefault();setPage(1);setQuery(search.trim());}}>
