@@ -93,7 +93,7 @@ export default function QualityWorkspace({ view, user }: { view: Module; user: U
   const role=user.role.name;
   const isManager=["admin","quality_manager"].includes(role);
   const canWrite=isManager || role==="quality_operator" || role==="quality_auditor";
-  const canCreate=canWrite && (!["quality-controls","quality-audits"].includes(view) || isManager) && view!=="corrective-actions" || (view==="corrective-actions"&&canWrite);
+  const canCreate=canWrite && (!["quality-controls","quality-audits"].includes(view) || isManager);
   const [records,setRecords]=useState<QualityRecord[]>([]);
   const [selected,setSelected]=useState<QualityRecord | null>(null);
   const [users,setUsers]=useState<{id:number;name:string}[]>([]);
@@ -328,7 +328,7 @@ export default function QualityWorkspace({ view, user }: { view: Module; user: U
                     onClick={()=>void submit("versions/"+v.id+"/transition",{status:"review"})}>Soumettre en revue</button>}
                   {isManager&&v.status==="review"&&<button className="button secondary" disabled={busy}
                     onClick={()=>void submit("versions/"+v.id+"/transition",{status:"approved"})}>Approuver</button>}
-                  {isManager&&v.status==="approved"&&<button className="button secondary" disabled={busy}
+                  {isManager&&v.status==="approved"&&<button className="button secondary" disabled={busy||!workflow.effective_at}
                     onClick={()=>void submit("versions/"+v.id+"/transition",{status:"published",effective_at:workflow.effective_at})}>Publier</button>}
                   {isManager&&v.status==="approved"&&<input type="datetime-local" aria-label="Date d'effet"
                     value={workflow.effective_at??""} onChange={e=>setWorkflow(p=>({...p,effective_at:e.target.value}))}/>}

@@ -168,8 +168,8 @@ final class QualityController extends Controller
             'sample_size'=>'required|integer|min:1|max:1000000','valid_from'=>'required|date_format:Y-m-d',
             'valid_until'=>'nullable|date_format:Y-m-d|after_or_equal:valid_from',
         ]);
-        abort_if($this->items('quality_plans')->where('code',$d['code'])->where('revision',$d['revision'])->exists(),409,'Cette révision existe.');
         return $this->perform($r, 'create-plan', function ($actor) use ($d) {
+            abort_if($this->items('quality_plans')->where('code',$d['code'])->where('revision',$d['revision'])->exists(),409,'Cette révision existe.');
             $id=$this->add('quality_plans', [...$d, 'approved_by'=>$actor,'created_by'=>$actor]);
             $this->event('controls',$id,'plan.approved',$actor);
             return (array)$this->object('quality_plans',$id);
@@ -395,7 +395,7 @@ final class QualityController extends Controller
             $this->change('quality_audits',$id,[...$update,'status'=>$d['status'],'lock_version'=>$a->lock_version+1]);
             $this->event('audits',$id,'status.'.$d['status'],$actor);
             return (array)$this->object('quality_audits',$id);
-        });
+        }, self::READ_ROLES);
     }
     public function createDocument(Request $r)
     {
