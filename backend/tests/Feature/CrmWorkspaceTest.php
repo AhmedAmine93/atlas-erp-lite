@@ -328,6 +328,40 @@ final class CrmWorkspaceTest extends TestCase
         ])->assertUnprocessable();
     }
 
+    public function test_won_opportunity_requires_quote_conversion_or_detailed_business_reason(): void
+    {
+        $customer=Customer::create(['name'=>'Client affaire','email'=>'client-affaire@example.test']);
+        $product=\App\Models\Product::create([
+            'reference'=>'CRM-WON-1','name'=>'Prestation','category'=>'Services',
+            'price_cents'=>5000,'vat_bps'=>2000,'stock'=>1,'alert_threshold'=>0
+        ]);
+        $quote=$this->postJson('/api/quotes',[
+            'customer_id'=>$customer->id,'items'=>[['product_id'=>$product->id,'quantity'=>1]],
+        ])->assertCreated()->json('id');
+        $opportunity=$this->postJson('/api/crm/opportunities',[
+            'customer_id'=>$customer->id,'title'=>'Vente validée',
+        ])->assertCreated()->json('id');
+        $this->postJson('/api/crm/opportunities/'.$opportunity.'/quotes',[
+            'quote_id'=>$quote,
+        ])->assertCreated();
+        $this->postJson('/api/crm/opportunities/'.$opportunity.'/transition',[
+            'target'=>'qualified','expected_revision'=>1,
+        ])->assertOk();
+        $this->postJson('/api/crm/opportunities/'.$opportunity.'/transition',[
+            'target'=>'proposal','expected_revision'=>2,
+        ])->assertOk();
+        $this->postJson('/api/crm/opportunities/'.$opportunity.'/transition',[
+            'target'=>'won','expected_revision'=>3,'reason'=>'Oui',
+        ])->assertUnprocessable();
+        $this->postJson('/api/crm/opportunities/'.$opportunity.'/transition',[
+            'target'=>'won','expected_revision'=>3,
+            'reason'=>'Affaire gagnée et documentée hors devis',
+        ])->assertOk()->assertJsonPath('stage','won');
+        $this->postJson('/api/crm/opportunities/'.$opportunity.'/transition',[
+            'target'=>'lost','expected_revision'=>4,'reason'=>'Pas autorisé',
+        ])->assertConflict();
+    }
+
     public function test_pg_runtime_rls_isolates_all_new_crm_tables(): void
     {
         if (DB::getDriverName()!=='pgsql') $this->markTestSkipped('RLS PostgreSQL uniquement.');
