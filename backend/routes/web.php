@@ -5,6 +5,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PilotageController;
+use App\Http\Controllers\PilotageManagementController;
 use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\MetricsController;
@@ -52,6 +53,13 @@ Route::prefix('api')->group(function () {
         Route::post('tenant/switch', [TenantContextController::class, 'switch']);
         Route::post('logout', [AuthController::class, 'logout']);
         Route::get('dashboard', DashboardController::class);
+        Route::get('pilotage/centers', [PilotageManagementController::class, 'centers']);
+        Route::post('pilotage/centers', [PilotageManagementController::class, 'createCenter']);
+        Route::get('pilotage/targets', [PilotageManagementController::class, 'targets']);
+        Route::post('pilotage/targets', [PilotageManagementController::class, 'createTarget']);
+        Route::get('pilotage/{section}/export', [PilotageController::class, 'export'])
+            ->whereIn('section', ['direction','sales','finance','logistics','alerts']);
+        Route::post('pilotage/alerts/transition', [PilotageController::class, 'transitionAlert']);
         Route::get('pilotage/{section}', [PilotageController::class, 'show'])
             ->whereIn('section', ['direction','sales','finance','logistics','alerts']);
         Route::get('pilotage/alerts/rules', [PilotageController::class, 'rules']);
