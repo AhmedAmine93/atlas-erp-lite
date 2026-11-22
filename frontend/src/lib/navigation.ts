@@ -143,7 +143,7 @@ export const navigationSections: NavigationSection[] = [
       { id: "hotel-bookings", label: "Réservations", ready: true },
       { id: "hotel-availability", label: "Disponibilité par catégorie" },
       { id: "hotel-checkin", label: "Arrivées et départs" },
-      { id: "hotel-housekeeping", label: "Housekeeping" },
+      { id: "hotel-housekeeping", label: "Housekeeping", ready: true },
       { id: "hotel-minibar", label: "Mini-bar" },
       { id: "hotel-folios", label: "Folios et facturation" },
       { id: "hotel-channel", label: "Canaux et CRS/PMS" },
