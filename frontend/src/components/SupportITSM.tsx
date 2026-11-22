@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { api, send } from "@/lib/api";
+import { api, send, fetchTenantBlob } from "@/lib/api";
 import type { Page, Role } from "@/lib/types";
 
 type CaseKind = "ticket" | "problem" | "service" | "change";
@@ -18,6 +18,7 @@ type Case = {
   events?: Array<{ id: number; action: string; from_status?: string; to_status: string; version: number; created_at: string; actor?: { name: string } }>;
   incidents?: Array<{ id: number; reference: string; title: string }>;
 };
+type Inbox = { id: number; kind: string; reference: string; title: string; status: string; priority: string; created_at: string };
 type Catalog = { id: number; code: string; title: string; sensitive: boolean; active: boolean; requires_approval: boolean };
 type SLA = { id: number; severity: string; version: number; response_minutes: number; resolution_minutes: number; calendar: string; published: boolean; effective_from: string };
 type Escalation = { id: number; incident_id: number; target_level: number; status: string; reason: string; acknowledged_at: string | null };
@@ -67,6 +68,7 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
 
 function Cases({ kind, role }: { kind: CaseKind; role: Role["name"] }) {
   const [rows, setRows] = useState<Case[]>([]);
+  const [queue, setQueue] = useState<Inbox[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -100,6 +102,10 @@ function Cases({ kind, role }: { kind: CaseKind; role: Role["name"] }) {
     const result = await api<Page<Case>>("support/cases/" + kind + "?" + qs.toString());
     setRows(result.data);
     setTotal(result.total);
+    if (kind === "ticket") {
+      const q = await api<Page<Inbox>>("support/queue?search="+encodeURIComponent(search));
+      setQueue(q.data);
+    }
   }, [kind, page, search, status]);
   useEffect(() => { let active = true; refresh().catch(e => { if (active) setError(errorText(e)); }); return () => { active = false; }; }, [refresh]);
   useEffect(() => {
@@ -108,6 +114,19 @@ function Cases({ kind, role }: { kind: CaseKind; role: Role["name"] }) {
     }
   }, [kind]);
 
+  async function download() {
+    setError("");
+    try {
+      const qs = new URLSearchParams();
+      if (search) qs.set("search", search);
+      if (status) qs.set("status", status);
+      const csv = await fetchTenantBlob("support/cases/"+kind+"/export?"+qs.toString(), "text/csv");
+      const href = URL.createObjectURL(csv);
+      const a = document.createElement("a"); a.href = href;
+      a.download = "atlas-itsm-"+kind+".csv"; document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(href);
+    } catch (e) { setError(errorText(e)); }
+  }
   async function details(id: number) {
     try {
       const item = await api<Case>("support/cases/" + kind + "/" + id);
@@ -157,6 +176,13 @@ function Cases({ kind, role }: { kind: CaseKind; role: Role["name"] }) {
   return <div>
     {error && <p role="alert" className="error">{error}</p>}
     {message && <p role="status">{message}</p>}
+    {kind === "ticket" && <Panel title="Boîte de travail unifiée">
+      <p>Vue consolidée des incidents, tickets, problèmes, demandes et changements autorisés pour votre entreprise.</p>
+      <div style={{ overflowX:"auto" }}><table><thead><tr><th>Référence</th><th>Type</th><th>Titre</th><th>Priorité</th><th>État</th></tr></thead>
+        <tbody>{queue.map(q => <tr key={q.kind+"-"+q.id}>
+          <td>{q.reference}</td><td>{q.kind}</td><td>{q.title}</td><td>{q.priority}</td><td>{labels[q.status] || q.status}</td>
+        </tr>)}</tbody></table></div>
+    </Panel>}
     <Panel title={"Créer : " + kinds[kind].label}>
       <form onSubmit={create} style={{ display: "grid", gap: 12, maxWidth: 720 }}>
         <Field title="Titre" value={title} onChange={setTitle} required />
@@ -193,6 +219,7 @@ function Cases({ kind, role }: { kind: CaseKind; role: Role["name"] }) {
           {Object.keys(transitions[kind]).map(k => <option value={k} key={k}>{labels[k] || k}</option>)}
         </select></label>
         <button className="button" onClick={() => void refresh()}>Actualiser</button>
+        <button className="button" onClick={() => void download()}>Exporter les dossiers filtrés (CSV)</button>
       </div>
       <p>{total} dossier(s)</p>
       <div style={{ overflowX: "auto" }}>
