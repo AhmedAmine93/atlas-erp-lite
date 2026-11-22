@@ -45,3 +45,30 @@ SQL);
     $this->warn('Tenant-wide database RLS is NOT enabled. This does not certify production security.');
     return 0;
 })->purpose('F16 staging check: verify the actual PostgreSQL runtime login and grants');
+
+
+// The outbox is opt-in. Production migrations NEVER activate it.
+Artisan::command('platform:outbox:enable-local', function () {
+    if (app()->environment('production')
+        || ! app()->environment(['local', 'testing'])
+        || getenv('ATLAS_PLATFORM_LOCAL') !== 'YES_ISOLATED_LOCAL'
+        || \Illuminate\Support\Facades\DB::getDriverName() !== 'pgsql'
+        || ! in_array((string) config('database.connections.pgsql.host'), ['db', '127.0.0.1', 'localhost'], true)
+    ) {
+        $this->error('Refusing outbox activation outside isolated-local PostgreSQL.');
+        return 1;
+    }
+
+    $db = \Illuminate\Support\Facades\DB::selectOne(
+        "SELECT current_database() AS db_name, current_user AS db_user"
+    );
+    if ($db->db_name !== 'atlas' || $db->db_user !== 'atlas') {
+        $this->error('Only the disposable local ATLAS owner connection is permitted.');
+        return 1;
+    }
+    \Illuminate\Support\Facades\DB::statement(
+        'ALTER TABLE public.audit_logs ENABLE TRIGGER atlas_platform_audit_to_outbox'
+    );
+    $this->info('Local outbox is enabled. No production or staging configuration was changed.');
+    return 0;
+})->purpose('Enable the ATLAS audit event bridge ONLY in isolated local development');
