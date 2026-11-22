@@ -110,6 +110,10 @@ return new class extends Migration {
             $t->string('status', 20)->default('requested');
             $t->uuid('shipment_key')->nullable();
             $t->char('shipment_hash', 64)->nullable();
+            $t->uuid('loss_key')->nullable();
+            $t->char('loss_hash', 64)->nullable();
+            $t->string('loss_reason', 500)->nullable();
+            $t->foreignId('lost_by')->nullable()->constrained('users')->restrictOnDelete();
             $t->foreignId('requested_by')->constrained('users')->restrictOnDelete();
             $t->foreignId('shipped_by')->nullable()->constrained('users')->restrictOnDelete();
             $t->timestamps();
@@ -159,6 +163,7 @@ return new class extends Migration {
         }
 
         DB::statement('CREATE UNIQUE INDEX inv_balance_one_per_lot ON inventory_balances(company_id, product_id, location_id, COALESCE(lot_id, 0))');
+        DB::statement('CREATE UNIQUE INDEX inv_supplier_company_id_pk_idx ON suppliers(company_id, id)');
         DB::statement("ALTER TABLE inventory_lots ADD CONSTRAINT inv_lot_state CHECK (status IN ('available','quarantine','blocked','recalled'))");
         DB::statement("ALTER TABLE inventory_serials ADD CONSTRAINT inv_serial_state CHECK (status IN ('available','quarantine','sold'))");
         DB::statement("ALTER TABLE inventory_ledger ADD CONSTRAINT inv_ledger_quantity CHECK (quantity <> 0)");
@@ -232,6 +237,9 @@ return new class extends Migration {
                   'inventory_transfers', 'inventory_counts', 'inventory_serials',
                   'inventory_ledger', 'inventory_balances', 'inventory_lots'] as $table) {
             Schema::dropIfExists($table);
+        }
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement('DROP INDEX IF EXISTS inv_supplier_company_id_pk_idx');
         }
     }
 };
