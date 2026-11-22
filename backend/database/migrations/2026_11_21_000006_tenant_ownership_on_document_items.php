@@ -22,9 +22,14 @@ return new class extends Migration
         // Backfill line ownership from the document; never infer ownership from
         // a product or an authenticated session during a historical migration.
         foreach (self::LINES as [$table, $parentKey, $parent, $fk]) {
-            Schema::table($table, function (Blueprint $schema) {
-                $schema->foreignId('company_id')->nullable()->constrained('companies')->restrictOnDelete();
-            });
+            // A newer M03 compatibility migration may have already created
+            // this ownership column on a legacy database before F14 is replayed.
+            // Do not attempt a destructive duplicate-column ALTER.
+            if (!Schema::hasColumn($table, 'company_id')) {
+                Schema::table($table, function (Blueprint $schema) {
+                    $schema->foreignId('company_id')->nullable()->constrained('companies')->restrictOnDelete();
+                });
+            }
 
             // Portable PostgreSQL/SQLite correlated statement.
             DB::statement(

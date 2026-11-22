@@ -69,10 +69,10 @@ export const navigationSections: NavigationSection[] = [
     items: [
       { id: "quotes", label: "Devis", ready: true },
       { id: "orders", label: "Commandes", ready: true },
-      { id: "deliveries", label: "Bons de livraison" },
-      { id: "sales-contracts", label: "Contrats commerciaux" },
-      { id: "sales-returns", label: "Retours clients" },
-      { id: "pricing", label: "Tarifs et remises" },
+      { id: "deliveries", label: "Bons de livraison", ready: true },
+      { id: "sales-contracts", label: "Contrats commerciaux", ready: true },
+      { id: "sales-returns", label: "Retours clients", ready: true },
+      { id: "pricing", label: "Tarifs et remises", ready: true },
     ],
   },
   {

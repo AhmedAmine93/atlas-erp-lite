@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Models\Product;
 use App\Models\StockMovement;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use App\Services\TenantContext;
 use Illuminate\Validation\ValidationException;
 
 class StockService
@@ -24,7 +26,17 @@ class StockService
     public function move(Product $product, int $quantity, string $reason, ?int $orderId = null): void
     {
         $balance = $product->stock + $quantity;
-        if ($balance < 0 || $balance > 100000000) {
+        // All stock-consuming paths, including legacy order validation and manual
+        // adjustments, must respect V5 commercial reservations.
+        $reserved = 0;
+        if ($quantity < 0 && Schema::hasTable('sales_reservations')) {
+            $reserved = (int) DB::table('sales_reservations')
+                ->where('company_id', app(TenantContext::class)->requireId())
+                ->where('product_id', $product->id)
+                ->selectRaw('COALESCE(SUM(quantity_reserved - quantity_shipped - quantity_released), 0) AS reserved')
+                ->value('reserved');
+        }
+        if ($balance < $reserved || $balance > 100000000) {
             throw ValidationException::withMessages(['stock' => 'Stock insuffisant ou capacité dépassée : '.$product->name]);
         }
         $product->update(['stock' => $balance]);

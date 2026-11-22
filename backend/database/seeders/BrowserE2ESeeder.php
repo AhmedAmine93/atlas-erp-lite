@@ -51,6 +51,11 @@ final class BrowserE2ESeeder extends Seeder
             ['name' => 'ATLAS V5 · Recette pilotage fictive', 'password' => $password, 'role_id' => $admin->id],
         );
         $pilotageUser->companies()->syncWithoutDetaching([$tenant->id => ['role_id' => $admin->id]]);
+        $salesUser = User::firstOrCreate(
+            ['email'=>'v5-browser-m03@atlas.example'],
+            ['name'=>'Recette Ventes M03','password'=>$password,'role_id'=>$admin->id],
+        );
+        $salesUser->companies()->syncWithoutDetaching([$tenant->id=>['role_id'=>$admin->id]]);
         $this->command?->info('Comptes isolés de recette navigateur activés.');
     }
 }

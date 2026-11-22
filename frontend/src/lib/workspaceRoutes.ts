@@ -51,16 +51,16 @@ export function canOpenWorkspaceView(view: View, role: Role["name"]): boolean {
   if (["users", "audit-logs", "admin-companies"].includes(view)) return role === "admin";
   if (view === "support-incidents") return ["admin", "support_n2", "support_n3"].includes(role);
   if (role === "admin") return true;
-  if (role === "commercial") return ["customers", "suppliers", "products", "quotes", "orders", "invoices"].includes(view);
+  if (role === "commercial") return ["customers", "suppliers", "products", "quotes", "orders", "invoices", "deliveries", "sales-contracts", "sales-returns", "pricing"].includes(view);
   if (role === "stock") return ["products", "stock-movements"].includes(view);
-  if (role === "reader") return ["customers", "suppliers", "products", "stock-movements", "quotes", "orders", "invoices"].includes(view);
+  if (role === "reader") return ["customers", "suppliers", "products", "stock-movements", "quotes", "orders", "invoices", "deliveries", "sales-contracts", "sales-returns", "pricing"].includes(view);
   return false;
 }
 
 /** Existing UI edit actions mirror Laravel's write Gates. */
 export function canEditWorkspaceView(view: View, role: Role["name"]): boolean {
-  if (role === "admin") return ["customers", "suppliers", "products", "quotes", "orders", "invoices", "users"].includes(view);
-  if (role === "commercial") return ["customers", "suppliers", "quotes", "orders", "invoices"].includes(view);
+  if (role === "admin") return ["customers", "suppliers", "products", "quotes", "orders", "invoices", "users", "deliveries", "sales-contracts", "sales-returns", "pricing"].includes(view);
+  if (role === "commercial") return ["customers", "suppliers", "quotes", "orders", "invoices", "deliveries", "sales-contracts", "sales-returns", "pricing"].includes(view);
   if (role === "stock") return view === "products";
   return false;
 }

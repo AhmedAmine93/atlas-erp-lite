@@ -30,6 +30,7 @@ export type Product = {
   alert_threshold: number;
 };
 export type Line = {
+  shipped_quantity?: number;
   id?: number;
   product_id: number;
   reference: string;
@@ -42,6 +43,8 @@ export type Line = {
   total_cents: number;
 };
 export type Sale = {
+  revision_no?: number;
+  fulfillment_mode?: string;
   id: number;
   number: string;
   customer_id: number;

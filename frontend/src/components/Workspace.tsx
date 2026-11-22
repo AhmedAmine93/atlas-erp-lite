@@ -42,6 +42,7 @@ import { nav, navigationSections, type View } from "@/lib/navigation";
 import { canEditWorkspaceView, canOpenWorkspaceView, parseWorkspacePath, workspaceHref, type WorkspaceRoute } from "@/lib/workspaceRoutes";
 import OrganizationWorkspace from "@/components/OrganizationWorkspace";
 import DomainWorkspace, { domainViews } from "@/components/DomainWorkspace";
+import SalesCommerceWorkspace, { salesCommerceViews } from "@/components/SalesCommerceWorkspace";
 import PilotageWorkspace from "@/components/PilotageWorkspace";
 import HotelHousekeepingWorkspace from "@/components/HotelHousekeepingWorkspace";
 import HotelMinibarWorkspace from "@/components/HotelMinibarWorkspace";
@@ -95,6 +96,8 @@ const date = (s: string) =>
 const labels: Record<string, string> = {
   draft: "Brouillon",
   converted: "Converti",
+  confirmed:"Confirmée", reserved:"Réservée", prepared:"Préparée", partially_shipped:"Partiellement expédiée",
+  shipped:"Expédiée", closed:"Soldée", sent:"Envoyé", accepted:"Accepté", expired:"Expiré",
   validated: "Validée",
   issued: "Émise",
   paid: "Payée",
@@ -522,7 +525,7 @@ export default function Workspace() {
                 "invoices",
                 "admin-companies",
                 "support-incidents",
-              ].includes(view) && !domainViews.has(view) && (
+              ].includes(view) && !domainViews.has(view) && (!salesCommerceViews.has(view as any) || ["quotes", "orders"].includes(view)) && (
                 <button
                   className="button primary"
                   onClick={() => setEditor({ kind: view })}
@@ -580,6 +583,8 @@ export default function Workspace() {
             <HotelHousekeepingWorkspace key={"hotel-housekeeping-"+user.active_company_id} activeCompanyId={user.active_company_id ?? null} />
           ) : domainViews.has(view) ? (
             <DomainWorkspace key={view+"-"+user.active_company_id} view={view} activeCompanyId={user.active_company_id ?? null} />
+          ) : salesCommerceViews.has(view as any) && !["quotes","orders"].includes(view) ? (
+            <SalesCommerceWorkspace key={view+"-"+user.active_company_id} view={view as "deliveries"|"sales-contracts"|"sales-returns"|"pricing"} activeCompanyId={user.active_company_id ?? null} canWrite={can(view)} canApprove={user.role.name === "admin"} />
           ) : view === "admin-companies" ? (
             <OrganizationWorkspace
               activeCompanyId={user.active_company_id ?? null}
@@ -600,6 +605,7 @@ export default function Workspace() {
               busy={busy}
             />
           )}
+          {["quotes","orders"].includes(view) && <SalesCommerceWorkspace key={"sales-v5-"+view+"-"+user.active_company_id} view={view as "quotes"|"orders"} activeCompanyId={user.active_company_id ?? null} canWrite={can(view)} canApprove={user.role.name === "admin"} revision={refresh} onChange={()=>setRefresh(n=>n+1)} embedded />}
           <footer className="page-footer">
             <span>ATLAS ONE</span>
             <span>Un peu moins de gestion. Un peu plus de perspective.</span>
@@ -1148,9 +1154,9 @@ function ListView({
             {(product
               ? ["1"]
               : view === "quotes"
-                ? ["draft", "converted"]
+                ? ["draft","sent","accepted","converted","expired","cancelled"]
                 : view === "orders"
-                  ? ["draft", "validated"]
+                  ? ["draft","confirmed","reserved","prepared","partially_shipped","shipped","closed","cancelled","validated"]
                   : ["draft", "issued", "paid", "cancelled"]
             ).map((s) => (
               <option value={s} key={s}>
@@ -1466,6 +1472,7 @@ function EditorForm({
           if (!data.password) delete data.password;
         }
         if (sale) {
+          if(kind==="orders")data.fulfillment_mode="reservation_v2";
           data.customer_id = Number(data.customer_id);
           data.items = lines.map((l) => ({
             product_id: Number(l.product_id),
@@ -1973,7 +1980,7 @@ function Detail({
             Télécharger le PDF
           </button>
         )}
-        {can && kind === "quotes" && row.status === "draft" && (
+        {can && kind === "quotes" && row.status === "draft" && !row.revision_no && (
           <button
             className="button primary"
             disabled={busy}
@@ -1983,7 +1990,7 @@ function Detail({
             <ArrowRight size={16} />
           </button>
         )}
-        {can && kind === "orders" && row.status === "draft" && (
+        {can && kind === "orders" && row.status === "draft" && row.fulfillment_mode !== "reservation_v2" && (
           <button
             className="button primary"
             disabled={busy}
@@ -1993,7 +2000,7 @@ function Detail({
             <Check size={16} />
           </button>
         )}
-        {can && kind === "orders" && row.status === "validated" && (
+        {can && kind === "orders" && (["validated","shipped"].includes(row.status) || (row.status==="cancelled" && row.items?.some(x=>Number(x.shipped_quantity)>0) && row.fulfillment_mode==="reservation_v2")) && (
           <button
             className="button primary"
             disabled={busy}
