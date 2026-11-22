@@ -97,6 +97,28 @@ final class InventoryStockService
         return $existing;
     }
 
+    /**
+     * Prevent blocked/quarantined/in-transit material being counted as sellable.
+     * Caller holds the products row lock when used for business decisions.
+     */
+    public function sellable(Product $product): int
+    {
+        $eligible = InventoryBalance::query()
+            ->join('inventory_locations as l', 'l.id', '=', 'inventory_balances.location_id')
+            ->join('inventory_warehouses as w', 'w.id', '=', 'l.warehouse_id')
+            ->leftJoin('inventory_lots as t', 't.id', '=', 'inventory_balances.lot_id')
+            ->where('inventory_balances.product_id', $product->id)
+            ->where('l.active', true)->where('w.active', true)
+            ->where('l.condition_code', 'normal')
+            ->where(fn ($q) => $q->whereNull('t.id')
+                ->orWhere(fn ($q) => $q->where('t.status', 'available')
+                    ->where(fn ($q) => $q->whereNull('t.expires_on')
+                        ->orWhereDate('t.expires_on', '>=', today()))))
+            ->sum('inventory_balances.quantity');
+
+        return $this->unallocated($product) + (int) $eligible;
+    }
+
     /** Sale or legacy negative adjustment, called with the products row locked. */
     public function consumeForLegacyMove(Product $product, int $quantity, string $sourceReference): void
     {
@@ -112,7 +134,10 @@ final class InventoryStockService
             ->where('inventory_balances.product_id', $product->id)
             ->where('l.active', true)->where('w.active', true)
             ->where('l.condition_code', 'normal')
-            ->where(fn ($q) => $q->whereNull('t.id')->orWhere('t.status', 'available'))
+            ->where(fn ($q) => $q->whereNull('t.id')
+                ->orWhere(fn ($q) => $q->where('t.status', 'available')
+                    ->where(fn ($q) => $q->whereNull('t.expires_on')
+                        ->orWhereDate('t.expires_on', '>=', today()))))
             ->select('inventory_balances.*')
             ->orderByRaw('t.expires_on ASC NULLS LAST')
             ->orderBy('inventory_balances.id')->get();

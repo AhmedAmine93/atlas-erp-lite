@@ -38,7 +38,7 @@ final class InventoryTransferController extends Controller
             $stock->location($v['source_location_id'], true);
             $stock->location($v['target_location_id'], true);
             $lot = $stock->lot($p, $v['lot_id'] ?? null);
-            abort_if($lot && in_array($lot->status, ['blocked', 'recalled'], true),
+            abort_if($lot && $lot->status !== 'available',
                 409, 'Le lot est bloqué ou rappelé.');
             $transfer = InventoryTransfer::create($v + [
                 'requested_by' => auth()->id(), 'status' => 'requested',
@@ -66,7 +66,7 @@ final class InventoryTransferController extends Controller
             $source = $stock->location($t->source_location_id, true);
             $stock->location($t->target_location_id, true);
             $lot = $stock->lot($p, $t->lot_id);
-            abort_if($lot && in_array($lot->status, ['blocked', 'recalled'], true),
+            abort_if($lot && $lot->status !== 'available',
                 409, 'Lot bloqué.');
             $balance = $stock->balance($p, $source, $lot);
             abort_unless((int) $balance->quantity >= (int) $t->quantity_requested, 409,

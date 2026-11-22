@@ -5,6 +5,7 @@ use App\Models\InventoryReplenishment;
 use App\Models\Product;
 use App\Models\Supplier;
 use App\Services\Audit;
+use App\Services\InventoryStockService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -39,7 +40,7 @@ final class InventoryReplenishmentController extends Controller
             }
             $reserved=$v['reserved_quantity']??0;
             $incoming=$v['incoming_quantity']??0;
-            $available=max(0,(int)$p->stock-$reserved);
+            $available=max(0,app(InventoryStockService::class)->sellable($p)-$reserved);
             $required=max(0,(int)$v['safety_quantity']-$available-$incoming);
             $record=InventoryReplenishment::create([
                 'product_id'=>$p->id,'supplier_id'=>$v['supplier_id']??null,
