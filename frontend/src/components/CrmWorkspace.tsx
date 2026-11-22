@@ -69,6 +69,8 @@ export default function CrmWorkspace({view,activeCompanyId,canEdit}:{view:View;a
  const [refresh,setRefresh]=useState(0);
  const [members,setMembers]=useState<Array<{id:number;name:string;email:string}>>([]);
  const [memberId,setMemberId]=useState("");
+ const [quoteId,setQuoteId]=useState("");
+ const [quotes,setQuotes]=useState<Array<{id:number;number:string;status:string;total_cents:number}>>([]);
  const resource=conf.resource;
  useEffect(()=>{setRows([]);setSelected(null);setForm(false);setEdit(null);setPage(1);setSearch("");setQuery("");},[view,activeCompanyId]);
  useEffect(()=>{
@@ -158,6 +160,20 @@ export default function CrmWorkspace({view,activeCompanyId,canEdit}:{view:View;a
      await loadMembers(selected.id);setNotice("Client retiré du segment.");
    }catch(e){setError((e as Error).message);}finally{setBusy(false);}
  }
+ async function loadQuotes(id:number){
+   setQuotes([]);setQuoteId("");
+   try{const r=await api<{data:Array<{id:number;number:string;status:string;total_cents:number}>}>("crm/opportunities/"+id+"/quotes");
+     setQuotes(r.data);
+   }catch(e){setError((e as Error).message);}
+ }
+ async function linkQuote(e:FormEvent){
+   e.preventDefault();if(!selected||!quoteId)return;
+   setBusy(true);setError("");
+   try{
+     await send("crm/opportunities/"+selected.id+"/quotes","POST",{quote_id:Number(quoteId)});
+     setNotice("Devis rattaché à l'opportunité.");await loadQuotes(selected.id);
+   }catch(e){setError((e as Error).message);}finally{setBusy(false);}
+ }
  async function loadMembers(id:number){
    try{const r=await api<{data:Array<{id:number;name:string;email:string}>}>("crm/segments/"+id+"/members");
      setMembers(r.data);
@@ -187,7 +203,7 @@ export default function CrmWorkspace({view,activeCompanyId,canEdit}:{view:View;a
   </tr></thead><tbody>{rows.map(row=><tr key={row.id}>
    {conf.columns.map(k=><td key={k}>{shown(row[k])}</td>)}
    <td><button type="button" className="text-button" onClick={()=>{
-    setSelected(row);if(resource==="segments")void loadMembers(row.id);
+    setSelected(row);if(resource==="segments")void loadMembers(row.id);if(resource==="opportunities")void loadQuotes(row.id);
    }}>Détail</button>
    {canEdit&&<button className="text-button" type="button" onClick={()=>start(row)}>Modifier</button>}</td>
   </tr>)}</tbody></table></div>
@@ -211,6 +227,17 @@ export default function CrmWorkspace({view,activeCompanyId,canEdit}:{view:View;a
     {canEdit&&resource==="prospects"&&selected.status==="qualified"&&
       <button type="button" disabled={busy} className="button primary"
         onClick={()=>void convert(selected)}>Convertir en client</button>}
+    {resource==="opportunities"&&<section aria-label="Devis rattachés">
+      <h3>Devis commerciaux liés à l'opportunité</h3>
+      {quotes.length===0&&<p>Aucun devis rattaché.</p>}
+      {quotes.map(q=><p key={q.id}>{q.number} — {q.status} — {(q.total_cents/100).toFixed(2)} €</p>)}
+      {canEdit&&<form onSubmit={e=>void linkQuote(e)}>
+        <label>Identifiant d'un devis existant
+          <input type="number" min="1" required value={quoteId} onChange={e=>setQuoteId(e.target.value)}/>
+        </label>
+        <button className="button secondary" disabled={busy}>Rattacher le devis</button>
+      </form>}
+    </section>}
     {resource==="segments"&&<><h3>Clients du segment</h3>
       {members.map(m=><p key={m.id}>{m.name} — {m.email}
         {canEdit&&selected.mode==="static"&&
