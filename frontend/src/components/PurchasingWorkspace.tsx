@@ -239,6 +239,9 @@ export default function PurchasingWorkspace({view,activeCompanyId}:{view:string;
     </>;
     if(view==="purchase-receipts")return action("Lignes",()=>void fetchLines("purchasing/receipts/"+id+"/lines","Lignes réceptionnées",id));
     if(view==="supplier-invoices")return <>
+      {action("Rapprocher à nouveau",()=>void perform("purchasing/invoices/"+id+"/rematch",{}))}
+      {action("Bon à payer",()=>{if(window.confirm("Autoriser uniquement le montant net rapproché, sans déclencher de virement ?"))void perform("purchasing/invoices/"+id+"/authorize-payment",{});})}
+      {action("Historique bons à payer",()=>void fetchLines("purchasing/invoices/"+id+"/authorizations","Bons à payer autorisés",id))}
       {action("Avoirs",()=>void fetchLines("purchasing/invoices/"+id+"/credits","Avoirs de la facture",id))}
       {action("Créer avoir",()=>{
         const reference=window.prompt("Référence unique de l’avoir");
