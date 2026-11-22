@@ -192,6 +192,7 @@ Route::prefix('api')->group(function () {
         Route::patch('support/incidents/{id}', [SupportIncidentController::class, 'transition'])->whereNumber('id');
         Route::post('support/incidents/{id}/comments', [SupportIncidentController::class, 'comment'])->whereNumber('id');
         Route::post('support/incidents/{id}/escalate', [SupportIncidentController::class, 'escalate'])->whereNumber('id');
+        Route::post('support/incidents/{id}/reopen', [SupportIncidentController::class, 'reopen'])->whereNumber('id');
         Route::get('companies', [OrganizationController::class, 'companies']);
         Route::post('companies', [OrganizationController::class, 'saveCompany']);
         Route::put('companies/{id}', [OrganizationController::class, 'saveCompany'])->whereNumber('id');
