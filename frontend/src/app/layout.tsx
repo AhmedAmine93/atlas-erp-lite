@@ -9,6 +9,7 @@ import "./ui-components.css";
 import "./data-forms.css";
 import "./dashboard-builder.css";
 import "./global-search.css";
+import "./housekeeping.css";
 export const metadata: Metadata = {
   title: "ATLAS ONE — Espace de travail",
   description: "ERP de démonstration : clients, stocks, ventes et facturation.",

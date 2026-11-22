@@ -1,0 +1,32 @@
+.atlas-housekeeping{display:grid;gap:20px;min-width:0}
+.atlas-housekeeping-head{background:#fff;border:1px solid var(--line);border-radius:10px;padding:20px;display:grid;gap:18px}
+.atlas-housekeeping-head h2{font-size:20px;margin:0 0 8px}
+.atlas-housekeeping-head p{font-size:12px;line-height:1.65;color:var(--muted);max-width:720px}
+.atlas-housekeeping-filters{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.atlas-housekeeping-filters label{display:grid;gap:7px;font-size:12px;font-weight:600;color:var(--ink)}
+.atlas-housekeeping-filters input,.atlas-housekeeping-filters select{width:100%;min-width:0;padding:10px;border:1px solid #cbd8ce;border-radius:7px;background:#fff;color:var(--ink);font:inherit}
+.atlas-housekeeping-stats{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px}
+.atlas-housekeeping-stats>div{background:#fff;border:1px solid var(--line);padding:14px 11px;border-radius:9px;display:grid;gap:9px}
+.atlas-housekeeping-stats span{font-size:11px;color:var(--muted);line-height:1.35}
+.atlas-housekeeping-stats strong{font-size:24px;line-height:1.1;color:var(--ink)}
+.atlas-housekeeping-note{padding:12px 15px;border:1px solid #dbe4da;border-radius:9px;color:#536956;font-size:12px;background:#f9fbfa}
+.atlas-housekeeping-floor{display:grid;gap:14px}
+.atlas-housekeeping-floor h3{font-size:15px;border-bottom:1px solid var(--line);padding:0 0 12px;margin:0}
+.atlas-housekeeping-room-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(225px,1fr));gap:13px}
+.atlas-housekeeping-room{border:1px solid var(--line);border-radius:10px;background:#fff;padding:16px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.atlas-housekeeping-room-title{display:flex;flex-direction:column;gap:3px}
+.atlas-housekeeping-room-title strong{font-size:15px;color:var(--ink)}
+.atlas-housekeeping-room-title span{font-size:11px;color:var(--muted)}
+.atlas-housekeeping-room-badges{display:flex;flex-wrap:wrap;gap:7px;min-height:24px}
+.atlas-housekeeping-room-badges span{font-size:11px;font-weight:600;line-height:1.4;padding:5px 9px;border-radius:6px;background:#edf0ed;color:#55675b}
+.atlas-housekeeping-room-badges [data-state=dirty]{background:#fff0ec;color:#904830}
+.atlas-housekeeping-room-badges [data-state=in_progress]{background:#edf1fc;color:#3253a0}
+.atlas-housekeeping-room-badges [data-state=clean]{background:#e9f6ef;color:#29634d}
+.atlas-housekeeping-room-badges [data-state=inspected]{background:#dbf0e2;color:#18563f}
+.atlas-housekeeping-room-badges .atlas-housekeeping-blocked{background:#ffe9eb;color:#9d2633}
+.atlas-housekeeping-room-badges .atlas-housekeeping-inspected{background:#e6f5eb;color:#1a5c3e}
+.atlas-housekeeping-room button{border:1px solid #bbd3c5;border-radius:7px;background:#185c46;color:#fff;padding:10px 13px;cursor:pointer;font:inherit;font-weight:600;font-size:12px;margin-top:auto}
+.atlas-housekeeping-room button:disabled{opacity:.5;cursor:not-allowed}
+.atlas-housekeeping-room button:focus-visible{outline:3px solid #70ac8f;outline-offset:2px}
+@media(max-width:1280px){.atlas-housekeeping-stats{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:760px){.atlas-housekeeping-filters{grid-template-columns:1fr}.atlas-housekeeping-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
