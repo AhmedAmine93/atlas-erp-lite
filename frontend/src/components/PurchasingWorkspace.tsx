@@ -164,6 +164,18 @@ export default function PurchasingWorkspace({view,activeCompanyId}:{view:string;
       setComparison(data);setDetails(null);
     }catch(e){setError((e as Error).message);}
   }
+  async function showCommitment(orderId:number) {
+    setError("");
+    try {
+      const data=await api<{reserved_cents:number;released_cents:number;outstanding_cents:number;events:RecordRow[]}>(
+        "purchasing/orders/"+orderId+"/commitments");
+      setDetails({id:orderId,
+        label:"Engagements — réservés "+money(data.reserved_cents)
+          +", libérés "+money(data.released_cents)
+          +", solde "+money(data.outstanding_cents),
+        rows:data.events});
+    }catch(e){setError((e as Error).message);}
+  }
   function requestAmendment(orderId:number) {
     const line=window.prompt("Identifiant de la ligne (consultez Lignes)");
     if(!line)return;
@@ -227,6 +239,7 @@ export default function PurchasingWorkspace({view,activeCompanyId}:{view:string;
     if(view==="purchase-orders")return <>
       {action("Lignes",()=>void fetchLines("purchasing/orders/"+id+"/lines","Lignes de commande",id))}
       {action("Avenants",()=>void fetchLines("purchasing/orders/"+id+"/amendments","Avenants de commande",id))}
+      {action("Engagements budgétaires",()=>void showCommitment(id))}
       {["sent","confirmed"].includes(status)&&action("Proposer avenant",()=>requestAmendment(id))}
       {["sent","confirmed"].includes(status)&&action("Signer service fait",()=>acceptService(id))}
       {action("Services faits",()=>void fetchLines("purchasing/orders/"+id+"/services","Prestations signées",id))}
