@@ -35,6 +35,7 @@ use App\Http\Controllers\MaintenancePreventiveController;
 use App\Http\Controllers\PurchaseRequestController;
 use App\Http\Controllers\DashboardLayoutController;
 use App\Http\Controllers\DataCanonicalSchemaController;
+use App\Http\Controllers\DataGovernanceController;
 use App\Http\Controllers\FormSchemaController;
 use App\Services\TenantRoles;
 use Illuminate\Http\Request;
@@ -54,6 +55,8 @@ Route::prefix('api')->group(function () {
         Route::get('dashboard/layout', [DashboardLayoutController::class, 'show']);
         Route::put('dashboard/layout', [DashboardLayoutController::class, 'save']);
         Route::post('builders/forms/validate', [FormSchemaController::class, 'validateDraft']);
+        Route::get('data/governance/{domain}', [DataGovernanceController::class, 'index'])->whereIn('domain', ['pipelines','quality-rules','lineage','reconciliations','lakehouse']);
+        Route::post('data/governance/{domain}', [DataGovernanceController::class, 'store'])->whereIn('domain', ['pipelines','quality-rules','lineage','reconciliations','lakehouse']);
         Route::get('data/sources/{id}/schemas', [DataCanonicalSchemaController::class, 'index'])->whereNumber('id');
         Route::post('data/sources/{id}/schemas', [DataCanonicalSchemaController::class, 'store'])->whereNumber('id');
         Route::get('purchasing/requests', [PurchaseRequestController::class, 'index']);
