@@ -105,6 +105,67 @@ final class HotelMinibarTest extends TestCase
         $this->getJson("$this->base/pms/mapping")->assertJsonPath('mapping.amount_header','total');
     }
 
+    public function test_reconciliation_flags_amount_deltas_duplicates_and_preserves_original_entries(): void
+    {
+        $this->consume(['quantity'=>4])->assertCreated()->assertJsonPath('total_cents', 1000);
+        $single = $this->importCsv("jour;chambre;total\n2026-03-03;101;6,00\n")
+            ->assertCreated()->json('id');
+        $report = "$this->base/reconciliation?business_date=2026-03-03&import_id=$single";
+        $this->getJson($report)->assertOk()
+            ->assertJsonPath('atlas_total_cents', 1000)
+            ->assertJsonPath('pms_total_cents', 600)
+            ->assertJsonPath('delta_cents', 400)
+            ->assertJsonPath('counts.amount_mismatch', 1)
+            ->assertJsonPath('lines.0.status', 'amount_mismatch')
+            ->assertJsonPath('lines.0.possible_breakfast_difference', false)
+            ->assertJsonPath('manual_review_required', true);
+
+        $duplicate = $this->importCsv("jour;chambre;total\n2026-03-03;101;3,00\n2026-03-03;101;3,00\n")
+            ->assertCreated()->assertJsonPath('row_count', 2)->json('id');
+        $this->getJson("$this->base/reconciliation?business_date=2026-03-03&import_id=$duplicate")
+            ->assertOk()->assertJsonPath('counts.duplicate_pms', 1)
+            ->assertJsonPath('lines.0.pms_line_count', 2)
+            ->assertJsonPath('lines.0.delta_cents', 400);
+        $this->getJson("$this->base/reconciliation?business_date=2026-03-03")
+            ->assertJsonPath('import_id', $duplicate)
+            ->assertJsonPath('selected_latest', true);
+        $this->getJson("$this->base/reconciliation?business_date=2026-03-03&import_id=999999")
+            ->assertNotFound();
+
+        $csv = $this->get("$this->base/reconciliation/export?business_date=2026-03-03&import_id=$single")
+            ->assertOk()->getContent();
+        $this->assertStringContainsString('2026-03-03;'.$this->hotel.';'.$single.';room;101;', $csv);
+        $this->assertStringContainsString('1000;600;400;1;amount_mismatch;no', $csv);
+        $this->assertSame(1, DB::table('minibar_consumptions')->count());
+        $this->assertSame(2, DB::table('minibar_pms_imports')->count());
+
+        $foreign = Company::create(['code'=>'MB_REC_B', 'name'=>'Société fictive B'])->id;
+        $this->loginFor($foreign, 'reconciliation-b');
+        $this->getJson($report)->assertNotFound();
+        $this->get("$this->base/reconciliation/export?business_date=2026-03-03&import_id=$single")
+            ->assertNotFound();
+    }
+
+    public function test_room_product_mode_matches_and_absent_pms_lines_are_not_silently_corrected(): void
+    {
+        $this->consume()->assertCreated()->assertJsonPath('total_cents', 500);
+        $matched = $this->importCsv("jour;chambre;article;total\n2026-03-03;101;EAU;5,00\n", [
+            'mode'=>'room_product', 'sku_header'=>'article',
+        ])->assertCreated()->json('id');
+        $this->getJson("$this->base/reconciliation?business_date=2026-03-03&import_id=$matched")
+            ->assertOk()->assertJsonPath('import_mode', 'room_product')
+            ->assertJsonPath('counts.matched', 1)
+            ->assertJsonPath('manual_review_required', false)
+            ->assertJsonPath('lines.0.sku', 'EAU');
+        $missing = $this->importCsv("jour;chambre;article;total\n2026-03-03;999;EAU;5,00\n", [
+            'mode'=>'room_product', 'sku_header'=>'article',
+        ])->assertCreated()->json('id');
+        $this->getJson("$this->base/reconciliation?business_date=2026-03-03&import_id=$missing")
+            ->assertOk()->assertJsonPath('counts.missing_in_pms', 1)
+            ->assertJsonPath('counts.missing_in_atlas', 1)
+            ->assertJsonPath('manual_review_required', true);
+    }
+
     public function test_runtime_isolates_catalog_and_cannot_rewrite_historical_prices(): void
     {
         DB::transaction(function () {
