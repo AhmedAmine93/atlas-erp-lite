@@ -18,6 +18,10 @@ return new class extends Migration
 
     public function up(): void
     {
+        // PostgreSQL requires a UNIQUE key matching the full composite FK target.
+        Schema::table('maintenance_work_orders', function (Blueprint $table): void {
+            $table->unique(['company_id', 'id']);
+        });
         Schema::create('maintenance_teams', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('company_id')->constrained('companies')->restrictOnDelete();
@@ -126,6 +130,9 @@ SQL);
         Schema::dropIfExists('maintenance_schedules');
         Schema::dropIfExists('maintenance_technicians');
         Schema::dropIfExists('maintenance_teams');
+        Schema::table('maintenance_work_orders', function (Blueprint $table): void {
+            $table->dropUnique(['company_id', 'id']);
+        });
         // Keep btree_gist: other schemas may also depend on it.
     }
 };
