@@ -76,6 +76,7 @@ const money=(n:unknown,currency="EUR")=>new Intl.NumberFormat("fr-FR",{style:"cu
 export default function PurchasingWorkspace({view,activeCompanyId}:{view:string;activeCompanyId:number|null}) {
   const screen=screens[view];
   const [rows,setRows]=useState<RecordRow[]>([]);
+  const [summary,setSummary]=useState<Record<string,number>|null>(null);
   const [lookups,setLookups]=useState<Record<string,RecordRow[]>>({});
   const [page,setPage]=useState(1),[pages,setPages]=useState(1),[total,setTotal]=useState(0);
   const [loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[refresh,setRefresh]=useState(0);
@@ -89,6 +90,13 @@ export default function PurchasingWorkspace({view,activeCompanyId}:{view:string;
   const [tenantUsers,setTenantUsers]=useState<RecordRow[]>([]);
   const [details,setDetails]=useState<{id:number;label:string;rows:RecordRow[]}|null>(null);
   const [comparison,setComparison]=useState<{purchase_request_id:number;currency:string;offers:RecordRow[]}|null>(null);
+  useEffect(()=>{
+    let alive=true;
+    api<Record<string,number>>("purchasing/reporting/summary")
+      .then(result=>{if(alive)setSummary(result);})
+      .catch(()=>{if(alive)setSummary(null);});
+    return()=>{alive=false;};
+  },[refresh,activeCompanyId]);
   useEffect(()=>{
     let live=true;setLoading(true);setError("");setDetails(null);
     api<Page<RecordRow>>(screen.endpoint+"?page="+page).then(p=>{if(live){setRows(p.data);setTotal(p.total);setPages(p.last_page);}})
@@ -310,6 +318,14 @@ export default function PurchasingWorkspace({view,activeCompanyId}:{view:string;
         <button className="button primary" type="button" onClick={openCreate}>+ Nouvelle fiche</button>
       </div>
     </div>
+    {summary&&<div className="atlas-domain-fields" aria-label="Indicateurs des achats">
+      <div><strong>Demandes d’achat</strong><p>{summary["purchase-requests"]??0}</p></div>
+      <div><strong>Commandes fournisseurs</strong><p>{summary["purchase-orders"]??0}</p></div>
+      <div><strong>Réceptions</strong><p>{summary["purchase-receipts"]??0}</p></div>
+      <div><strong>Factures litigieuses (montant)</strong><p>{money(summary.disputed_invoice_cents??0)}</p></div>
+      <div><strong>RIB en attente</strong><p>{summary.pending_bank_changes??0}</p></div>
+      <div><strong>Avenants en attente</strong><p>{summary.pending_amendments??0}</p></div>
+    </div>}
     {notice&&<p role="status" className="notice">{notice}</p>}
     {error&&<p role="alert" className="error">{error}</p>}
     {view==="purchase-requests"&&delegationsOpen&&<form className="atlas-domain-form" onSubmit={e=>void saveDelegation(e)}>
