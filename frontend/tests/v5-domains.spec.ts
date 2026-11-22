@@ -32,8 +32,14 @@ test("V5: navigation des quatre domaines et sous-menus sans fausses pages métie
     // Only errors inside the domain view are business failures.
     await expect(page.locator(".atlas-domain .error")).toHaveCount(0);
   }
+  // Mini-bar now has a real catalogue, consumption grid and reports.
+  const minibar = page.getByRole("button", { name: "Mini-bar", exact: true });
+  await expect(minibar).toBeEnabled();
+  await minibar.click();
+  await expect(page.getByRole("heading", { name: "Mini-bar", exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/workspace\/hotel-minibar/);
+  // Pipelines ETL remains a disabled future module, not a fake live page.
   await page.getByRole("button", { name: "Voir les modules prévus" }).click();
-  await expect(page.getByRole("button", { name: /Mini-bar/ })).toBeDisabled();
   await expect(page.getByRole("button", { name: /Pipelines ETL/ })).toBeDisabled();
 });
 
