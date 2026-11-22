@@ -215,6 +215,13 @@ final class CrmWorkspaceTest extends TestCase
             ->assertJsonPath('opportunities_open',1)
             ->assertJsonPath('forecast_cents',50000)
             ->assertJsonPath('activities_overdue',1);
+        $this->postJson('/api/crm/opportunities',[
+            'title'=>'Pipeline USD','amount_cents'=>100000,'currency'=>'USD','probability_bps'=>2500,
+        ])->assertCreated();
+        $this->getJson('/api/crm/summary')->assertOk()
+            ->assertJsonPath('forecast_cents',50000)
+            ->assertJsonPath('pipeline_by_currency.0.currency','EUR')
+            ->assertJsonPath('pipeline_by_currency.1.currency','USD');
         $foreign=Company::create(['code'=>'CRM_KPI_B','name'=>'Entreprise KPI B'])->id;
         $this->login('admin','kpi',$foreign);
         $this->getJson('/api/crm/summary')->assertOk()
