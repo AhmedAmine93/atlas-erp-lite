@@ -17,14 +17,19 @@ const definitions:Record<string,Definition>={
  "hotel-rooms":{endpoint:"hotel-rooms",description:"Chambres rattachées à chaque hôtel.",columns:["hotel_id","room_number","floor_code","category","room_status"],fields:[field("hotel_id","Hôtel",true,"select",undefined,"hotels"),field("room_number","Numéro",true),field("floor_code","Étage"),field("category","Catégorie",true)]},
  "hotel-bookings":{endpoint:"hotel-bookings",description:"Réservations, arrivées, départs et annulations.",columns:["reference","guest_display_name","room_id","arrival_date","departure_date","status"],fields:[field("room_id","Chambre",true,"select",undefined,"hotel-rooms"),field("reference","Référence",true),field("guest_display_name","Client",true),field("arrival_date","Arrivée",true,"date"),field("departure_date","Départ",true,"date")]},
  "data-sources":{endpoint:"data/sources",description:"Sources déclarées et validées sans credentials.",columns:["code","name","source_type","classification","status"],fields:[field("code","Code",true),field("name","Nom",true),field("source_type","Type",true,"select",["csv","pms","api","postgresql","oracle","kafka"]),field("classification","Classification",true,"select",["internal","public","confidential","restricted"]),field("schema_version","Version du schéma"),field("purpose","Finalité",false,"textarea")]},
- "data-batches":{endpoint:"data/ingestion-batches",description:"Ingestion CSV v1 vérifiée par manifeste SHA-256 et idempotence.",columns:["batch_key","source_id","expected_rows","sha256","status"],fields:[field("source_id","Source CSV validée",true,"select",undefined,"data/sources"),field("batch_key","Clé du lot",true),field("csv_file","CSV : external_id,amount_cents",true,"file")]}
+ "data-batches":{endpoint:"data/ingestion-batches",description:"Ingestion CSV v1 vérifiée par manifeste SHA-256 et idempotence.",columns:["batch_key","source_id","expected_rows","sha256","status"],fields:[field("source_id","Source CSV validée",true,"select",undefined,"data/sources"),field("batch_key","Clé du lot",true),field("csv_file","CSV : external_id,amount_cents",true,"file")]},
+ "data-pipelines":{endpoint:"data/governance/pipelines",description:"Référentiel déclaratif versionné — exécution Airflow/Kafka non raccordée.",columns:["code","name","version","status"],fields:[field("code","Code",true),field("name","Nom",true),field("version","Version",true,"number"),field("configuration","Configuration JSON validée",true,"textarea")]},
+ "data-quality":{endpoint:"data/governance/quality-rules",description:"Registre des règles — évaluation et quality gates à développer.",columns:["code","name","version","status"],fields:[field("code","Code",true),field("name","Nom",true),field("version","Version",true,"number"),field("configuration","Règle JSON",true,"textarea")]},
+ "data-lineage":{endpoint:"data/governance/lineage",description:"Déclarations de provenance et transformation — traçage automatique à développer.",columns:["code","name","version","status"],fields:[field("code","Code",true),field("name","Nom",true),field("version","Version",true,"number"),field("configuration","Provenance JSON",true,"textarea")]},
+ "data-reconciliation":{endpoint:"data/governance/reconciliations",description:"Déclarations de rapprochement — calcul serveur des écarts non raccordé.",columns:["code","name","version","status"],fields:[field("code","Code",true),field("name","Nom",true),field("version","Version",true,"number"),field("configuration","Comparaison JSON",true,"textarea")]},
+ "data-lakehouse":{endpoint:"data/governance/lakehouse",description:"Catalogue de datasets — stockage S3/MinIO non provisionné.",columns:["code","name","version","status"],fields:[field("code","Code",true),field("name","Nom",true),field("version","Version",true,"number"),field("configuration","Dataset JSON",true,"textarea")]}
 };
 const headings:Record<string,string>={
  "purchase-requests":"Demandes d’achat","maintenance-sites":"Sites et localisations",
  "maintenance-assets":"Parc d’équipements","maintenance-requests":"Demandes d’intervention",
  "maintenance-workorders":"Bons de travail","hotel-properties":"Établissements hôteliers",
  "hotel-rooms":"Chambres","hotel-bookings":"Réservations","data-sources":"Catalogue des sources",
- "data-batches":"Lots d’ingestion CSV"
+ "data-batches":"Lots d’ingestion CSV","data-pipelines":"Pipelines ETL","data-quality":"Qualité de données","data-lineage":"Lineage","data-reconciliation":"Réconciliations","data-lakehouse":"Lakehouse"
 };
 const columnNames:Record<string,string>={
  reference:"Référence",title:"Objet",estimated_total_cents:"Montant (centimes)",currency:"Devise",
@@ -51,6 +56,10 @@ export default function DomainWorkspace({view,activeCompanyId}:{view:string;acti
  async function save(e:FormEvent<HTMLFormElement>){e.preventDefault();if(busy)return;setBusy(true);setError("");try{
    const payload:Record<string,string|number>={};
    for(const f of fields){if(f.kind==="file")continue;const v=values[f.key]??"";if(!v&&!f.required)continue;payload[f.key]=f.kind==="number"||f.lookup?Number(v):v;}
+   if(conf.endpoint.startsWith("data/governance/")){
+     try{const parsed=JSON.parse(String(payload.configuration??""));if(!parsed||Array.isArray(parsed)||typeof parsed!=="object")throw Error();(payload as Record<string,unknown>).configuration=parsed;}
+     catch{throw Error("Configuration JSON : un objet valide est obligatoire.");}
+   }
    let saved:Row;
    if(view==="data-batches"){if(!csv)throw Error("Sélectionnez un CSV.");if(csv.size>1048576)throw Error("Fichier supérieur à 1 Mio.");const bytes=await csv.arrayBuffer();const hash=Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",bytes))).map(b=>b.toString(16).padStart(2,"0")).join("");const text=new TextDecoder("utf-8",{fatal:true}).decode(bytes).replace(/\r\n/g,"\n");const lines=text.split("\n");if(lines.at(-1)==="")lines.pop();if(lines[0]!=="external_id,amount_cents")throw Error("En-tête CSV attendu : external_id,amount_cents.");payload.sha256=hash;payload.expected_rows=lines.slice(1).filter(x=>x.trim()).length;saved=await send<Row>(conf.endpoint,"POST",payload);await upload(saved.id,csv);}
    else if(edit&&view==="purchase-requests")saved=await send<Row>(conf.endpoint+"/"+edit.id+"/revise","PATCH",payload);

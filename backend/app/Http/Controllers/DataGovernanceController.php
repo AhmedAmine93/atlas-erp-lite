@@ -77,23 +77,25 @@ final class DataGovernanceController extends Controller
         }
         return DB::transaction(function() use($request,$table,$domain,$company,$data){
             $payload = json_encode($data['configuration'],JSON_THROW_ON_ERROR);
-            $existing = DB::table($table)->where('company_id',$company)
-                ->where('code',$data['code'])->where('version',$data['version'])
-                ->lockForUpdate()->first();
-            if ($existing) {
-                abort_unless($existing->name===$data['name'] &&
-                    json_decode($existing->configuration,true) == $data['configuration'],
-                    409,'Référence/version existante avec contenu différent.');
-                return response()->json($existing,200);
-            }
-            $id=DB::table($table)->insertGetId([
+            // Unique tenant/code/version serializes concurrent inserts even if no row exists.
+            // insertOrIgnore is safe on PostgreSQL READ COMMITTED, unlike locking absence.
+            $created = DB::table($table)->insertOrIgnore([
                 'company_id'=>$company,'code'=>$data['code'],'name'=>$data['name'],
                 'version'=>$data['version'],'configuration'=>$payload,
                 'status'=>'draft','created_by'=>$request->user()->id,
                 'created_at'=>now(),'updated_at'=>now(),
             ]);
-            Audit::record('data.governance.'.$domain.'.created',null,['record_id'=>$id,'code'=>$data['code']]);
-            return response()->json(DB::table($table)->where('company_id',$company)->find($id),201);
+            $existing = DB::table($table)->where('company_id',$company)
+                ->where('code',$data['code'])->where('version',$data['version'])->firstOrFail();
+            if (! $created) {
+                abort_unless($existing->name===$data['name'] &&
+                    json_decode($existing->configuration,true) == $data['configuration'],
+                    409,'Référence/version existante avec contenu différent.');
+                return response()->json($existing,200);
+            }
+            if ($created) Audit::record('data.governance.'.$domain.'.created',null,
+                ['record_id'=>$existing->id,'code'=>$data['code']]);
+            return response()->json($existing,$created ? 201 : 200);
         },3);
     }
 }
