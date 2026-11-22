@@ -42,6 +42,7 @@ import { nav, navigationSections, type View } from "@/lib/navigation";
 import { canEditWorkspaceView, canOpenWorkspaceView, parseWorkspacePath, workspaceHref, type WorkspaceRoute } from "@/lib/workspaceRoutes";
 import OrganizationWorkspace from "@/components/OrganizationWorkspace";
 import DomainWorkspace, { domainViews } from "@/components/DomainWorkspace";
+import SalesCommerceWorkspace, { salesCommerceViews } from "@/components/SalesCommerceWorkspace";
 import HotelHousekeepingWorkspace from "@/components/HotelHousekeepingWorkspace";
 import HotelMinibarWorkspace from "@/components/HotelMinibarWorkspace";
 import HotelAvailabilityWorkspace from "@/components/HotelAvailabilityWorkspace";
@@ -516,7 +517,7 @@ export default function Workspace() {
                 "invoices",
                 "admin-companies",
                 "support-incidents",
-              ].includes(view) && !domainViews.has(view) && (
+              ].includes(view) && !domainViews.has(view) && !salesCommerceViews.has(view as any) && (
                 <button
                   className="button primary"
                   onClick={() => setEditor({ kind: view })}
@@ -572,6 +573,8 @@ export default function Workspace() {
             <HotelHousekeepingWorkspace key={"hotel-housekeeping-"+user.active_company_id} activeCompanyId={user.active_company_id ?? null} />
           ) : domainViews.has(view) ? (
             <DomainWorkspace key={view+"-"+user.active_company_id} view={view} activeCompanyId={user.active_company_id ?? null} />
+          ) : salesCommerceViews.has(view as any) && !["quotes","orders"].includes(view) ? (
+            <SalesCommerceWorkspace key={view+"-"+user.active_company_id} view={view as "deliveries"|"sales-contracts"|"sales-returns"|"pricing"} activeCompanyId={user.active_company_id ?? null} canWrite={can(view)} />
           ) : view === "admin-companies" ? (
             <OrganizationWorkspace
               activeCompanyId={user.active_company_id ?? null}
@@ -592,6 +595,7 @@ export default function Workspace() {
               busy={busy}
             />
           )}
+          {["quotes","orders"].includes(view) && <SalesCommerceWorkspace key={"sales-v5-"+view+"-"+user.active_company_id} view={view as "quotes"|"orders"} activeCompanyId={user.active_company_id ?? null} canWrite={can(view)} embedded />}
           <footer className="page-footer">
             <span>ATLAS ONE</span>
             <span>Un peu moins de gestion. Un peu plus de perspective.</span>
