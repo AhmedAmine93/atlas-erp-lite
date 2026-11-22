@@ -187,5 +187,6 @@ Route::prefix('api')->group(function () {
         Route::put('users/{id}', [AdminController::class, 'save'])->whereNumber('id');
         Route::delete('users/{id}', [AdminController::class, 'destroy'])->whereNumber('id');
         Route::get('audit-logs',[AdminController::class, 'audit']);
+        Route::get('audit-logs/export',[AdminController::class, 'auditExport']);
     });
 });
