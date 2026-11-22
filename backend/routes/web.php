@@ -122,6 +122,7 @@ Route::prefix('api')->group(function () {
         Route::post('hotels/{hotel}/folios/{folio}/entries', [HotelOperationsController::class, 'addFolioEntry'])->whereNumber('hotel')->whereNumber('folio');
         Route::post('hotels/{hotel}/folios/{folio}/close', [HotelOperationsController::class, 'closeFolio'])->whereNumber('hotel')->whereNumber('folio');
         Route::post('hotels/{hotel}/folios/{folio}/transfer', [HotelOperationsController::class, 'transfer'])->whereNumber('hotel')->whereNumber('folio');
+        Route::post('hotels/{hotel}/folios/{folio}/entries/{entry}/correct', [HotelOperationsController::class, 'correctEntry'])->whereNumber('hotel')->whereNumber('folio')->whereNumber('entry');
         Route::get('hotels/{hotel}/channel/rules', [HotelOperationsController::class, 'referenceRules'])->whereNumber('hotel');
         Route::post('hotels/{hotel}/channel/rules', [HotelOperationsController::class, 'createReferenceRule'])->whereNumber('hotel');
         Route::get('hotels/{hotel}/channel/imports', [HotelOperationsController::class, 'imports'])->whereNumber('hotel');
