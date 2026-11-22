@@ -288,7 +288,7 @@ final class HumanResourcesController extends Controller
     {
         $this->authorizeHr($request,true);
         $table = $this->table($resource);
-        abort_unless(in_array($resource,['employees','teams','schedules','leaves','timesheets','certifications'],true),
+        abort_unless(in_array($resource,['employees','schedules','leaves','timesheets','certifications'],true),
             405);
         $data = $request->validate([
             'status'=>'required|string|max:24', 'version'=>'required|integer|min:1',

@@ -69,7 +69,7 @@ final class HumanResourcesMenuTest extends TestCase
         ]))->assertNotFound();
         $id=$this->create('employees',$base);
         $key='REPLAY-SAME-EMPLOYEE';
-        $repeat=$base+['request_key'=>$key];
+        $repeat=array_merge($base,['code'=>'HR-REPLAY','request_key'=>$key]);
         $this->postJson('/api/hr/employees',$repeat)->assertCreated();
         $this->postJson('/api/hr/employees',$repeat)->assertOk();
         $this->postJson('/api/hr/employees',array_merge($repeat,['code'=>'ANOTHER']))
