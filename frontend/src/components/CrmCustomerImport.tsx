@@ -1,6 +1,6 @@
 "use client";
 import {useState,type FormEvent} from "react";
-import {api} from "@/lib/api";
+import {api,fetchTenantBlob} from "@/lib/api";
 
 type Result={id:number;accepted_rows:number;rejected_rows:number;replayed:boolean;
  rejections:Array<{line?:number;email?:string;reason:string}>};
@@ -10,6 +10,19 @@ export default function CrmCustomerImport({onImported}:{onImported:()=>void}){
  const [busy,setBusy]=useState(false);
  const [error,setError]=useState("");
  const [result,setResult]=useState<Result|null>(null);
+ async function exportCustomers(){
+   if(busy)return;
+   setBusy(true);setError("");
+   try {
+     const blob=await fetchTenantBlob("crm/export/customers","text/csv");
+     const url=URL.createObjectURL(blob);
+     try{
+       const link=document.createElement("a");
+       link.href=url;link.download="atlas_crm_customers.csv";
+       document.body.appendChild(link);link.click();link.remove();
+     }finally{window.setTimeout(()=>URL.revokeObjectURL(url),1000);}
+   }catch(e){setError((e as Error).message);}finally{setBusy(false);}
+ }
  async function upload(e:FormEvent<HTMLFormElement>){
    e.preventDefault();if(!file||busy)return;
    setBusy(true);setError("");setResult(null);
@@ -23,6 +36,7 @@ export default function CrmCustomerImport({onImported}:{onImported:()=>void}){
  return <section className="atlas-domain" aria-label="Import clients CSV">
    <div className="atlas-domain-toolbar"><div><h3>Import de clients CSV</h3>
    <p>Format : name,email,phone · maximum 1 Mio / 1000 lignes. Les imports identiques ne sont pas dupliqués.</p>
+   <button type="button" className="button secondary" disabled={busy} onClick={()=>void exportCustomers()}>Exporter les clients CSV</button>
    </div></div>
    {error&&<p role="alert" className="error">{error}</p>}
    <form className="atlas-domain-form" onSubmit={e=>void upload(e)}>
