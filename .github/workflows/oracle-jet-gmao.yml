@@ -3,6 +3,11 @@ on:
   pull_request:
     paths:
       - 'jet-industrial/**'
+      - 'compose.jet.yaml'
+      - 'backend/app/Http/Controllers/IndustrialJetController.php'
+      - 'backend/database/migrations/2026_11_22_000013_create_industrial_pg_packages.php'
+      - 'backend/tests/Feature/IndustrialJetTest.php'
+      - 'backend/routes/web.php'
       - '.github/workflows/oracle-jet-gmao.yml'
   workflow_dispatch:
 permissions:
@@ -27,6 +32,12 @@ jobs:
           node --check jet-industrial/scripts/proxy.mjs
           node --test jet-industrial/tests/gateway.test.mjs
           node --experimental-transform-types --test jet-industrial/tests/api-context.test.mjs
+      - name: Verify industrial Node API and Redis cache rules
+        run: |
+          npm --prefix jet-industrial/node-api install --no-audit --no-fund
+          npm --prefix jet-industrial/node-api run check
+          npm --prefix jet-industrial/node-api test
+          docker compose -f compose.yaml -f compose.jet.yaml config --quiet
       - name: Generate official Oracle JET 21 application
         run: node jet-industrial/scripts/bootstrap.mjs
       - name: Build actual Oracle JET VDOM app
@@ -37,5 +48,6 @@ jobs:
         run: |
           test -f jet-industrial/atlas-jet-gmao/oraclejetconfig.json
           test -f jet-industrial/atlas-jet-gmao/src/components/content/atlas-api.ts
+          test -f jet-industrial/atlas-jet-gmao/src/components/content/industrial.tsx
           test -d jet-industrial/atlas-jet-gmao/web
           echo 'Oracle JET 21 official build succeeded'
