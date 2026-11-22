@@ -3,6 +3,7 @@
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ContactController;
+use App\Http\Controllers\CrmWorkspaceController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\InvoiceController;
@@ -133,6 +134,16 @@ Route::prefix('api')->group(function () {
         Route::put('products/{id}', [ProductController::class, 'save'])->whereNumber('id');
         Route::delete('products/{id}', [ProductController::class, 'destroy'])->whereNumber('id');
         Route::post('products/{id}/stock', [ProductController::class, 'adjust'])->whereNumber('id');
+        // M02 CRM: explicit allowlisted resources, always behind auth + tenant middleware.
+        Route::get('crm/{resource}', [CrmWorkspaceController::class,'index'])->whereIn('resource',['prospects','contacts','opportunities','activities','segments']);
+        Route::post('crm/{resource}', [CrmWorkspaceController::class,'store'])->whereIn('resource',['prospects','contacts','opportunities','activities','segments']);
+        Route::get('crm/{resource}/{id}', [CrmWorkspaceController::class,'show'])->whereIn('resource',['prospects','contacts','opportunities','activities','segments'])->whereNumber('id');
+        Route::put('crm/{resource}/{id}', [CrmWorkspaceController::class,'update'])->whereIn('resource',['prospects','contacts','opportunities','activities','segments'])->whereNumber('id');
+        Route::post('crm/{resource}/{id}/transition', [CrmWorkspaceController::class,'transition'])->whereIn('resource',['prospects','opportunities','activities'])->whereNumber('id');
+        Route::post('crm/prospects/{id}/convert', [CrmWorkspaceController::class,'convert'])->whereNumber('id');
+        Route::post('crm/customers/{id}/archive', [CrmWorkspaceController::class,'archiveCustomer'])->whereNumber('id');
+        Route::get('crm/segments/{id}/members', [CrmWorkspaceController::class,'segmentMembers'])->whereNumber('id');
+        Route::put('crm/segments/{id}/members', [CrmWorkspaceController::class,'setSegmentMember'])->whereNumber('id');
         Route::get('{kind}', [ContactController::class, 'index'])->whereIn('kind', ['customers', 'suppliers']);
         Route::get('{kind}/{id}', [ContactController::class, 'show'])->whereIn('kind', ['customers', 'suppliers'])->whereNumber('id');
         Route::post('{kind}', [ContactController::class, 'save'])->whereIn('kind', ['customers', 'suppliers']);
