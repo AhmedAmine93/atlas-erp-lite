@@ -1,7 +1,7 @@
 "use client";
 
 import {useEffect,useState,type FormEvent} from "react";
-import {api,send,all} from "@/lib/api";
+import {api,send,all,fetchTenantBlob} from "@/lib/api";
 import type {Page} from "@/lib/types";
 
 type RecordRow = Record<string,unknown> & {id:number;status?:string};
@@ -101,6 +101,19 @@ export default function PurchasingWorkspace({view,activeCompanyId}:{view:string;
     return()=>{live=false;};
   },[screen,refresh,activeCompanyId]);
 
+  async function downloadCsv() {
+    setError("");
+    try {
+      setBusy(true);
+      const blob=await fetchTenantBlob("purchasing/reporting/"+view+"/export","text/csv");
+      const url=URL.createObjectURL(blob);
+      const link=document.createElement("a");
+      link.href=url;link.download="atlas-m04-"+view+".csv";
+      document.body.append(link);link.click();link.remove();URL.revokeObjectURL(url);
+      setNotice("Export CSV contrôlé par l’entreprise active.");
+    }catch(e){setError((e as Error).message);}
+    finally{setBusy(false);}
+  }
   function openCreate() {
     setValues({currency:"EUR",delivery_days:"0",shipping_cents:"0"});
     setLines([blankLine()]);setEditingRequestLines(null);setComparison(null);setError("");setEditing(true);
@@ -270,7 +283,10 @@ export default function PurchasingWorkspace({view,activeCompanyId}:{view:string;
   return <section className="atlas-domain">
     <div className="atlas-domain-toolbar">
       <div><h2>{screen.title}</h2><p>{screen.description}</p></div>
-      <button className="button primary" type="button" onClick={openCreate}>+ Nouvelle fiche</button>
+      <div className="atlas-domain-actions">
+        <button className="button secondary" disabled={busy} type="button" onClick={()=>void downloadCsv()}>Exporter CSV</button>
+        <button className="button primary" type="button" onClick={openCreate}>+ Nouvelle fiche</button>
+      </div>
     </div>
     {notice&&<p role="status" className="notice">{notice}</p>}
     {error&&<p role="alert" className="error">{error}</p>}
