@@ -49,6 +49,16 @@ jobs:
           rows=$(docker compose exec -T db psql -U atlas -d atlas -At \
             -c "SELECT COUNT(*) FROM data_ingested_csv_rows WHERE external_id LIKE 'SYN%'")
           test "$rows" -eq 1080 || { echo "Expected 1080 CSV rows, found $rows"; exit 1; }
+          preventive=$(docker compose exec -T db psql -U atlas -d atlas -At \
+            -c "SELECT COUNT(*) FROM maintenance_preventive_plans WHERE code LIKE 'SYN%-PM-%'")
+          test "$preventive" -eq 72 || { echo "Expected 72 preventive plans, found $preventive"; exit 1; }
+          rooms_cleaning=$(docker compose exec -T db psql -U atlas -d atlas -At \
+            -c "SELECT COUNT(*) FROM hotel_housekeeping_tasks t JOIN hotel_rooms r ON r.id=t.room_id JOIN hotel_properties h ON h.id=r.hotel_id WHERE h.code LIKE 'SYN%-HOTEL-%'")
+          test "$rooms_cleaning" -eq 216 || { echo "Expected 216 housekeeping tasks, found $rooms_cleaning"; exit 1; }
+          cleaning_events=$(docker compose exec -T db psql -U atlas -d atlas -At \
+            -c "SELECT COUNT(*) FROM hotel_room_status_events e JOIN hotel_housekeeping_tasks t ON t.id=e.task_id JOIN hotel_rooms r ON r.id=t.room_id JOIN hotel_properties h ON h.id=r.hotel_id WHERE h.code LIKE 'SYN%-HOTEL-%'")
+          test "$cleaning_events" -eq 540 || { echo "Expected 540 housekeeping events, found $cleaning_events"; exit 1; }
+
       - name: Simulate 120 distinct simultaneous users
         run: |
           set -euo pipefail

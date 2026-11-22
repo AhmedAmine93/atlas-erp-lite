@@ -138,7 +138,9 @@ final class MassiveDemoSeeder extends Seeder
             'quotes', 'orders', 'invoices', 'stock_movements', 'support_incidents',
             'maintenance_sites', 'maintenance_assets', 'maintenance_requests',
             'maintenance_work_orders', 'maintenance_teams', 'maintenance_technicians', 'maintenance_schedules',
-            'hotel_properties', 'hotel_rooms', 'hotel_bookings',
+            'maintenance_preventive_plans', 'maintenance_preventive_occurrences',
+            'hotel_properties', 'hotel_rooms', 'hotel_bookings', 'hotel_housekeeping_tasks',
+            'hotel_room_status_events',
             'purchase_requests', 'data_source_registry', 'data_ingestion_batches',
             'data_ingested_csv_rows',
         ] as $table) {
@@ -293,6 +295,25 @@ final class MassiveDemoSeeder extends Seeder
                 'commissioned_on' => now()->subYears(1 + $i % 7)->toDateString(),
             ]);
         }
+        // New P053 demonstrator: 24 recurring preventive plans per tenant.
+        // Identity is stable, and existing plans are never modified on replay.
+        for ($i = 1; $i <= 24; $i++) {
+            $this->fixture('maintenance_preventive_plans', [
+                'company_id' => $companyId,
+                'code' => sprintf('%s-PM-%03d', $prefix, $i),
+            ], [
+                'asset_id' => $assetIds[($i * 3) % count($assetIds)],
+                'title' => sprintf('Visite préventive fictive %03d', $i),
+                'description' => 'Contrôle calendaire de démonstration uniquement.',
+                'priority' => ['low', 'normal', 'high', 'critical'][$i % 4],
+                'interval_days' => [7, 15, 30, 90][$i % 4],
+                'next_due_on' => \Carbon\CarbonImmutable::today('Europe/Paris')
+                    ->addDays(($i % 8) - 3)->toDateString(),
+                'active' => true,
+                'created_by' => $adminId,
+            ]);
+        }
+
         for ($i = 1; $i <= 150; $i++) {
             $status = $i % 4 === 0 ? 'new' : 'qualified';
             $assetId = $assetIds[$i % count($assetIds)];
@@ -358,6 +379,47 @@ final class MassiveDemoSeeder extends Seeder
                 ];
             }
         }
+        // P132: realistic daily room-cleaning states, per-tenant and per-hotel.
+        // Event history is append-only and checked before insert on every rerun.
+        $businessDay = \Carbon\CarbonImmutable::today('Europe/Paris')->toDateString();
+        foreach ($roomIds as $index => $room) {
+            $steps = ['dirty', 'in_progress', 'clean', 'inspected'];
+            $finalStep = $index % count($steps);
+            $state = $steps[$finalStep];
+            $inspected = $state === 'inspected';
+            $taskId = $this->fixture('hotel_housekeeping_tasks', [
+                'company_id' => $companyId,
+                'room_id' => $room['room'],
+                'business_date' => $businessDay,
+            ], [
+                'hotel_id' => $room['hotel'],
+                'status' => $state,
+                'created_by' => $adminId,
+                'inspected_by' => $inspected ? $adminId : null,
+                'inspected_at' => $inspected ? now() : null,
+            ]);
+            $previous = 'none';
+            for ($stage = 0; $stage <= $finalStep; $stage++) {
+                $next = $steps[$stage];
+                $identity = [
+                    'company_id' => $companyId,
+                    'task_id' => $taskId,
+                    'room_id' => $room['room'],
+                    'from_status' => $previous,
+                    'to_status' => $next,
+                ];
+                if (! DB::table('hotel_room_status_events')->where($identity)->exists()) {
+                    DB::table('hotel_room_status_events')->insert(array_merge($identity, [
+                        'actor_id' => $adminId,
+                        'reason' => null,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]));
+                }
+                $previous = $next;
+            }
+        }
+
         for ($i = 0; $i < 210; $i++) {
             $index = $i % count($roomIds);
             $slot = intdiv($i, count($roomIds));
