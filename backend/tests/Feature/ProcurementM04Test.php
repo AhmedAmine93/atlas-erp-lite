@@ -147,8 +147,8 @@ class ProcurementM04Test extends TestCase
         $this->as($foreign,$other);
         $this->getJson('/api/purchasing/reporting/summary')->assertOk()
             ->assertJsonPath('suppliers',0);
-        $this->get('/api/purchasing/reporting/suppliers/export')
-            ->assertOk()->assertDontSee('DANGEROUS');
+        $foreignCsv=$this->get('/api/purchasing/reporting/suppliers/export')->assertOk();
+        $this->assertStringNotContainsString('DANGEROUS', $foreignCsv->streamedContent());
     }
 
     public function test_invalid_iban_checksum_is_rejected_without_persisting_plaintext(): void
