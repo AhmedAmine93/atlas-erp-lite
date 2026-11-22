@@ -21,7 +21,7 @@ Depuis la racine de atlas-erp-lite, après récupération de la branche de cette
 
 1. Générer le template Oracle officiel et appliquer les écrans : node jet-industrial/scripts/bootstrap.mjs
 2. Lancer l'ERP existant : docker compose up --build -d --wait
-3. Dans un autre terminal : cd jet-industrial/app ; npx @oracle/ojet-cli@21.0.0 serve
+3. Dans un autre terminal : cd jet-industrial/atlas-jet-gmao ; npx @oracle/ojet-cli@21.0.0 serve
 4. Dans un troisième terminal depuis la racine : node jet-industrial/scripts/proxy.mjs
 5. Se connecter avec un admin de test sur http://127.0.0.1:3100 puis ouvrir http://127.0.0.1:8100
 
@@ -30,7 +30,7 @@ Utiliser exclusivement 127.0.0.1 pour les deux applications, car les cookies par
 ## Tests
 
 Contrôle de la passerelle : node --test jet-industrial/tests/gateway.test.mjs
-Vrai build JET : cd jet-industrial/app ; npx @oracle/ojet-cli@21.0.0 build
+Vrai build JET : cd jet-industrial/atlas-jet-gmao ; npx @oracle/ojet-cli@21.0.0 build
 
 La CI crée le squelette officiel par téléchargement NPM puis compile la surcouche. Ce lot ne prouve pas une intégration SSO OIDC, la sécurité d'un gateway exposé à Internet, ni un rendu vérifié sur tous les navigateurs. Le rôle admin reste requis côté Laravel pour toute opération GMAO.
 
