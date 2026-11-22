@@ -89,6 +89,7 @@ return new class extends Migration {
             $t->string('reason', 500)->nullable();
             $t->foreignId('created_by')->constrained('users')->restrictOnDelete();
             $t->foreignId('counted_by')->nullable()->constrained('users')->restrictOnDelete();
+            $t->foreignId('recounted_by')->nullable()->constrained('users')->restrictOnDelete();
             $t->foreignId('approved_by')->nullable()->constrained('users')->restrictOnDelete();
             $t->timestamp('approved_at')->nullable();
             $t->timestamps();
@@ -154,6 +155,10 @@ return new class extends Migration {
             $t->unique(['company_id', 'operation_key'], 'inv_replenish_key_unique');
             $t->index(['company_id', 'product_id', 'status'], 'inv_replenish_lookup');
         });
+
+        DB::statement("CREATE UNIQUE INDEX inv_count_open_scope ON inventory_counts
+            (company_id, product_id, location_id, COALESCE(lot_id, 0))
+            WHERE status IN ('draft','counted','recounted')");
 
         if (DB::getDriverName() !== 'pgsql') {
             // SQLite test DB can still run the API tests; PostgreSQL is the
