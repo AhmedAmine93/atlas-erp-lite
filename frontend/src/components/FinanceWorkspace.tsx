@@ -46,7 +46,6 @@ const show=(v:unknown):string=>v===null||v===undefined?"—":typeof v==="boolean
 const currencyFormat=(cents:unknown,currencyCode="EUR")=>new Intl.NumberFormat("fr-FR",{style:"currency",currency:currencyCode}).format(Number(cents??0)/100);
 const isCent=(name:string)=>name.endsWith("_cents");
 const hasKey=(endpoint:string)=>["finance/credit-notes","finance/collections","finance/payment-reminders","finance/expenses","finance/entries","finance/accounting-exports"].includes(endpoint);
-type ErrorWithMessage={message?:string};
 
 export default function FinanceWorkspace({view,activeCompanyId,canWrite}:{view:string;activeCompanyId:number|null;canWrite:boolean}){
   const [section,setSection]=useState(view);
@@ -204,6 +203,19 @@ export default function FinanceWorkspace({view,activeCompanyId,canWrite}:{view:s
     {notice&&<p role="status" className="success">{notice}</p>}
     {form&&canWrite&&<form onSubmit={e=>void create(e)} style={{padding:"1rem",border:"1px solid var(--border, #ccc)",borderRadius:12,marginBottom:16}}>
       <h3>Nouvel enregistrement — {conf.title}</h3>
+      {section==="expenses"&&<label style={{display:"grid",gap:4,marginBottom:12}}>
+        Calculer l’empreinte du justificatif (fichier local, non transmis)
+        <input type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={async e=>{
+          const file=e.target.files?.[0];if(!file)return;
+          if(file.size>10*1024*1024){setError("Fichier de plus de 10 Mio non pris en charge.");return;}
+          try{
+            const digest=await crypto.subtle.digest("SHA-256",await file.arrayBuffer());
+            const hex=Array.from(new Uint8Array(digest)).map(n=>n.toString(16).padStart(2,"0")).join("");
+            setValues(old=>({...old,receipt_digest:hex}));
+          }catch{setError("Impossible de calculer l’empreinte.")}
+        }}/>
+        <small>Seule l’empreinte est conservée, pas le document original. Ne pas utiliser pour une archive légale.</small>
+      </label>}
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(210px,1fr))",gap:12}}>
       {conf.fields.map(field=><label key={field.key} style={{display:"grid",gap:4}}>
         {field.label}
