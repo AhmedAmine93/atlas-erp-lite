@@ -25,7 +25,7 @@ return new class extends Migration {
 
         Schema::create('crm_prospects', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('company_id');
+            $table->foreignId('company_id')->constrained('companies');
             $table->string('name', 255);
             $table->string('email', 255)->nullable();
             $table->string('phone', 40)->nullable();
@@ -45,7 +45,7 @@ return new class extends Migration {
         });
         Schema::create('crm_contacts', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('company_id');
+            $table->foreignId('company_id')->constrained('companies');
             $table->unsignedBigInteger('customer_id')->nullable();
             $table->string('first_name', 120);
             $table->string('last_name', 120);
@@ -64,7 +64,7 @@ return new class extends Migration {
         });
         Schema::create('crm_opportunities', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('company_id');
+            $table->foreignId('company_id')->constrained('companies');
             $table->unsignedBigInteger('customer_id')->nullable();
             $table->unsignedBigInteger('prospect_id')->nullable();
             $table->unsignedBigInteger('owner_id');
@@ -85,7 +85,7 @@ return new class extends Migration {
         });
         Schema::create('crm_activities', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('company_id');
+            $table->foreignId('company_id')->constrained('companies');
             $table->unsignedBigInteger('customer_id')->nullable();
             $table->unsignedBigInteger('prospect_id')->nullable();
             $table->unsignedBigInteger('contact_id')->nullable();
@@ -113,7 +113,7 @@ return new class extends Migration {
         });
         Schema::create('crm_segments', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('company_id');
+            $table->foreignId('company_id')->constrained('companies');
             $table->string('code', 60);
             $table->string('name', 180);
             $table->string('mode', 16)->default('static');
@@ -126,7 +126,7 @@ return new class extends Migration {
         });
         Schema::create('crm_segment_memberships', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('company_id');
+            $table->foreignId('company_id')->constrained('companies');
             $table->unsignedBigInteger('segment_id');
             $table->unsignedBigInteger('customer_id');
             $table->boolean('active')->default(true);
@@ -137,7 +137,7 @@ return new class extends Migration {
         });
         Schema::create('crm_import_batches', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('company_id');
+            $table->foreignId('company_id')->constrained('companies');
             $table->char('sha256', 64);
             $table->unsignedInteger('accepted_rows')->default(0);
             $table->unsignedInteger('rejected_rows')->default(0);
