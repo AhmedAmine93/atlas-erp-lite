@@ -42,6 +42,8 @@ import { nav, navigationSections, type View } from "@/lib/navigation";
 import { canEditWorkspaceView, canOpenWorkspaceView, parseWorkspacePath, workspaceHref, type WorkspaceRoute } from "@/lib/workspaceRoutes";
 import OrganizationWorkspace from "@/components/OrganizationWorkspace";
 import DomainWorkspace, { domainViews } from "@/components/DomainWorkspace";
+import CrmWorkspace from "@/components/CrmWorkspace";
+import CrmCustomerImport from "@/components/CrmCustomerImport";
 import PilotageWorkspace from "@/components/PilotageWorkspace";
 import HotelHousekeepingWorkspace from "@/components/HotelHousekeepingWorkspace";
 import HotelMinibarWorkspace from "@/components/HotelMinibarWorkspace";
@@ -568,6 +570,8 @@ export default function Workspace() {
             </>
           ) : ["direction-dashboard", "sales-dashboard", "finance-dashboard", "logistics-dashboard", "alerts-dashboard"].includes(view) ? (
             <PilotageWorkspace key={view + "-" + user.active_company_id} view={view} user={user} />
+          ) : ["prospects","crm-contacts","opportunities","crm-activities","customer-segments"].includes(view) ? (
+            <CrmWorkspace key={view+"-"+user.active_company_id} view={view as "prospects"|"crm-contacts"|"opportunities"|"crm-activities"|"customer-segments"} activeCompanyId={user.active_company_id ?? null} canEdit={["admin","commercial"].includes(user.role.name)} />
           ) : view === "support-incidents" ? (
             <SupportIncidents canDiagnose={["admin", "support_n3"].includes(user.role.name)} />
           ) : view === "hotel-minibar" ? (
@@ -586,6 +590,10 @@ export default function Workspace() {
               onCompanySaved={async () => setUser(await api<User>("me"))}
             />
           ) : (
+            <>
+            {view === "customers" && ["admin","commercial"].includes(user.role.name) && (
+              <CrmCustomerImport onImported={() => setRefresh(n => n + 1)} />
+            )}
             <ListView
               key={view}
               view={view}
@@ -599,6 +607,7 @@ export default function Workspace() {
               }
               busy={busy}
             />
+            </>
           )}
           <footer className="page-footer">
             <span>ATLAS ONE</span>
