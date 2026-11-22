@@ -1,0 +1,81 @@
+/* P06.03 shared component tokens and accessible status feedback. */
+:root {
+  --atlas-ui-radius: 12px;
+  --atlas-ui-space-1: 4px;
+  --atlas-ui-space-2: 8px;
+  --atlas-ui-space-3: 12px;
+  --atlas-ui-space-4: 16px;
+  --atlas-ui-space-6: 24px;
+  --atlas-ui-stroke: #e2e9f6;
+  --atlas-ui-muted: #687b9d;
+  --atlas-ui-focus: #4369e6;
+}
+
+.atlas-feedback {
+  width: 100%;
+  min-height: 75px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 17px 18px;
+  background: #f6f9ff;
+  border: 1px solid var(--atlas-ui-stroke);
+  border-radius: var(--atlas-ui-radius);
+  color: #536783;
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.atlas-feedback > svg {
+  flex-shrink: 0;
+  color: #5b77cd;
+}
+
+.atlas-feedback > span {
+  flex: 1;
+  min-width: 170px;
+}
+
+.atlas-feedback-error {
+  color: #8c443a;
+  background: #fff6f3;
+  border-color: #f1d6d0;
+}
+
+.atlas-feedback-error > svg {
+  color: #ae5546;
+}
+
+.atlas-feedback-empty {
+  background: #f9fbff;
+  color: var(--atlas-ui-muted);
+}
+
+.atlas-feedback-loading > svg {
+  animation: atlas-ui-spin 1.5s linear infinite;
+}
+
+.atlas-feedback .button {
+  margin-left: auto;
+  min-height: 38px;
+}
+
+@keyframes atlas-ui-spin {
+  to { transform: rotate(360deg); }
+}
+
+.atlas-role-stat-link:focus-visible {
+  outline: 3px solid var(--atlas-ui-focus);
+  outline-offset: 3px;
+}
+
+@media (max-width: 760px) {
+  .atlas-feedback { padding: 15px; }
+  .atlas-feedback > span { min-width: 0; }
+  .atlas-feedback .button { margin-left: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atlas-feedback-loading > svg { animation: none; }
+}

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Product;
 use App\Models\StockMovement;
+use App\Services\TenantContext;
 use App\Services\Audit;
 use App\Services\StockService;
 use Illuminate\Http\Request;
@@ -15,6 +16,7 @@ class ProductController extends Controller
 {
     public function index(Request $r)
     {
+        Gate::authorize('productsRead');
         $r->validate(['search' => 'nullable|string|max:100', 'category' => 'nullable|string|max:100', 'low_stock' => 'nullable|boolean']);
 
         return Product::query()->when($r->search, fn ($q) => $q->where(fn ($q) => $q->whereRaw('LOWER(name) LIKE ?', ['%'.mb_strtolower($r->search).'%'])->orWhereRaw('LOWER(reference) LIKE ?', ['%'.mb_strtolower($r->search).'%'])))
@@ -25,7 +27,7 @@ class ProductController extends Controller
     {
         Gate::authorize('stock');
         $p = $id ? Product::findOrFail($id) : new Product;
-        $data = $r->validate(['reference' => ['required', 'string', 'max:50', Rule::unique('products')->ignore($id)], 'name' => 'required|string|max:255', 'category' => 'required|string|max:100',
+        $data = $r->validate(['reference' => ['required', 'string', 'max:50', Rule::unique('products')->where('company_id', app(TenantContext::class)->requireId())->ignore($id)], 'name' => 'required|string|max:255', 'category' => 'required|string|max:100',
             'price_cents' => 'required|integer|min:0|max:100000000', 'vat_bps' => 'required|integer|min:0|max:10000', 'alert_threshold' => 'required|integer|min:0|max:1000000']);
 
         return DB::transaction(function () use ($p, $data, $id) {
@@ -59,7 +61,12 @@ class ProductController extends Controller
 
     public function movements(Request $r)
     {
-        $r->validate(['product_id' => 'nullable|integer|exists:products,id']);
+        Gate::authorize('movementsRead');
+        $r->validate(['product_id' => 'nullable|integer']);
+
+        if ($r->product_id) {
+            Product::findOrFail((int) $r->product_id);
+        }
 
         return StockMovement::with('product', 'user')->when($r->product_id, fn ($q) => $q->where('product_id', $r->product_id))->latest('id')->paginate(20);
     }

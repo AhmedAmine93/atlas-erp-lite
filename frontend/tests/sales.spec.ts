@@ -11,6 +11,10 @@ test("client → devis → commande → facture PDF → payée", async ({ page }
     .fill(process.env.DEMO_PASSWORD!);
   await page.getByRole("button", { name: "Se connecter", exact: true }).click();
   await page.getByRole("button", { name: "Clients", exact: true }).click();
+  const clientResults = page.getByRole("region", { name: "Résultats : Clients" });
+  await expect(clientResults).toBeVisible();
+  await clientResults.focus();
+  await expect(clientResults).toBeFocused();
   await page
     .getByRole("button", { name: "Nouveau client", exact: true })
     .click();

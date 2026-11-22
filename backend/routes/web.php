@@ -4,10 +4,43 @@ use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\PilotageController;
+use App\Http\Controllers\PilotageManagementController;
+use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\MetricsController;
+use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\SalesController;
+use App\Http\Controllers\SalesCommerceController;
+use App\Http\Controllers\TenantContextController;
+use App\Http\Controllers\SupportIncidentController;
+use App\Http\Controllers\SupportDiagnosticController;
+use App\Http\Controllers\DataCsvIngestionController;
+use App\Http\Controllers\DataIngestionBatchController;
+use App\Http\Controllers\DataSourceCatalogController;
+use App\Http\Controllers\HotelMinibarPmsController;
+use App\Http\Controllers\HotelMinibarReconciliationController;
+use App\Http\Controllers\HotelMinibarMonthlyController;
+use App\Http\Controllers\HotelMinibarReportController;
+use App\Http\Controllers\HotelMinibarLedgerController;
+use App\Http\Controllers\HotelMinibarCatalogController;
+use App\Http\Controllers\HotelBookingController;
+use App\Http\Controllers\HotelRegistryController;
+use App\Http\Controllers\HotelHousekeepingController;
+use App\Http\Controllers\HotelRoomAvailabilityController;
+use App\Http\Controllers\HotelRoomBlockController;
+use App\Http\Controllers\IndustrialJetController;
+use App\Http\Controllers\MaintenanceRegistryController;
+use App\Http\Controllers\MaintenanceRequestController;
+use App\Http\Controllers\MaintenanceWorkOrderController;
+use App\Http\Controllers\MaintenancePlanningController;
+use App\Http\Controllers\MaintenancePreventiveController;
+use App\Http\Controllers\PurchaseRequestController;
+use App\Http\Controllers\DashboardLayoutController;
+use App\Http\Controllers\DataCanonicalSchemaController;
+use App\Http\Controllers\FormSchemaController;
+use App\Services\TenantRoles;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -15,10 +48,109 @@ Route::get('metrics', MetricsController::class)->middleware('throttle:60,1');
 Route::prefix('api')->group(function () {
     Route::get('csrf', fn () => response()->json(['token' => csrf_token()]));
     Route::post('login', [AuthController::class, 'login'])->middleware('throttle:login');
-    Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
-        Route::get('me', fn (Request $r) => $r->user()->load('role'));
+    Route::middleware(['auth:sanctum', 'throttle:api', 'tenant'])->group(function () {
+        Route::get('me', fn (Request $r) => app(TenantRoles::class)->profile(
+            $r->user(), (int) $r->attributes->get('atlas_company_id')
+        ));
+        Route::post('tenant/switch', [TenantContextController::class, 'switch']);
         Route::post('logout', [AuthController::class, 'logout']);
         Route::get('dashboard', DashboardController::class);
+        Route::get('pilotage/centers', [PilotageManagementController::class, 'centers']);
+        Route::post('pilotage/centers', [PilotageManagementController::class, 'createCenter']);
+        Route::get('pilotage/targets', [PilotageManagementController::class, 'targets']);
+        Route::post('pilotage/targets', [PilotageManagementController::class, 'createTarget']);
+        Route::get('pilotage/{section}/export', [PilotageController::class, 'export'])
+            ->whereIn('section', ['direction','sales','finance','logistics','alerts']);
+        Route::post('pilotage/alerts/transition', [PilotageController::class, 'transitionAlert']);
+        Route::get('pilotage/{section}', [PilotageController::class, 'show'])
+            ->whereIn('section', ['direction','sales','finance','logistics','alerts']);
+        Route::get('pilotage/alerts/rules', [PilotageController::class, 'rules']);
+        Route::post('pilotage/alerts/rules', [PilotageController::class, 'createRule']);
+        Route::post('pilotage/alerts/acknowledge', [PilotageController::class, 'acknowledge']);
+        Route::get('dashboard/layout', [DashboardLayoutController::class, 'show']);
+        Route::put('dashboard/layout', [DashboardLayoutController::class, 'save']);
+        Route::post('builders/forms/validate', [FormSchemaController::class, 'validateDraft']);
+        Route::get('data/sources/{id}/schemas', [DataCanonicalSchemaController::class, 'index'])->whereNumber('id');
+        Route::post('data/sources/{id}/schemas', [DataCanonicalSchemaController::class, 'store'])->whereNumber('id');
+        Route::get('purchasing/requests', [PurchaseRequestController::class, 'index']);
+        Route::post('purchasing/requests', [PurchaseRequestController::class, 'store']);
+        Route::post('purchasing/requests/{id}/submit', [PurchaseRequestController::class, 'submit'])->whereNumber('id');
+        Route::post('purchasing/requests/{id}/approve', [PurchaseRequestController::class, 'approve'])->whereNumber('id');
+        Route::post('purchasing/requests/{id}/reject', [PurchaseRequestController::class, 'reject'])->whereNumber('id');
+        Route::patch('purchasing/requests/{id}/revise', [PurchaseRequestController::class, 'revise'])->whereNumber('id');
+        // Oracle JET industrial Node BFF delegates all writes to authorized Laravel.
+        Route::get('industrial/overview', [IndustrialJetController::class, 'overview']);
+        Route::get('industrial/meters', [IndustrialJetController::class, 'meters']);
+        Route::post('industrial/meters', [IndustrialJetController::class, 'recordMeter']);
+        Route::get('industrial/templates', [IndustrialJetController::class, 'templates']);
+        Route::post('industrial/templates', [IndustrialJetController::class, 'createTemplate']);
+        Route::get('industrial/inspections', [IndustrialJetController::class, 'inspections']);
+        Route::post('industrial/inspections', [IndustrialJetController::class, 'recordInspection']);
+        Route::get('maintenance/sites', [MaintenanceRegistryController::class, 'sites']);
+        Route::post('maintenance/sites', [MaintenanceRegistryController::class, 'createSite']);
+        Route::get('maintenance/assets', [MaintenanceRegistryController::class, 'assets']);
+        Route::post('maintenance/assets', [MaintenanceRegistryController::class, 'createAsset']);
+        Route::get('maintenance/requests', [MaintenanceRequestController::class, 'index']);
+        Route::post('maintenance/requests', [MaintenanceRequestController::class, 'store']);
+        Route::post('maintenance/requests/{id}/qualify', [MaintenanceRequestController::class, 'qualify'])->whereNumber('id');
+        // Team and technician directory, protected by the tenant middleware.
+        Route::get('maintenance/preventive/plans', [MaintenancePreventiveController::class, 'index']);
+        Route::post('maintenance/preventive/plans', [MaintenancePreventiveController::class, 'store']);
+        Route::get('maintenance/preventive/occurrences', [MaintenancePreventiveController::class, 'occurrences']);
+        Route::post('maintenance/preventive/run', [MaintenancePreventiveController::class, 'run']);
+        Route::get('maintenance/teams', [MaintenancePlanningController::class, 'teams']);
+        Route::post('maintenance/teams', [MaintenancePlanningController::class, 'createTeam']);
+        Route::get('maintenance/technicians', [MaintenancePlanningController::class, 'technicians']);
+        Route::post('maintenance/technicians', [MaintenancePlanningController::class, 'createTechnician']);
+        // Static reports/planning routes must precede variable work-order routes.
+        Route::get('maintenance/planning', [MaintenancePlanningController::class, 'slots']);
+        Route::get('maintenance/reports/summary', [MaintenancePlanningController::class, 'report']);
+        Route::post('maintenance/work-orders/{id}/schedule', [MaintenancePlanningController::class, 'schedule'])->whereNumber('id');
+        Route::post('maintenance/planning/{id}/cancel', [MaintenancePlanningController::class, 'cancel'])->whereNumber('id');
+        Route::get('maintenance/work-orders', [MaintenanceWorkOrderController::class, 'index']);
+        Route::post('maintenance/requests/{id}/work-orders', [MaintenanceWorkOrderController::class, 'createFromRequest'])->whereNumber('id');
+        Route::post('maintenance/work-orders/{id}/start', [MaintenanceWorkOrderController::class, 'start'])->whereNumber('id');
+        Route::post('maintenance/work-orders/{id}/complete', [MaintenanceWorkOrderController::class, 'complete'])->whereNumber('id');
+        Route::prefix('hotels/{hotel}/minibar')->where(['hotel' => '[0-9]+'])->group(function () {
+            Route::get('monthly',[HotelMinibarMonthlyController::class,'index']);
+            Route::get('reconciliation',[HotelMinibarReconciliationController::class,'show']);
+            Route::get('reconciliation/export',[HotelMinibarReconciliationController::class,'export']);
+            Route::get('pms/mapping',[HotelMinibarPmsController::class,'mapping']);
+            Route::post('pms/imports',[HotelMinibarPmsController::class,'store']);
+            Route::get('report', [HotelMinibarReportController::class,'daily']);
+            Route::get('export', [HotelMinibarReportController::class,'export']);
+            Route::post('consumptions', [HotelMinibarLedgerController::class, 'store']);
+            Route::get('products', [HotelMinibarCatalogController::class, 'index']);
+            Route::post('products', [HotelMinibarCatalogController::class, 'store']);
+            Route::patch('products/{id}', [HotelMinibarCatalogController::class, 'update'])->whereNumber('id');
+            Route::post('products/{id}/prices', [HotelMinibarCatalogController::class, 'price'])->whereNumber('id');
+        });
+        Route::get('hotels/room-day', [HotelHousekeepingController::class, 'roomDay']);
+        Route::get('hotels/housekeeping/tasks', [HotelHousekeepingController::class, 'index']);
+        Route::post('hotels/housekeeping/tasks', [HotelHousekeepingController::class, 'create']);
+        Route::post('hotels/housekeeping/tasks/{id}/transition', [HotelHousekeepingController::class, 'transition'])->whereNumber('id');
+        Route::get('hotels/housekeeping/readiness', [HotelHousekeepingController::class, 'readiness']);
+        Route::get('hotels', [HotelRegistryController::class, 'hotels']);
+        Route::post('hotels', [HotelRegistryController::class, 'createHotel']);
+        Route::get('hotel-rooms', [HotelRegistryController::class, 'rooms']);
+        Route::post('hotel-rooms', [HotelRegistryController::class, 'createRoom']);
+        Route::get('hotels/rooms/availability', [HotelRoomAvailabilityController::class, 'index']);
+        Route::get('hotels/rooms/blocks', [HotelRoomBlockController::class, 'index']);
+        Route::post('hotels/rooms/blocks', [HotelRoomBlockController::class, 'create']);
+        Route::post('hotels/rooms/blocks/{id}/release', [HotelRoomBlockController::class, 'release'])->whereNumber('id');
+        Route::get('hotel-bookings', [HotelBookingController::class, 'index']);
+        Route::post('hotel-bookings', [HotelBookingController::class, 'store']);
+        Route::post('hotel-bookings/{id}/confirm', [HotelBookingController::class, 'confirm'])->whereNumber('id');
+        Route::post('hotel-bookings/{id}/checkin', [HotelBookingController::class, 'checkin'])->whereNumber('id');
+        Route::post('hotel-bookings/{id}/checkout', [HotelBookingController::class, 'checkout'])->whereNumber('id');
+        Route::post('hotel-bookings/{id}/cancel', [HotelBookingController::class, 'cancel'])->whereNumber('id');
+        Route::get('data/sources', [DataSourceCatalogController::class, 'index']);
+        Route::post('data/sources', [DataSourceCatalogController::class, 'store']);
+        Route::post('data/sources/{id}/validate', [DataSourceCatalogController::class, 'validateSource'])->whereNumber('id');
+        Route::get('data/ingestion-batches', [DataIngestionBatchController::class, 'index']);
+        Route::post('data/ingestion-batches', [DataIngestionBatchController::class, 'store']);
+        Route::post('data/ingestion-batches/{id}/ingest-csv', [DataCsvIngestionController::class, 'ingest'])->whereNumber('id');
+        Route::get('search', GlobalSearchController::class);
         Route::get('stock-movements', [ProductController::class, 'movements']);
         Route::get('products', [ProductController::class, 'index']);
         Route::post('products', [ProductController::class, 'save']);
@@ -30,6 +162,35 @@ Route::prefix('api')->group(function () {
         Route::post('{kind}', [ContactController::class, 'save'])->whereIn('kind', ['customers', 'suppliers']);
         Route::put('{kind}/{id}', [ContactController::class, 'save'])->whereIn('kind', ['customers', 'suppliers'])->whereNumber('id');
         Route::delete('{kind}/{id}', [ContactController::class, 'destroy'])->whereIn('kind', ['customers', 'suppliers'])->whereNumber('id');
+        // M03 V5 commerce: static namespace before legacy dynamic sales routes.
+        Route::get('sales-v5/{kind}/export', [SalesCommerceController::class, 'export'])
+            ->whereIn('kind',['orders','revisions','deliveries','contracts','returns','pricing']);
+        Route::get('sales-v5/delegates', [SalesCommerceController::class, 'delegates']);
+        Route::post('sales-v5/delegates/{id}', [SalesCommerceController::class, 'setDelegation'])->whereNumber('id');
+        Route::post('sales-v5/orders/{order}/{action}', [SalesCommerceController::class, 'orderTransition'])
+            ->whereNumber('order')->whereIn('action',['confirm','prepare','close']);
+        Route::post('sales-v5/deliveries/{id}/lost', [SalesCommerceController::class, 'reportLost'])->whereNumber('id');
+        Route::get('sales-v5/{kind}', [SalesCommerceController::class, 'index'])
+            ->whereIn('kind', ['revisions','approvals','reservations','deliveries','contracts','returns','credits','pricing']);
+        Route::get('sales-v5/{kind}/{id}', [SalesCommerceController::class, 'detail'])
+            ->whereIn('kind', ['revisions','approvals','reservations','deliveries','contracts','returns','credits','pricing'])->whereNumber('id');
+        Route::post('sales-v5/quotes/{quote}/revisions', [SalesCommerceController::class, 'reviseQuote'])->whereNumber('quote');
+        Route::post('sales-v5/approvals/{id}/decide', [SalesCommerceController::class, 'approveDiscount'])->whereNumber('id');
+        Route::post('sales-v5/revisions/{revision}/{action}', [SalesCommerceController::class, 'quoteTransition'])
+            ->whereNumber('revision')->whereIn('action', ['send','accept']);
+        Route::post('sales-v5/revisions/{revision}/convert', [SalesCommerceController::class, 'convertQuote'])->whereNumber('revision');
+        Route::post('sales-v5/orders/{order}/reserve', [SalesCommerceController::class, 'reserveOrder'])->whereNumber('order');
+        Route::post('sales-v5/orders/{order}/ship', [SalesCommerceController::class, 'ship'])->whereNumber('order');
+        Route::post('sales-v5/orders/{id}/cancel', [SalesCommerceController::class, 'cancelOrder'])->whereNumber('id');
+        Route::post('sales-v5/deliveries/{id}/acknowledge', [SalesCommerceController::class, 'acknowledge'])->whereNumber('id');
+        Route::post('sales-v5/contracts', [SalesCommerceController::class, 'createContract']);
+        Route::post('sales-v5/contracts/{id}/{action}', [SalesCommerceController::class, 'contractTransition'])
+            ->whereNumber('id')->whereIn('action',['publish','amend','terminate']);
+        Route::post('sales-v5/pricing', [SalesCommerceController::class, 'createPricing']);
+        Route::post('sales-v5/pricing/{id}/publish', [SalesCommerceController::class, 'publishPricing'])->whereNumber('id');
+        Route::post('sales-v5/returns', [SalesCommerceController::class, 'createReturn']);
+        Route::post('sales-v5/returns/{id}/inspect', [SalesCommerceController::class, 'inspectReturn'])->whereNumber('id');
+        Route::post('sales-v5/returns/{id}/credit', [SalesCommerceController::class, 'creditReturn'])->whereNumber('id');
         Route::get('{salesKind}', [SalesController::class, 'index'])->whereIn('salesKind', ['quotes', 'orders']);
         Route::post('{salesKind}', [SalesController::class, 'store'])->whereIn('salesKind', ['quotes', 'orders']);
         Route::get('{salesKind}/{id}', [SalesController::class, 'show'])->whereIn('salesKind', ['quotes', 'orders'])->whereNumber('id');
@@ -40,6 +201,23 @@ Route::prefix('api')->group(function () {
         Route::get('invoices/{id}', [InvoiceController::class, 'show'])->whereNumber('id');
         Route::patch('invoices/{id}', [InvoiceController::class, 'transition'])->whereNumber('id');
         Route::get('invoices/{id}/pdf', [InvoiceController::class, 'pdf'])->whereNumber('id');
+        Route::get('support/incidents/summary', [SupportIncidentController::class, 'summary']);
+        Route::get('support/incidents/{id}/diagnostics', [SupportDiagnosticController::class, 'index'])->whereNumber('id')
+            ->middleware('throttle:support-diagnostics');
+        Route::post('support/incidents/{id}/diagnostics', [SupportDiagnosticController::class, 'run'])->whereNumber('id')
+            ->middleware('throttle:support-diagnostics');
+        Route::get('support/incidents', [SupportIncidentController::class, 'index']);
+        Route::post('support/incidents', [SupportIncidentController::class, 'store']);
+        Route::get('support/incidents/{id}', [SupportIncidentController::class, 'show'])->whereNumber('id');
+        Route::patch('support/incidents/{id}', [SupportIncidentController::class, 'transition'])->whereNumber('id');
+        Route::post('support/incidents/{id}/comments', [SupportIncidentController::class, 'comment'])->whereNumber('id');
+        Route::post('support/incidents/{id}/escalate', [SupportIncidentController::class, 'escalate'])->whereNumber('id');
+        Route::get('companies', [OrganizationController::class, 'companies']);
+        Route::post('companies', [OrganizationController::class, 'saveCompany']);
+        Route::put('companies/{id}', [OrganizationController::class, 'saveCompany'])->whereNumber('id');
+        Route::get('establishments', [OrganizationController::class, 'establishments']);
+        Route::post('establishments', [OrganizationController::class, 'saveEstablishment']);
+        Route::put('establishments/{id}', [OrganizationController::class, 'saveEstablishment'])->whereNumber('id');
         Route::get('users', [AdminController::class, 'users']);
         Route::get('roles', [AdminController::class, 'roles']);
         Route::post('users', [AdminController::class, 'save']);

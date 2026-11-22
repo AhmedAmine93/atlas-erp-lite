@@ -1,0 +1,351 @@
+/* ATLAS ONE Experience Platform · P06 visual layer.
+   Component behavior and backend contracts remain in existing modules. */
+:root {
+  --bg: #f3f6fc;
+  --ink: #18253c;
+  --muted: #66758d;
+  --line: #e4eaf3;
+  --green: #375ee8;
+  --mint: #eaf1ff;
+  --amber: #bc812c;
+  --sidebar: 270px;
+  --atlas-accent: #4965ef;
+  --atlas-teal: #25c7bc;
+  --atlas-surface: #fff;
+  --atlas-focus: #6387ff;
+}
+body { background: var(--bg); color: var(--ink); }
+button:focus-visible, a:focus-visible, input:focus-visible,
+select:focus-visible, textarea:focus-visible {
+  outline: 3px solid var(--atlas-focus);
+  outline-offset: 3px;
+}
+.sidebar {
+  background: #111d34;
+  border-right: 1px solid #263751;
+  padding: 28px 16px 18px;
+  color: #f8fbff;
+  scrollbar-color: #3d516d #111d34;
+}
+.sidebar .brand { color: #fff; font-size: 25px; letter-spacing: .4px; padding-left: 8px; }
+.brand-mark {
+  background: linear-gradient(140deg,#6482ff,#2dc1ba);
+  color: #fff;
+  box-shadow: 0 10px 23px #0c14243b;
+  border-radius: 12px;
+}
+.sidebar .brand-lite { color: #93a8ce; font-size: 9px; letter-spacing: 1.5px; }
+.sidebar .workspace-chip {
+  margin: 31px 0 24px;
+  background: #1a2b47;
+  border: 1px solid #31415d;
+  border-radius: 13px;
+  padding: 14px 12px;
+}
+.sidebar .workspace-avatar {
+  background: #314b77;
+  color: #dce7ff;
+  border-radius: 9px;
+}
+.sidebar .tenant-picker label { color: #9eb0ce; }
+.sidebar .tenant-picker select {
+  color: #f6faff;
+  font-weight: 650;
+  color-scheme: dark;
+}
+.sidebar .tenant-picker small { color: #92a4c2; }
+.sidebar .online-dot { background: #40dfb5; box-shadow: 0 0 0 4px #40dfb520; }
+.atlas-nav-toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  padding: 0 8px 11px;
+}
+.sidebar .atlas-nav-toolbar .nav-caption {
+  padding: 0;
+  margin: 0;
+  font-size: 10px;
+  font-weight: 800;
+  color: #8298bf;
+}
+.atlas-planned-toggle {
+  max-width: 150px;
+  background: #293d60;
+  border: 1px solid #3b5278;
+  border-radius: 999px;
+  padding: 6px 9px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #d2e1fa;
+  line-height: 1.25;
+}
+.atlas-planned-toggle:hover { background: #344f7a; color: #fff; }
+.atlas-planned-toggle[aria-pressed="true"] { background: #334f7a; }
+.sidebar .erp-sidebar-search {
+  border: 1px solid #34455f;
+  border-radius: 10px;
+  margin: 0 4px 18px;
+  color: #aec0da;
+  background: #1b2a44;
+  padding: 10px 12px;
+}
+.sidebar .erp-sidebar-search input { color: #f4f8ff; }
+.sidebar .erp-sidebar-search input::placeholder { color: #91a4c3; }
+.sidebar .erp-module-nav .nav-group { margin-bottom: 5px; }
+.sidebar .erp-module-nav .nav-group-toggle {
+  font-size: 11px;
+  color: #aebfdb;
+  border-radius: 9px;
+  padding: 11px 10px;
+  font-weight: 700;
+}
+.sidebar .erp-module-nav .nav-group-toggle:hover {
+  color: #fff;
+  background: #263954;
+}
+.sidebar .erp-module-nav .nav-group-children { padding: 2px 0 8px 10px; }
+.sidebar .erp-module-nav .nav-entry {
+  font-size: 11px;
+  color: #c2cde0;
+  border-radius: 9px;
+  padding: 10px 11px 10px 13px;
+  margin: 2px 0;
+}
+.sidebar .erp-module-nav .nav-entry:hover { background: #293c5a; color: #fff; }
+.sidebar .erp-module-nav .nav-entry.active {
+  color: #fff;
+  background: linear-gradient(95deg,#455fec,#334ab0);
+  box-shadow: 0 4px 16px #111a3760;
+}
+.sidebar .nav-active-dot { background: #8ce1df; }
+.sidebar .erp-module-nav .nav-coming-soon { color: #9baac5; }
+.sidebar .erp-module-nav .nav-entry:disabled { color: #8695ae; opacity: .72; }
+.sidebar .erp-module-nav .nav-empty { color: #bfcee6; }
+.sidebar .demo-card {
+  background: #1d2d48;
+  border-color: #354765;
+  border-radius: 12px;
+}
+.sidebar .demo-pill {
+  color: #bce9dc;
+  background: #245454;
+}
+.sidebar .demo-card p { color: #c1cde0; }
+.sidebar .demo-card > span:last-child { color: #8fa4c4; }
+.sidebar .profile { border-top-color: #2d405e; }
+.sidebar .profile strong { color: #f2f7ff; }
+.sidebar .profile small { color: #9caed0; }
+.sidebar .profile .icon-button { color: #b2c5e4; }
+.sidebar .profile .icon-button:hover { background: #293b59; }
+.topbar {
+  background: #fff;
+  border-bottom-color: #e7ecf5;
+  padding: 0 36px;
+}
+.breadcrumb { color: #76859d; }
+.breadcrumb strong { color: #273c60; font-weight: 700; }
+.environment { color: #67788f; }
+.environment i { background: #21b58f; }
+.content { padding-top: 32px; }
+.page-heading { margin-bottom: 22px; }
+.eyebrow { color: #6d84ad; font-weight: 800; letter-spacing: 1.7px; }
+.page-heading h1 { color: #162640; }
+.page-heading p { color: #65768d; }
+.heading-dot { color: #5575ef; }
+.button { border-radius: 10px; font-weight: 650; }
+.button.primary {
+  background: #4865e9;
+  color: #fff;
+  box-shadow: 0 6px 18px #415def24;
+}
+.button.primary:hover { background: #334fcd; }
+.button.secondary { background: #fff; color: #405db1; border-color: #dbe3f4; }
+.button.secondary:hover { background: #eff3ff; }
+.icon-button { border-radius: 8px; color: #687b9a; }
+.icon-button:hover { background: #eff3fb; }
+.panel, .stat-card {
+  border-radius: 15px;
+  border-color: #e1e8f3;
+  box-shadow: 0 10px 30px #253c6909;
+}
+.stat-card { padding: 23px 21px 18px; }
+.stat-card.featured {
+  background: linear-gradient(135deg,#3658e8,#4c43be);
+  border-color: #445ce5;
+}
+.stat-top { color: #677a98; }
+.featured .stat-top { color: #dce5ff; }
+.stat-card > strong { color: #243557; }
+.stat-card.featured > strong { color: #fff; }
+.stat-note { color: #8190a5; }
+.featured .stat-note { color: #e0e7ff; }
+.panel-heading h2, .panel h2 { color: #23395b; }
+.panel-heading p, .panel-heading small { color: #73849b; }
+.date-filter { border-color: #e0e7f3; border-radius: 10px; }
+.date-filter input { color: #394f74; }
+.text-button, .panel-link { color: #4965d9; }
+table th { background: #f7f9fe; color: #677b98; }
+table td { color: #63758e; }
+td.strong { color: #2a4064; }
+tbody tr:hover { background: #f8faff; }
+.insight-strip {
+  background: #eaf1ff;
+  border-color: #d9e4fb;
+  border-radius: 14px;
+}
+.insight-strip strong { color: #3657a1; }
+.insight-strip p { color: #6079a5; }
+.page-footer { color: #92a0b4; }
+.page-footer > span:first-child { color: #61789a; }
+
+/* Distinctive, responsive enterprise landing area; real data stays below. */
+.atlas-welcome {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) minmax(290px,.9fr);
+  gap: 26px;
+  align-items: stretch;
+  position: relative;
+  overflow: hidden;
+  padding: 31px 33px;
+  margin: 0 0 26px;
+  border-radius: 20px;
+  background: linear-gradient(126deg,#142947 0%,#203e69 65%,#2b4278 100%);
+  box-shadow: 0 17px 42px #14294716;
+  color: #fff;
+}
+.atlas-welcome::after {
+  content: "";
+  width: 370px;
+  height: 370px;
+  border: 1px solid #ffffff20;
+  border-radius: 50%;
+  position: absolute;
+  right: 20%;
+  top: -240px;
+  pointer-events: none;
+}
+.atlas-welcome-heading, .atlas-launchpad { position: relative; z-index: 1; }
+.atlas-welcome-heading { display: flex; flex-direction: column; align-items: flex-start; gap: 15px; }
+.atlas-welcome-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #b3caf4;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.6px;
+}
+.atlas-welcome-pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #40d4c5;
+  box-shadow: 0 0 0 5px #40d4c522;
+}
+.atlas-welcome h2 {
+  max-width: 560px;
+  color: #fff;
+  font-size: clamp(23px,2.5vw,34px);
+  font-weight: 800;
+  letter-spacing: -1px;
+  line-height: 1.24;
+}
+.atlas-welcome-heading > p {
+  max-width: 510px;
+  color: #cad9ef;
+  font-size: 12px;
+  line-height: 1.8;
+}
+.atlas-welcome-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-top: auto;
+  padding-top: 4px;
+}
+.atlas-welcome-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #e0eafa;
+  padding: 8px 11px;
+  border: 1px solid #6b83a84e;
+  border-radius: 999px;
+  font-size: 10px;
+  background: #ffffff0c;
+}
+.atlas-welcome-tenant {
+  max-width: 235px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.atlas-launchpad {
+  padding: 18px;
+  border: 1px solid #ffffff22;
+  background: #ffffff15;
+  border-radius: 15px;
+  backdrop-filter: blur(4px);
+}
+.atlas-launchpad-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.atlas-launchpad-heading strong { font-size: 13px; }
+.atlas-launchpad-heading small { color: #b6cae7; font-size: 10px; }
+.atlas-launchpad-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 9px; }
+.atlas-launchpad-button {
+  min-width: 0;
+  min-height: 86px;
+  border: 1px solid #ffffff29;
+  border-radius: 11px;
+  padding: 13px 12px;
+  background: #ffffffed;
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  text-align: left;
+  color: #223a62;
+  transition: transform .16s ease, box-shadow .16s ease, background .16s ease;
+}
+.atlas-launchpad-button:hover {
+  background: #fff;
+  box-shadow: 0 8px 20px #0a183632;
+  transform: translateY(-2px);
+}
+.atlas-launchpad-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  color: #4964dd;
+  background: #eaf0ff;
+  border-radius: 9px;
+}
+.atlas-launchpad-text { display: flex; flex: 1; flex-direction: column; min-width: 0; gap: 6px; }
+.atlas-launchpad-text strong { font-size: 11px; color: #243d69; font-weight: 800; }
+.atlas-launchpad-text small { color: #70819c; font-size: 9px; line-height: 1.35; }
+.atlas-launchpad-arrow { flex-shrink: 0; color: #8fa1c0; }
+@media (max-width: 1230px) {
+  .atlas-welcome { grid-template-columns: 1fr; padding: 27px; }
+}
+@media (max-width: 760px) {
+  .topbar { padding: 0 18px; }
+  .atlas-welcome { margin-bottom: 21px; padding: 23px 18px; border-radius: 15px; }
+  .atlas-welcome h2 { font-size: 24px; }
+  .atlas-welcome-meta { gap: 7px; }
+  .atlas-launchpad { padding: 13px; }
+  .atlas-launchpad-button { min-height: 80px; }
+}
+@media (max-width: 380px) {
+  .atlas-launchpad-grid { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .atlas-launchpad-button { transition: none; }
+  .atlas-launchpad-button:hover { transform: none; }
+}

@@ -1,0 +1,63 @@
+/* P06.04 — Accessible, reusable tables and form controls. */
+.atlas-table-frame {
+  max-width: 100%;
+  scrollbar-color: #a5b8dc #f5f8ff;
+  scrollbar-width: thin;
+}
+.atlas-table-frame:focus-visible {
+  outline: 3px solid var(--atlas-ui-focus, #4369e6);
+  outline-offset: -3px;
+  border-radius: 6px;
+}
+.atlas-table-frame > table {
+  border-spacing: 0;
+}
+.atlas-table-frame > table thead th {
+  color: #526b91;
+  background: #f3f6fe;
+  font-weight: 700;
+}
+.atlas-table-frame > table tbody tr:focus-within {
+  background: #f0f5ff;
+}
+.atlas-table-frame > table tbody tr:hover {
+  background: #f6f9ff;
+}
+.atlas-table-frame > table td {
+  color: #4e6080;
+  border-bottom-color: #e5ecf6;
+}
+.atlas-table-frame > table td.strong { color: #284469; font-weight: 700; }
+.atlas-form-field { min-width: 0; }
+.atlas-form-field-title {
+  color: inherit;
+  font: inherit;
+}
+.atlas-form-field input,
+.atlas-form-field select,
+.atlas-form-field textarea {
+  max-width: 100%;
+  min-width: 0;
+  border-radius: 9px;
+  border: 1px solid #cbd7ec;
+  background: #fff;
+  color: #203756;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.atlas-form-field input:focus,
+.atlas-form-field select:focus,
+.atlas-form-field textarea:focus {
+  border-color: #5272dc;
+  box-shadow: 0 0 0 3px #5272dc1f;
+}
+.atlas-form-field input:disabled,
+.atlas-form-field select:disabled,
+.atlas-form-field textarea:disabled {
+  background: #eff3f9;
+}
+.atlas-form-field-hint { display: block; color: #667b9b; font-size: 11px; line-height: 1.5; }
+@media (prefers-reduced-motion: reduce) {
+  .atlas-form-field input,
+  .atlas-form-field select,
+  .atlas-form-field textarea { transition: none; }
+}

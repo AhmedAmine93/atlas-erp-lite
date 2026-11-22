@@ -1,0 +1,28 @@
+# Standalone Airflow 3 local pilot only. Never deploy this overlay publicly.
+# Start separately: docker compose -f compose.data.yaml up -d
+# Stop: docker compose -f compose.data.yaml down (no -v unless intending deletion)
+name: atlas-v5-data-pilot
+services:
+  airflow-pilot:
+    image: apache/airflow:3.4.0
+    command: ["standalone"]
+    environment:
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+      AIRFLOW__CORE__EXECUTOR: "SequentialExecutor"
+      AIRFLOW_DATA_HOME: "/opt/airflow"
+      ATLAS_DATA_INPUT_DIR: "/opt/airflow/fixtures"
+      ATLAS_DATA_REPORT_DIR: "/opt/airflow/reports"
+      ATLAS_DATA_MANIFEST: "demo_manifest.json"
+    ports:
+      - "127.0.0.1:8089:8080"
+    volumes:
+      - airflow_metadata_pilot:/opt/airflow
+      - ./data/airflow/dags:/opt/airflow/dags:ro
+      - ./data/airflow/atlas_batch.py:/opt/airflow/dags/atlas_batch.py:ro
+      - ./data/airflow/fixtures:/opt/airflow/fixtures:ro
+      - airflow_reports_pilot:/opt/airflow/reports
+    restart: "no"
+volumes:
+  airflow_metadata_pilot:
+  airflow_reports_pilot:

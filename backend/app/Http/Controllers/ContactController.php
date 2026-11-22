@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Customer;
 use App\Models\Supplier;
+use App\Services\TenantContext;
 use App\Services\Audit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -19,6 +20,7 @@ class ContactController extends Controller
 
     public function index(Request $r, string $kind)
     {
+        Gate::authorize('crmRead');
         $r->validate(['search' => 'nullable|string|max:100', 'page' => 'nullable|integer|min:1']);
 
         return $this->model($kind)::query()->when($r->search, fn ($q) => $q->where(fn ($q) => $q->whereRaw('LOWER(name) LIKE ?', ['%'.mb_strtolower($r->search).'%'])->orWhereRaw('LOWER(email) LIKE ?', ['%'.mb_strtolower($r->search).'%'])))
@@ -27,6 +29,7 @@ class ContactController extends Controller
 
     public function show(string $kind, int $id)
     {
+        Gate::authorize('crmRead');
         $item = $this->model($kind)::findOrFail($id);
 
         return $kind === 'customers' ? $item->load(['orders' => fn ($q) => $q->latest()->limit(100)]) : $item;
@@ -36,7 +39,7 @@ class ContactController extends Controller
     {
         Gate::authorize('crm');
         $item = $id ? $this->model($kind)::findOrFail($id) : new ($this->model($kind));
-        $data = $r->validate(['name' => 'required|string|max:255', 'email' => ['required', 'email', 'max:255', Rule::unique($kind)->ignore($id)], 'phone' => 'nullable|string|max:40', 'address' => 'nullable|string|max:2000']);
+        $data = $r->validate(['name' => 'required|string|max:255', 'email' => ['required', 'email', 'max:255', Rule::unique($kind)->where('company_id', app(TenantContext::class)->requireId())->ignore($id)], 'phone' => 'nullable|string|max:40', 'address' => 'nullable|string|max:2000']);
 
         return DB::transaction(function () use ($item, $data, $id) {
             $item->fill($data)->save();

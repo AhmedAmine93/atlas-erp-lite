@@ -1,0 +1,127 @@
+/* P06 Dashboard Builder v1 — accessible, browser-local layout controls. */
+.atlas-builder {
+  margin: 0 0 24px;
+}
+.atlas-builder-trigger {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #cfdbf1;
+}
+.atlas-builder-trigger[aria-expanded="true"] {
+  color: #314fd2;
+  background: #edf2ff;
+  border-color: #97ace8;
+}
+.atlas-builder-settings {
+  margin-top: 12px;
+  padding: 22px 24px;
+  border: 1px solid #d9e4f6;
+  border-radius: 15px;
+  background: #fff;
+  box-shadow: 0 8px 24px #172b4a0a;
+}
+.atlas-builder-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 19px;
+}
+.atlas-builder-head strong {
+  color: #20395e;
+  font-size: 16px;
+  font-weight: 800;
+}
+.atlas-builder-head p {
+  color: #70819d;
+  line-height: 1.55;
+  font-size: 12px;
+  margin-top: 6px;
+}
+.atlas-builder-head .button { display: inline-flex; align-items: center; gap: 7px; }
+.atlas-builder-groups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 17px;
+}
+.atlas-builder-group {
+  min-width: 0;
+  border: 1px solid #e5ebf5;
+  background: #fafcff;
+  border-radius: 12px;
+  padding: 14px;
+}
+.atlas-builder-group h3 {
+  margin: 0 0 11px;
+  color: #526ca2;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .4px;
+}
+.atlas-builder-group ul { padding: 0; margin: 0; list-style: none; }
+.atlas-builder-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid #e7ecf7;
+}
+.atlas-builder-item:last-child { border-bottom: 0; }
+.atlas-builder-item label {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  cursor: pointer;
+  font-size: 12px;
+  color: #344e75;
+  font-weight: 650;
+  line-height: 1.4;
+}
+.atlas-builder-item input[type="checkbox"] {
+  accent-color: #4965e9;
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+  cursor: pointer;
+}
+.atlas-builder-item input:focus-visible {
+  outline: 3px solid #6387ff;
+  outline-offset: 3px;
+}
+.atlas-builder-reorder { display: flex; align-items: center; gap: 3px; }
+.atlas-builder-reorder .icon-button {
+  width: 33px;
+  height: 33px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #dae4f5;
+  background: #fff;
+}
+.atlas-builder-reorder .icon-button:hover:not(:disabled) {
+  color: #3758c7;
+  background: #eef3ff;
+}
+.atlas-builder-reorder .icon-button:disabled { opacity: .38; cursor: not-allowed; }
+.atlas-builder-note {
+  margin-top: 16px;
+  color: #657999;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.dashboard-grid > .atlas-dashboard-widget[hidden] { display: none !important; }
+@media (max-width: 850px) {
+  .atlas-builder-groups { grid-template-columns: 1fr; }
+  .atlas-builder-settings { padding: 18px; }
+}
+@media (max-width: 480px) {
+  .atlas-builder-trigger { width: 100%; justify-content: center; }
+  .atlas-builder-head > .button { width: 100%; justify-content: center; }
+  .atlas-builder-item { gap: 5px; }
+  .atlas-builder-item label { font-size: 11px; }
+}

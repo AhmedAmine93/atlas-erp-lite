@@ -1,0 +1,81 @@
+name: Synthetic database and 120-user load
+on:
+  pull_request:
+    paths:
+      - 'backend/database/seeders/MassiveDemoSeeder.php'
+      - 'scripts/load-120-users.mjs'
+      - '.github/workflows/synthetic-load.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: synthetic-load-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  synthetic-120:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      COMPOSE_PROJECT_NAME: atlas-synth-${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+      - name: Check Node test syntax
+        run: node --check scripts/load-120-users.mjs
+      - name: Start isolated PostgreSQL and ERP
+        run: |
+          set -euo pipefail
+          node scripts/setup.mjs
+          docker compose up --build -d --wait --wait-timeout 300
+      - name: Insert synthetic PostgreSQL fixtures
+        run: |
+          docker compose exec -T -e ATLAS_DEMO_DATA_CONFIRM=YES_LOCAL_ONLY backend \
+            php artisan db:seed --class=MassiveDemoSeeder --force
+      - name: Verify repeat safety and PostgreSQL row counts
+        run: |
+          set -euo pipefail
+          docker compose exec -T -e ATLAS_DEMO_DATA_CONFIRM=YES_LOCAL_ONLY backend \
+            php artisan db:seed --class=MassiveDemoSeeder --force
+          users=$(docker compose exec -T db psql -U atlas -d atlas -At \
+            -c "SELECT COUNT(*) FROM users WHERE email ~ '^load[0-9]{3}@atlas[.]example$'")
+          test "$users" -eq 150 || { echo "Expected 150 accounts, found $users"; exit 1; }
+          bookings=$(docker compose exec -T db psql -U atlas -d atlas -At \
+            -c "SELECT COUNT(*) FROM hotel_bookings WHERE reference LIKE 'SYN%-RES-%'")
+          test "$bookings" -eq 630 || { echo "Expected 630 bookings, found $bookings"; exit 1; }
+          rows=$(docker compose exec -T db psql -U atlas -d atlas -At \
+            -c "SELECT COUNT(*) FROM data_ingested_csv_rows WHERE external_id LIKE 'SYN%'")
+          test "$rows" -eq 1080 || { echo "Expected 1080 CSV rows, found $rows"; exit 1; }
+          preventive=$(docker compose exec -T db psql -U atlas -d atlas -At \
+            -c "SELECT COUNT(*) FROM maintenance_preventive_plans WHERE code LIKE 'SYN%-PM-%'")
+          test "$preventive" -eq 72 || { echo "Expected 72 preventive plans, found $preventive"; exit 1; }
+          rooms_cleaning=$(docker compose exec -T db psql -U atlas -d atlas -At \
+            -c "SELECT COUNT(*) FROM hotel_housekeeping_tasks t JOIN hotel_rooms r ON r.id=t.room_id JOIN hotel_properties h ON h.id=r.hotel_id WHERE h.code LIKE 'SYN%-HOTEL-%'")
+          test "$rooms_cleaning" -eq 216 || { echo "Expected 216 housekeeping tasks, found $rooms_cleaning"; exit 1; }
+          cleaning_events=$(docker compose exec -T db psql -U atlas -d atlas -At \
+            -c "SELECT COUNT(*) FROM hotel_room_status_events e JOIN hotel_housekeeping_tasks t ON t.id=e.task_id JOIN hotel_rooms r ON r.id=t.room_id JOIN hotel_properties h ON h.id=r.hotel_id WHERE h.code LIKE 'SYN%-HOTEL-%'")
+          test "$cleaning_events" -eq 540 || { echo "Expected 540 housekeeping events, found $cleaning_events"; exit 1; }
+
+      - name: Simulate 120 distinct simultaneous users
+        run: |
+          set -euo pipefail
+          DEMO_PASSWORD="$(node --input-type=module -e "import fs from 'node:fs'; process.stdout.write(fs.readFileSync('.env','utf8').match(/^DEMO_PASSWORD=(.+)$/m)[1].trim())")" \
+            node scripts/load-120-users.mjs --users=120 --rounds=5 --base=http://127.0.0.1:3100
+      - name: Save container logs
+        if: always()
+        run: |
+          mkdir -p reports
+          docker compose logs --no-color --tail=200 > reports/synthetic-compose.log 2>&1 || true
+      - name: Upload load metrics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: synthetic-120-report
+          path: reports/
+          retention-days: 14
+      - name: Remove disposable CI database
+        if: always()
+        run: docker compose down -v --remove-orphans || true

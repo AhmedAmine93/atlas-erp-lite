@@ -1,0 +1,34 @@
+name: ATLAS Data Airflow pilot
+on:
+  pull_request:
+    paths:
+      - 'data/airflow/**'
+      - 'compose.data.yaml'
+      - '.github/workflows/data-airflow-pilot.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: atlas-data-pilot-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  airflow-manifest-gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - name: Run deterministic data contract tests
+        run: |
+          python -m compileall -q data/airflow
+          python -m unittest discover -s data/airflow/tests -v
+          python -c "import sys; sys.path.insert(0,'data/airflow'); from atlas_batch import validate_batch; result=validate_batch('data/airflow/fixtures','demo_manifest.json'); assert result['row_count']==3; print(result)"
+      - name: Parse real DAG with official Apache Airflow 3 image
+        run: |
+          docker run --rm --entrypoint python \
+            -v "$PWD/data/airflow:/opt/airflow/atlas_v5:ro" \
+            apache/airflow:3.4.0 -c "import sys; sys.path[:0]=['/opt/airflow/atlas_v5/dags','/opt/airflow/atlas_v5']; import atlas_v5_manifest_gate as dagmodule; assert dagmodule.manifest_quality is not None; print('Airflow 3 DAG imported')"

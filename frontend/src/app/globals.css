@@ -1648,3 +1648,135 @@ label small {
     min-width: 200px;
   }
 }
+
+
+/* Navigation modulaire ATLAS ERP : les écrans à venir sont non-interactifs. */
+.erp-sidebar-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 8px 14px;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: #748274;
+}
+.erp-sidebar-search input {
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  outline-offset: 3px;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  color: inherit;
+}
+.erp-module-nav .nav-group {
+  margin-bottom: 2px;
+}
+.erp-module-nav .nav-group-toggle {
+  padding: 10px 9px;
+  font-weight: 700;
+  color: #526455;
+  gap: 8px;
+}
+.erp-module-nav .nav-group-toggle span {
+  flex: 1;
+}
+.erp-module-nav .nav-group-toggle svg:last-child {
+  transition: transform 0.18s ease;
+  flex-shrink: 0;
+}
+.erp-module-nav .nav-group-toggle svg:last-child.expanded {
+  transform: rotate(90deg);
+}
+.erp-module-nav .nav-group-children {
+  padding: 0 0 7px 10px;
+}
+.erp-module-nav .nav-entry {
+  padding: 8px 7px 8px 14px;
+  gap: 6px;
+  font-size: 11px;
+}
+.erp-module-nav .nav-entry > span:first-child {
+  flex: 1;
+}
+.erp-module-nav .nav-entry:disabled {
+  opacity: 0.58;
+  cursor: not-allowed;
+}
+.erp-module-nav .nav-entry:disabled:hover {
+  background: transparent;
+}
+.erp-module-nav .nav-coming-soon {
+  font-size: 9px;
+  white-space: nowrap;
+  color: #7b877d;
+  font-weight: 500;
+}
+.erp-module-nav .nav-empty {
+  padding: 12px;
+  color: #7b877d;
+  font-size: 12px;
+}
+
+/* Mission 02 — Référentiels entreprise et établissement */
+.org-workspace { display: grid; gap: 22px; }
+.org-scope { color: #68766b; line-height: 1.65; font-size: 12px; }
+.org-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+.org-tabs button { border: 1px solid var(--line); background: #fff; border-radius: 7px; padding: 10px 15px; font-size: 12px; }
+.org-tabs button.selected { background: #e7efe4; color: #316443; border-color: #afcbb4; font-weight: 700; }
+.org-grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 20px; align-items: start; }
+.org-panel { padding: 20px; }
+.org-panel h2 { font-size: 17px; margin-bottom: 20px; }
+.org-list { display: grid; gap: 10px; }
+.org-list-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--line); padding: 10px 0; }
+.org-list-row strong, .org-list-row small { display: block; }
+.org-list-row small { margin-top: 6px; color: #738069; font-size: 11px; }
+.org-list-row button, .org-actions > button:not(.primary) { background: transparent; border: 1px solid #d6e0d5; border-radius: 6px; padding: 9px 12px; }
+.org-form { display: grid; gap: 14px; }
+.org-form label { display: grid; gap: 6px; font-size: 12px; font-weight: 600; }
+.org-form input, .org-form select, .org-form textarea { width: 100%; padding: 10px; border: 1px solid #dbe3d9; border-radius: 6px; color: var(--ink); background: #fff; }
+.org-form .org-checkbox { display: flex; align-items: center; gap: 9px; }
+.org-form .org-checkbox input { width: auto; }
+.org-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+@media (max-width: 1050px) { .org-grid { grid-template-columns: 1fr; } }
+
+/* Sélection de la société active */
+.tenant-picker { min-width: 0; flex: 1; }
+.tenant-picker label { display: block; font-size: 9px; color: #738069; margin-bottom: 4px; }
+.tenant-picker select { display: block; background: transparent; border: 1px solid transparent; padding: 2px 0; width: 100%; min-width: 0; font-size: 11px; font-weight: 650; text-overflow: ellipsis; }
+.tenant-picker select:focus-visible { border-color: #95bda9; }
+.tenant-picker small { display: block; font-size: 9px; color: #7d897d; margin-top: 4px; }
+
+
+/* ATLAS V5 — Enterprise modules: independent of legacy sales tables. */
+.atlas-domain { display: grid; gap: 19px; min-width: 0; }
+.atlas-domain-toolbar { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 18px; }
+.atlas-domain-toolbar h2 { font-size: 20px; font-weight: 650; letter-spacing: -.5px; color: var(--ink); text-transform: capitalize; }
+.atlas-domain-toolbar p { margin-top: 7px; max-width: 650px; color: var(--muted); line-height: 1.6; font-size: 12px; }
+.atlas-domain-list, .atlas-domain-form { background: #fff; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+.atlas-domain-form { padding: 20px; display: grid; gap: 20px; }
+.atlas-domain-form-heading, .atlas-domain-list-heading, .atlas-domain-pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.atlas-domain-form-heading h3 { font-size: 15px; }
+.atlas-domain-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.atlas-domain-fields label { display: grid; gap: 7px; font-size: 11px; font-weight: 600; color: #526253; }
+.atlas-domain-fields input, .atlas-domain-fields select, .atlas-domain-fields textarea, .atlas-domain-list-heading input { border: 1px solid #dce5d9; border-radius: 6px; padding: 10px; background: #fff; color: var(--ink); width: 100%; min-width: 0; }
+.atlas-domain-fields textarea { min-height: 95px; resize: vertical; }
+.atlas-domain-form > button { justify-self: start; }
+.atlas-domain-list-heading { padding: 16px 19px; font-size: 12px; color: #617164; }
+.atlas-domain-list-heading input { max-width: 265px; }
+.atlas-domain-list th { text-transform: capitalize; }
+.atlas-domain-list td { max-width: 230px; overflow: hidden; text-overflow: ellipsis; }
+.atlas-domain-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; min-width: 125px; }
+.atlas-domain-actions .button { padding: 7px 9px; font-size: 10px; }
+.atlas-domain-actions .button:focus-within { outline: 2px solid #95bda9; outline-offset: 2px; }
+.atlas-domain-hidden-upload { display: block; width: 1px; height: 1px; opacity: 0; position: absolute; pointer-events: none; }
+.atlas-domain-empty { text-align: center; padding: 22px 16px; color: var(--muted); }
+.atlas-domain-pagination { border-top: 1px solid var(--line); padding: 15px 19px; color: var(--muted); font-size: 11px; }
+@media (max-width: 760px) {
+  .atlas-domain-fields { grid-template-columns: 1fr; }
+  .atlas-domain-toolbar { align-items: stretch; }
+  .atlas-domain-list-heading { flex-wrap: wrap; }
+  .atlas-domain-list-heading input { max-width: none; }
+}

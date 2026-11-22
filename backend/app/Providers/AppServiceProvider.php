@@ -15,10 +15,12 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        foreach (['crm', 'stock', 'sales', 'admin'] as $ability) {
+        foreach (['crm', 'stock', 'sales', 'admin', 'support', 'supportDiagnostics', 'crmRead', 'productsRead', 'movementsRead', 'salesRead', 'invoicesRead', 'dashboardRead'] as $ability) {
             Gate::define($ability, [ErpPolicy::class, $ability]);
         }
         RateLimiter::for('login', fn (Request $r) => Limit::perMinute(5)->by(strtolower((string) $r->input('email')).'|'.$r->ip()));
         RateLimiter::for('api', fn (Request $r) => Limit::perMinute(180)->by($r->user()?->id ?: $r->ip()));
+        RateLimiter::for('support-diagnostics', fn (Request $r) => Limit::perMinute(5)
+            ->by(($r->user()?->id ?: $r->ip()).'|'.($r->attributes->get('atlas_company_id') ?? 'none')));
     }
 }

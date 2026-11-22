@@ -1,5 +1,6 @@
 "use client";
 import {
+  Fragment,
   useEffect,
   useState,
   useRef,
@@ -36,7 +37,26 @@ import {
   Wallet,
   TrendingUp,
 } from "lucide-react";
-import { api, send, all } from "@/lib/api";
+import { api, send, all, fetchTenantBlob, setVerifiedCompanyContext, resetTenantContext } from "@/lib/api";
+import { nav, navigationSections, type View } from "@/lib/navigation";
+import { canEditWorkspaceView, canOpenWorkspaceView, parseWorkspacePath, workspaceHref, type WorkspaceRoute } from "@/lib/workspaceRoutes";
+import OrganizationWorkspace from "@/components/OrganizationWorkspace";
+import DomainWorkspace, { domainViews } from "@/components/DomainWorkspace";
+import SalesCommerceWorkspace, { salesCommerceViews } from "@/components/SalesCommerceWorkspace";
+import PilotageWorkspace from "@/components/PilotageWorkspace";
+import HotelHousekeepingWorkspace from "@/components/HotelHousekeepingWorkspace";
+import HotelMinibarWorkspace from "@/components/HotelMinibarWorkspace";
+import HotelAvailabilityWorkspace from "@/components/HotelAvailabilityWorkspace";
+import SupportIncidents from "@/components/SupportIncidents";
+import Login from "@/components/auth/Login";
+import WorkspaceSidebar from "@/components/layout/WorkspaceSidebar";
+import WorkspaceWelcome from "@/components/layout/WorkspaceWelcome";
+import GlobalSearch from "@/components/layout/GlobalSearch";
+import RoleDashboardPanel from "@/components/dashboard/RoleDashboardPanel";
+import DashboardBuilder from "@/components/dashboard/DashboardBuilder";
+import { useDashboardLayout } from "@/components/dashboard/useDashboardLayout";
+import DataTableFrame from "@/components/ui/DataTableFrame";
+import FormField from "@/components/ui/FormField";
 import type {
   User,
   Contact,
@@ -56,6 +76,17 @@ const euro = (n: number) =>
     currency: "EUR",
     maximumFractionDigits: 2,
   }).format(Number(n) / 100);
+const CONTEXT_CHANGE_KEY = "atlas-one:context-revision:v1";
+
+/** Cross-tab notification holds a random nonce only, never a tenant ID or credential. */
+function announceContextChange() {
+  try {
+    window.localStorage.setItem(CONTEXT_CHANGE_KEY, crypto.randomUUID());
+  } catch {
+    // Storage can be disabled; focus/visibility reconciliation still applies.
+  }
+}
+
 const date = (s: string) =>
   new Date(s).toLocaleDateString("fr-FR", {
     day: "2-digit",
@@ -65,6 +96,8 @@ const date = (s: string) =>
 const labels: Record<string, string> = {
   draft: "Brouillon",
   converted: "Converti",
+  confirmed:"Confirmée", reserved:"Réservée", prepared:"Préparée", partially_shipped:"Partiellement expédiée",
+  shipped:"Expédiée", closed:"Soldée", sent:"Envoyé", accepted:"Accepté", expired:"Expiré",
   validated: "Validée",
   issued: "Émise",
   paid: "Payée",
@@ -74,19 +107,7 @@ const labels: Record<string, string> = {
   stock: "Stock",
   reader: "Lecture seule",
 };
-const nav = [
-  { id: "dashboard", label: "Vue d’ensemble", icon: LayoutDashboard },
-  { id: "customers", label: "Clients", icon: Users },
-  { id: "suppliers", label: "Fournisseurs", icon: Truck },
-  { id: "products", label: "Produits & stocks", icon: Package },
-  { id: "stock-movements", label: "Mouvements", icon: ArrowLeftRight },
-  { id: "quotes", label: "Devis", icon: FileText },
-  { id: "orders", label: "Commandes", icon: ShoppingBag },
-  { id: "invoices", label: "Factures", icon: Receipt },
-  { id: "users", label: "Utilisateurs", icon: ShieldCheck },
-  { id: "audit-logs", label: "Journal d’activité", icon: History },
-];
-type View = (typeof nav)[number]["id"];
+
 type Row = Contact & Product & Sale & Invoice & Movement & Audit & User;
 type Editor = { kind: string; row?: Partial<Row> };
 function Badge({ status }: { status: string }) {
@@ -175,6 +196,9 @@ export default function Workspace() {
     [checking, setChecking] = useState(true),
     [view, setView] = useState<View>("dashboard"),
     [mobile, setMobile] = useState(false);
+  const navigationRequest = useRef(0);
+  const userRef = useRef<User | null>(null);
+  userRef.current = user;
   const [notice, setNotice] = useState(""),
     [error, setError] = useState(""),
     [refresh, setRefresh] = useState(0),
@@ -182,31 +206,144 @@ export default function Workspace() {
     [detail, setDetail] = useState<{ kind: string; row: Row } | null>(null),
     [busy, setBusy] = useState(false);
   useEffect(() => {
+    let active = true;
     api<User>("me")
-      .then(setUser)
-      .catch(() => {})
-      .finally(() => setChecking(false));
-    const expired = () => setUser(null);
+      .then((profile) => {
+        if (!active) return;
+        setVerifiedCompanyContext(profile.active_company_id ?? 0);
+        setUser(profile);
+      })
+      .catch(() => { if (active) resetTenantContext(); })
+      .finally(() => { if (active) setChecking(false); });
+    const expired = () => {
+      ++navigationRequest.current;
+      resetTenantContext();
+      setDetail(null);
+      setEditor(null);
+      setUser(null);
+      setChecking(false);
+    };
     window.addEventListener("atlas-session-expired", expired);
-    return () => window.removeEventListener("atlas-session-expired", expired);
+    return () => {
+      active = false;
+      window.removeEventListener("atlas-session-expired", expired);
+    };
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    let reconciling = false;
+    let disposed = false;
+    const resetWorkspace = () => {
+      // Fail closed before any previous-company data can render again.
+      ++navigationRequest.current;
+      resetTenantContext();
+      setDetail(null);
+      setEditor(null);
+      setNotice("");
+      setError("");
+      setChecking(true);
+      window.history.replaceState(null, "", workspaceHref("dashboard"));
+      window.location.replace(workspaceHref("dashboard"));
+    };
+    const onExternalChange = (event: StorageEvent) => {
+      if (event.key === CONTEXT_CHANGE_KEY) resetWorkspace();
+    };
+    const onStale = () => resetWorkspace();
+    const verifyOnReturn = () => {
+      if (document.visibilityState === "hidden" || reconciling || disposed) return;
+      reconciling = true;
+      setChecking(true);
+      api<User>("me")
+        .then((profile) => {
+          if (disposed) return;
+          const previous = userRef.current;
+          if (!previous ||
+              profile.id !== previous.id ||
+              profile.active_company_id !== previous.active_company_id ||
+              profile.role.name !== previous.role.name) {
+            resetWorkspace();
+          } else {
+            setVerifiedCompanyContext(profile.active_company_id ?? 0);
+            setUser(profile);
+            setChecking(false);
+          }
+        })
+        .catch(() => { if (!disposed) resetWorkspace(); })
+        .finally(() => { reconciling = false; });
+    };
+    window.addEventListener("storage", onExternalChange);
+    window.addEventListener("atlas-tenant-stale", onStale);
+    window.addEventListener("focus", verifyOnReturn);
+    document.addEventListener("visibilitychange", verifyOnReturn);
+    return () => {
+      disposed = true;
+      window.removeEventListener("storage", onExternalChange);
+      window.removeEventListener("atlas-tenant-stale", onStale);
+      window.removeEventListener("focus", verifyOnReturn);
+      document.removeEventListener("visibilitychange", verifyOnReturn);
+    };
+  }, [user?.id, user?.active_company_id, user?.role.name]);
   useEffect(() => {
     if (!notice) return;
     const t = setTimeout(() => setNotice(""), 6000);
     return () => clearTimeout(t);
   }, [notice]);
   const can = (kind: string) =>
-    user?.role.name === "admin" ||
-    (["customers", "suppliers", "quotes", "orders", "invoices"].includes(
-      kind,
-    ) &&
-      user?.role.name === "commercial") ||
-    (["products", "stock-movements"].includes(kind) &&
-      user?.role.name === "stock");
+    canEditWorkspaceView(kind as View, user?.role.name ?? "reader");
+  const applyRoute = (route: WorkspaceRoute | null, profile: User) => {
+    const sequence = ++navigationRequest.current;
+    // Never show an admin/support view based on an untrusted URL alone.
+    const safeView = route && canOpenWorkspaceView(route.view, profile.role.name)
+      ? route.view : "dashboard";
+    if (!route || safeView !== route.view) {
+      window.history.replaceState(null, "", workspaceHref(safeView));
+    }
+    setView(safeView);
+    setMobile(false);
+    setError("");
+    setDetail(null);
+    setEditor(null);
+    if (safeView !== route?.view || !route?.detailId) return;
+    // A deep link cannot reuse an old tenant's record. Fetch and authorize
+    // again through Laravel after the authenticated profile is available.
+    api<Row>(`${safeView}/${route.detailId}`)
+      .then((row) => {
+        if (navigationRequest.current === sequence) {
+          setDetail({ kind: safeView, row });
+        }
+      })
+      .catch((e: Error) => {
+        if (navigationRequest.current === sequence) {
+          setError("Fiche indisponible ou accès refusé : " + e.message);
+          window.history.replaceState(null, "", workspaceHref(safeView));
+        }
+      });
+  };
+  useEffect(() => {
+    if (!user || checking) return;
+    applyRoute(parseWorkspacePath(window.location.pathname), user);
+    const onPopState = () => {
+      applyRoute(parseWorkspacePath(window.location.pathname), user);
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+    // Only re-evaluate navigation when verified identity or tenant changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, user?.active_company_id, user?.role.name, checking]);
   const go = (id: View) => {
+    if (!canOpenWorkspaceView(id, user?.role.name ?? "reader")) return;
+    ++navigationRequest.current;
+    window.history.pushState(null, "", workspaceHref(id));
     setView(id);
     setMobile(false);
     setError("");
+    setDetail(null);
+    setEditor(null);
+  };
+  const closeDetail = () => {
+    ++navigationRequest.current;
+    window.history.replaceState(null, "", workspaceHref(view));
     setDetail(null);
   };
   async function action(path: string, method = "POST", data?: unknown) {
@@ -216,7 +353,7 @@ export default function Workspace() {
       const result = await send<Row>(path, method, data);
       setNotice("Opération enregistrée.");
       setRefresh((n) => n + 1);
-      setDetail(null);
+      if (detail) closeDetail();
       return result;
     } catch (e) {
       setError((e as Error).message);
@@ -225,11 +362,18 @@ export default function Workspace() {
     }
   }
   async function show(kind: string, row: Row) {
+    // Existing non-detail views keep their original dialog behavior.
+    const detailPath = workspaceHref(kind as View, row.id);
+    const isDetailRoute = detailPath !== workspaceHref(view);
+    const sequence = ++navigationRequest.current;
     setError("");
     try {
-      setDetail({ kind, row: await api<Row>(`${kind}/${row.id}`) });
+      const loaded = await api<Row>(`${kind}/${row.id}`);
+      if (navigationRequest.current !== sequence) return;
+      if (isDetailRoute) window.history.pushState(null, "", detailPath);
+      setDetail({ kind, row: loaded });
     } catch (e) {
-      setError((e as Error).message);
+      if (navigationRequest.current === sequence) setError((e as Error).message);
     }
   }
   if (checking)
@@ -243,9 +387,20 @@ export default function Workspace() {
     return (
       <Login
         onLogin={(u) => {
+          setVerifiedCompanyContext(u.active_company_id ?? 0);
           setUser(u);
           setView("dashboard");
           setError("");
+          // Preserve a direct URL until /me confirms tenant membership.
+          // Authenticated route reconciliation happens in applyRoute().
+          // The login response does not carry company memberships.
+          // Hydrate the full tenant-aware profile before enabling tenant navigation.
+          api<User>("me")
+            .then((profile) => {
+              setVerifiedCompanyContext(profile.active_company_id ?? 0);
+              setUser(profile);
+            })
+            .catch((e: Error) => setError("Impossible de charger les entreprises autorisées : " + e.message));
         }}
       />
     );
@@ -255,83 +410,45 @@ export default function Workspace() {
       {mobile && (
         <div className="sidebar-scrim" onClick={() => setMobile(false)} />
       )}
-      <aside className={`sidebar ${mobile ? "open" : ""}`}>
-        <a
-          className="brand"
-          href="#"
-          onClick={(e) => {
-            e.preventDefault();
-            go("dashboard");
-          }}
-        >
-          <span className="brand-mark">A</span>
-          <span>
-            ATLAS<span className="brand-lite">ERP LITE</span>
-          </span>
-        </a>
-        <div className="workspace-chip">
-          <span className="workspace-avatar">A</span>
-          <div>
-            Atelier & Co.<small>Espace de démonstration</small>
-          </div>
-          <span className="online-dot" />
-        </div>
-        <div className="nav-caption">ESPACE DE TRAVAIL</div>
-        <nav aria-label="Navigation principale">
-          {nav
-            .filter(
-              (n) =>
-                user.role.name === "admin" ||
-                !["users", "audit-logs"].includes(n.id),
-            )
-            .map((n, i) => (
-              <div key={n.id}>
-                {[1, 5, 8].includes(i) && <div className="nav-separator" />}
-                <button
-                  onClick={() => go(n.id)}
-                  className={view === n.id ? "active" : ""}
-                  aria-current={view === n.id ? "page" : undefined}
-                >
-                  <n.icon size={18} />
-                  <span>{n.label}</span>
-                  {view === n.id && <span className="nav-active-dot" />}
-                </button>
-              </div>
-            ))}
-        </nav>
-        <div className="sidebar-bottom">
-          <div className="demo-card">
-            <span className="demo-pill">PORTFOLIO</span>
-            <p>
-              Les idées prennent forme.
-              <br />
-              Votre activité aussi.
-            </p>
-            <span>ATLAS ERP Lite · v1.0</span>
-          </div>
-          <div className="profile">
-            <span className="avatar">{user.name.slice(0, 1)}</span>
-            <div>
-              <strong>{user.name.split(" · ")[0]}</strong>
-              <small>{labels[user.role.name]}</small>
-            </div>
-            <button
-              className="icon-button"
-              aria-label="Se déconnecter"
-              onClick={async () => {
-                try {
-                  await send("logout", "POST");
-                  setUser(null);
-                } catch (e) {
-                  setError((e as Error).message);
-                }
-              }}
-            >
-              <LogOut size={17} />
-            </button>
-          </div>
-        </div>
-      </aside>
+      <WorkspaceSidebar
+        user={user}
+        view={view}
+        mobile={mobile}
+        busy={busy}
+        onNavigate={go}
+        onTenantSwitch={async (companyId) => {
+          setBusy(true);
+          setError("");
+          try {
+            await send("tenant/switch", "POST", { company_id: companyId });
+            // Prevent old-company async replies and notify other same-origin tabs.
+            ++navigationRequest.current;
+            resetTenantContext();
+            setEditor(null);
+            setDetail(null);
+            setNotice("");
+            announceContextChange();
+            // A company switch must drop any previous tenant's record URL.
+            window.history.replaceState(null, "", workspaceHref("dashboard"));
+            window.location.reload();
+          } catch (e) {
+            setError((e as Error).message);
+            setBusy(false);
+          }
+        }}
+        onLogout={async () => {
+          try {
+            await send("logout", "POST");
+            ++navigationRequest.current;
+            resetTenantContext();
+            announceContextChange();
+            window.history.replaceState(null, "", "/");
+            setUser(null);
+          } catch (e) {
+            setError((e as Error).message);
+          }
+        }}
+      />
       <main className="main">
         <header className="topbar">
           <div className="breadcrumb">
@@ -347,6 +464,15 @@ export default function Workspace() {
             <strong>{current.label}</strong>
           </div>
           <div className="topbar-right">
+            <GlobalSearch
+              user={user}
+              onSelect={(type, id) => {
+                go(type);
+                if (["customers", "quotes", "orders", "invoices"].includes(type)) {
+                  void show(type, { id } as Row);
+                }
+              }}
+            />
             <span className="environment">
               <i />
               Données de démonstration
@@ -380,6 +506,13 @@ export default function Workspace() {
                           "Une facturation claire, du brouillon au règlement.",
                         users: "Les bonnes permissions pour chaque membre.",
                         "audit-logs": "La trace des opérations sensibles.",
+                        "admin-companies": "Gestion du référentiel des entreprises et établissements.",
+                        "support-incidents": "Diagnostic, SLA, escalades N2/N3 et historique.",
+                        "direction-dashboard": "Consolidation de la société et comparaison historique.",
+                        "sales-dashboard": "Activité commerciale issue des pièces métier.",
+                        "finance-dashboard": "Situation de facturation et encours réels.",
+                        "logistics-dashboard": "Stocks courants et risques de rupture.",
+                        "alerts-dashboard": "Règles, alertes et prises en charge.",
                       } as Record<string, string>
                     )[view]}
               </p>
@@ -390,7 +523,9 @@ export default function Workspace() {
                 "stock-movements",
                 "audit-logs",
                 "invoices",
-              ].includes(view) && (
+                "admin-companies",
+                "support-incidents",
+              ].includes(view) && !domainViews.has(view) && (!salesCommerceViews.has(view as any) || ["quotes", "orders"].includes(view)) && (
                 <button
                   className="button primary"
                   onClick={() => setEditor({ kind: view })}
@@ -430,7 +565,31 @@ export default function Workspace() {
             </div>
           )}
           {view === "dashboard" ? (
-            <DashboardView refresh={refresh} go={go} />
+            <>
+              <WorkspaceWelcome user={user} onNavigate={go} />
+              <DashboardView refresh={refresh} go={go} user={user} />
+            </>
+          ) : ["direction-dashboard", "sales-dashboard", "finance-dashboard", "logistics-dashboard", "alerts-dashboard"].includes(view) ? (
+            <PilotageWorkspace key={view + "-" + user.active_company_id} view={view} user={user} />
+          ) : view === "support-incidents" ? (
+            <SupportIncidents canDiagnose={["admin", "support_n3"].includes(user.role.name)} />
+          ) : view === "hotel-minibar" ? (
+            <HotelMinibarWorkspace key={"minibar-"+user.active_company_id} />
+          ) : view === "hotel-checkin" ? (
+            <DomainWorkspace key={"reception-"+user.active_company_id} view="hotel-bookings" activeCompanyId={user.active_company_id ?? null} />
+          ) : view === "hotel-availability" ? (
+            <HotelAvailabilityWorkspace key={"hotel-availability-"+user.active_company_id} activeCompanyId={user.active_company_id ?? null} />
+          ) : view === "hotel-housekeeping" ? (
+            <HotelHousekeepingWorkspace key={"hotel-housekeeping-"+user.active_company_id} activeCompanyId={user.active_company_id ?? null} />
+          ) : domainViews.has(view) ? (
+            <DomainWorkspace key={view+"-"+user.active_company_id} view={view} activeCompanyId={user.active_company_id ?? null} />
+          ) : salesCommerceViews.has(view as any) && !["quotes","orders"].includes(view) ? (
+            <SalesCommerceWorkspace key={view+"-"+user.active_company_id} view={view as "deliveries"|"sales-contracts"|"sales-returns"|"pricing"} activeCompanyId={user.active_company_id ?? null} canWrite={can(view)} canApprove={user.role.name === "admin"} />
+          ) : view === "admin-companies" ? (
+            <OrganizationWorkspace
+              activeCompanyId={user.active_company_id ?? null}
+              onCompanySaved={async () => setUser(await api<User>("me"))}
+            />
           ) : (
             <ListView
               key={view}
@@ -446,8 +605,9 @@ export default function Workspace() {
               busy={busy}
             />
           )}
+          {["quotes","orders"].includes(view) && <SalesCommerceWorkspace key={"sales-v5-"+view+"-"+user.active_company_id} view={view as "quotes"|"orders"} activeCompanyId={user.active_company_id ?? null} canWrite={can(view)} canApprove={user.role.name === "admin"} revision={refresh} onChange={()=>setRefresh(n=>n+1)} embedded />}
           <footer className="page-footer">
-            <span>ATLAS ERP Lite</span>
+            <span>ATLAS ONE</span>
             <span>Un peu moins de gestion. Un peu plus de perspective.</span>
           </footer>
         </div>
@@ -477,7 +637,7 @@ export default function Workspace() {
       {detail && (
         <Modal
           title={(detail.row.number || detail.row.name || "Facture") as string}
-          onClose={() => setDetail(null)}
+          onClose={closeDetail}
         >
           <Detail
             kind={detail.kind}
@@ -492,113 +652,14 @@ export default function Workspace() {
   );
 }
 
-function Login({ onLogin }: { onLogin: (u: User) => void }) {
-  const [email, setEmail] = useState("admin@atlas.example"),
-    [password, setPassword] = useState(""),
-    [error, setError] = useState(""),
-    [busy, setBusy] = useState(false);
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    setError("");
-    setBusy(true);
-    try {
-      onLogin(await send<User>("login", "POST", { email, password }));
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
-  return (
-    <div className="login-page">
-      <section className="login-story">
-        <div className="brand">
-          <span className="brand-mark">A</span>
-          <span>
-            ATLAS<span className="brand-lite">ERP LITE</span>
-          </span>
-        </div>
-        <div>
-          <span className="demo-pill">L’ESSENTIEL, BIEN PENSÉ</span>
-          <h1>
-            Une vision claire.
-            <br />
-            Une activité
-            <br />
-            <em>qui avance.</em>
-          </h1>
-          <p>
-            Clients, stocks, ventes et factures.
-            <br />
-            Tout se retrouve. Tout se suit.
-          </p>
-          <div className="login-art">
-            <div className="art-orbit" />
-            <div className="art-block one">
-              Clients <Users />
-            </div>
-            <div className="art-block two">
-              Ventes <TrendingUp />
-            </div>
-            <div className="art-block three">
-              Stocks <Package />
-            </div>
-          </div>
-        </div>
-        <small>Projet portfolio · PHP / Next.js / PostgreSQL</small>
-      </section>
-      <section className="login-form">
-        <div className="eyebrow">BIENVENUE DANS VOTRE ESPACE</div>
-        <h2>Heureux de vous retrouver.</h2>
-        <p>Connectez-vous pour garder le cap sur votre activité.</p>
-        <form onSubmit={submit}>
-          <label>
-            Adresse e-mail
-            <input
-              type="email"
-              autoComplete="username"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </label>
-          <label>
-            Mot de passe
-            <input
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </label>
-          {error && (
-            <div className="error" role="alert">
-              {error}
-            </div>
-          )}
-          <button className="button primary" disabled={busy}>
-            {busy ? "Connexion…" : "Se connecter"}
-            <ArrowRight size={18} />
-          </button>
-        </form>
-        <p className="login-note">
-          <ShieldCheck size={18} />
-          Données fictives · Aucun paiement bancaire réel.
-          <br />
-          Les accès de démonstration sont dans le README.
-        </p>
-      </section>
-    </div>
-  );
-}
-
 function DashboardView({
   refresh,
   go,
+  user,
 }: {
   refresh: number;
   go: (v: View) => void;
+  user: User;
 }) {
   const localToday = () => {
     const d = new Date();
@@ -608,7 +669,15 @@ function DashboardView({
     [from, setFrom] = useState(() => localToday().slice(0, 8) + "01"),
     [data, setData] = useState<Dashboard | null>(null),
     [error, setError] = useState("");
+  const supportOnly = user.role.name === "support_n2" || user.role.name === "support_n3";
+  const widgets = useDashboardLayout(user);
   useEffect(() => {
+    if (supportOnly) {
+      // Support accounts should not fetch financial KPIs unnecessarily.
+      setData(null);
+      setError("");
+      return;
+    }
     let active = true;
     setError("");
     api<Dashboard>(`dashboard?from=${from}&to=${to}`)
@@ -621,7 +690,10 @@ function DashboardView({
     return () => {
       active = false;
     };
-  }, [from, to, refresh]);
+  }, [from, to, refresh, supportOnly]);
+  if (supportOnly) {
+    return <RoleDashboardPanel user={user} refresh={refresh} onNavigate={go} />;
+  }
   return (
     <>
       <div className="dashboard-tools">
@@ -646,6 +718,15 @@ function DashboardView({
           />
         </div>
       </div>
+      {user.role.name !== "stock" && !supportOnly && (
+        <DashboardBuilder
+          layout={widgets.layout}
+          onToggle={widgets.toggle}
+          onMove={widgets.move}
+          onReset={widgets.reset}
+          storageAvailable={widgets.storageAvailable}
+        />
+      )}
       {error && (
         <div className="error" role="alert">
           {error}
@@ -655,6 +736,9 @@ function DashboardView({
         <Empty text="Chargement des indicateurs…" />
       ) : (
         <>
+          <RoleDashboardPanel user={user} dashboard={data} refresh={refresh} onNavigate={go} />
+          {user.role.name !== "stock" && (
+            <>
           <div className="stats-grid">
             {[
               {
@@ -663,29 +747,36 @@ function DashboardView({
                 note: "HT · Factures émises et payées",
                 icon: TrendingUp,
                 featured: true,
+                id: "revenue" as const,
               },
               {
+                id: "validated-orders" as const,
                 title: "Commandes validées",
                 value: String(data.orders_count).padStart(2, "0"),
                 note: "Validées sur la période",
                 icon: ShoppingBag,
               },
               {
+                id: "outstanding" as const,
                 title: "À encaisser",
                 value: euro(data.outstanding_cents),
                 note: "TTC · Factures émises non payées",
                 icon: Wallet,
               },
               {
+                id: "low-stock" as const,
                 title: "Alertes de stock",
                 value: String(data.low_stock_count).padStart(2, "0"),
                 note: "Produits au seuil ou en dessous",
                 icon: Package,
               },
-            ].map((s, i) => (
+            ].filter((s) => widgets.visible(s.id))
+              .sort((a, b) => widgets.order(a.id) - widgets.order(b.id))
+              .map((s) => (
               <article
                 className={`stat-card ${s.featured ? "featured" : ""}`}
-                key={s.title}
+                data-widget={s.id}
+                key={s.id}
               >
                 <div className="stat-top">
                   <span>{s.title}</span>
@@ -693,7 +784,7 @@ function DashboardView({
                 </div>
                 <strong>{s.value}</strong>
                 <div className="stat-note">
-                  {i === 3 ? (
+                  {s.id === "low-stock" ? (
                     <span className="amber-dot" />
                   ) : (
                     <span className="tiny-line" />
@@ -704,7 +795,10 @@ function DashboardView({
             ))}
           </div>
           <div className="dashboard-grid">
-            <section className="panel revenue-panel">
+            {([
+              { id: "revenue-chart" as const, element: (
+            <section className="panel revenue-panel atlas-dashboard-widget"
+              data-widget="revenue-chart">
               <div className="panel-heading">
                 <div>
                   <h2>Le rythme de vos ventes</h2>
@@ -723,7 +817,10 @@ function DashboardView({
                 </strong>
               </div>
             </section>
-            <section className="panel top-products">
+              ) },
+              { id: "top-products" as const, element: (
+            <section className="panel top-products atlas-dashboard-widget"
+              data-widget="top-products">
               <div className="panel-heading">
                 <div>
                   <h2>Vos meilleures ventes</h2>
@@ -759,7 +856,10 @@ function DashboardView({
                 <ArrowRight size={16} />
               </button>
             </section>
-            <section className="panel recent-orders">
+              ) },
+              { id: "recent-orders" as const, element: (
+            <section className="panel recent-orders atlas-dashboard-widget"
+              data-widget="recent-orders">
               <div className="panel-heading">
                 <div>
                   <h2>Les dernières commandes</h2>
@@ -770,7 +870,7 @@ function DashboardView({
                   <ArrowUpRight size={16} />
                 </button>
               </div>
-              <div className="table-scroll">
+              <DataTableFrame label="Dernières commandes">
                 <table>
                   <thead>
                     <tr>
@@ -797,9 +897,12 @@ function DashboardView({
                   </tbody>
                 </table>
                 {!data.recent_orders.length && <Empty />}
-              </div>
+              </DataTableFrame>
             </section>
-            <section className="panel stock-alerts">
+              ) },
+              { id: "stock-alerts" as const, element: (
+            <section className="panel stock-alerts atlas-dashboard-widget"
+              data-widget="stock-alerts">
               <div className="panel-heading">
                 <div>
                   <h2>
@@ -838,6 +941,11 @@ function DashboardView({
                 <ArrowRight size={16} />
               </button>
             </section>
+              ) },
+            ])
+              .filter((panel) => widgets.visible(panel.id))
+              .sort((a, b) => widgets.order(a.id) - widgets.order(b.id))
+              .map((panel) => <Fragment key={panel.id}>{panel.element}</Fragment>)}
           </div>
           <div className="insight-strip">
             <span className="insight-icon">
@@ -857,6 +965,8 @@ function DashboardView({
               <ArrowUpRight size={16} />
             </button>
           </div>
+            </>
+          )}
         </>
       )}
     </>
@@ -1044,9 +1154,9 @@ function ListView({
             {(product
               ? ["1"]
               : view === "quotes"
-                ? ["draft", "converted"]
+                ? ["draft","sent","accepted","converted","expired","cancelled"]
                 : view === "orders"
-                  ? ["draft", "validated"]
+                  ? ["draft","confirmed","reserved","prepared","partially_shipped","shipped","closed","cancelled","validated"]
                   : ["draft", "issued", "paid", "cancelled"]
             ).map((s) => (
               <option value={s} key={s}>
@@ -1064,10 +1174,7 @@ function ListView({
           {error}
         </div>
       )}
-      <div
-        className={`table-scroll ${loading ? "is-loading" : ""}`}
-        aria-busy={loading}
-      >
+      <DataTableFrame label={`Résultats : ${nav.find((item) => item.id === view)?.label ?? view}`} busy={loading}>
         <table>
           <thead>
             <tr>
@@ -1269,7 +1376,7 @@ function ListView({
             }
           />
         )}
-      </div>
+      </DataTableFrame>
       <div className="pagination">
         <span>
           Page {data?.current_page || 1} sur {data?.last_page || 1}
@@ -1365,6 +1472,7 @@ function EditorForm({
           if (!data.password) delete data.password;
         }
         if (sale) {
+          if(kind==="orders")data.fulfillment_mode="reservation_v2";
           data.customer_id = Number(data.customer_id);
           data.items = lines.map((l) => ({
             product_id: Number(l.product_id),
@@ -1401,8 +1509,7 @@ function EditorForm({
               <p>Stock actuel : {row?.stock} unités</p>
             </div>
           </div>
-          <label>
-            Quantité à ajouter ou retirer
+          <FormField label="Quantité à ajouter ou retirer">
             <input
               name="quantity"
               type="number"
@@ -1412,9 +1519,8 @@ function EditorForm({
               step="1"
               placeholder="Ex. 10 ou -3"
             />
-          </label>
-          <label>
-            Motif
+          </FormField>
+          <FormField label="Motif">
             <input
               name="reason"
               required
@@ -1422,19 +1528,18 @@ function EditorForm({
               maxLength={255}
               placeholder="Réception fournisseur, correction d’inventaire…"
             />
-          </label>
+          </FormField>
         </>
       ) : contact ? (
         <>
-          <label>
-            Nom / entreprise
+          <FormField label="Nom / entreprise">
             <input
               name="name"
               required
               maxLength={255}
               defaultValue={row?.name}
             />
-          </label>
+          </FormField>
           <div className="form-grid">
             <label>
               Adresse e-mail
@@ -1545,49 +1650,50 @@ function EditorForm({
         </>
       ) : kind === "users" ? (
         <>
+          {row ? (
+            <p className="form-hint">
+              Compte partagé : {row.name} ({row.email}). Seul le rôle dans
+              l’entreprise active peut être modifié ici. Le nom, l’e-mail
+              et le mot de passe sont des informations globales protégées.
+            </p>
+          ) : (
+            <>
+              <label>
+                Nom
+                <input name="name" required maxLength={255} />
+              </label>
+              <label>
+                Adresse e-mail
+                <input name="email" type="email" required maxLength={255} />
+              </label>
+            </>
+          )}
           <label>
-            Nom
-            <input
-              name="name"
-              required
-              maxLength={255}
-              defaultValue={row?.name}
-            />
-          </label>
-          <label>
-            Adresse e-mail
-            <input
-              name="email"
-              type="email"
-              required
-              maxLength={255}
-              defaultValue={row?.email}
-            />
-          </label>
-          <label>
-            Rôle
+            Rôle dans l’entreprise active
             <select name="role_id" required defaultValue={row?.role_id || ""}>
               <option value="" disabled>
                 Sélectionner un rôle
               </option>
               {roles.map((r) => (
                 <option key={r.id} value={r.id}>
-                  {labels[r.name]}
+                  {labels[r.name] || r.name}
                 </option>
               ))}
             </select>
           </label>
-          <label>
-            {row ? "Nouveau mot de passe (facultatif)" : "Mot de passe"}
-            <input
-              name="password"
-              type="password"
-              autoComplete="new-password"
-              minLength={12}
-              required={!row}
-            />
-            <small>12 caractères minimum, avec lettres et chiffres.</small>
-          </label>
+          {!row && (
+            <label>
+              Mot de passe initial
+              <input
+                name="password"
+                type="password"
+                autoComplete="new-password"
+                minLength={12}
+                required
+              />
+              <small>12 caractères minimum, avec lettres et chiffres.</small>
+            </label>
+          )}
         </>
       ) : sale ? (
         <>
@@ -1792,11 +1898,8 @@ function Detail({
   async function download() {
     setError("");
     try {
-      const res = await fetch(`/api/invoices/${row.id}/pdf`, {
-        headers: { Accept: "application/pdf" },
-      });
-      if (!res.ok) throw new Error("La génération du PDF a échoué.");
-      const url = URL.createObjectURL(await res.blob());
+      const blob = await fetchTenantBlob(`invoices/${row.id}/pdf`, "application/pdf");
+      const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       a.download = `${row.number || "BROUILLON-" + row.id}.pdf`;
@@ -1820,7 +1923,7 @@ function Detail({
         </div>
         <Badge status={row.status} />
       </div>
-      <div className="table-scroll">
+      <DataTableFrame label="Lignes du document">
         <table>
           <thead>
             <tr>
@@ -1846,7 +1949,7 @@ function Detail({
             ))}
           </tbody>
         </table>
-      </div>
+      </DataTableFrame>
       <div className="totals">
         <span>
           Total HT<b>{euro(row.subtotal_cents)}</b>
@@ -1877,7 +1980,7 @@ function Detail({
             Télécharger le PDF
           </button>
         )}
-        {can && kind === "quotes" && row.status === "draft" && (
+        {can && kind === "quotes" && row.status === "draft" && !row.revision_no && (
           <button
             className="button primary"
             disabled={busy}
@@ -1887,7 +1990,7 @@ function Detail({
             <ArrowRight size={16} />
           </button>
         )}
-        {can && kind === "orders" && row.status === "draft" && (
+        {can && kind === "orders" && row.status === "draft" && row.fulfillment_mode !== "reservation_v2" && (
           <button
             className="button primary"
             disabled={busy}
@@ -1897,7 +2000,7 @@ function Detail({
             <Check size={16} />
           </button>
         )}
-        {can && kind === "orders" && row.status === "validated" && (
+        {can && kind === "orders" && (["validated","shipped"].includes(row.status) || (row.status==="cancelled" && row.items?.some(x=>Number(x.shipped_quantity)>0) && row.fulfillment_mode==="reservation_v2")) && (
           <button
             className="button primary"
             disabled={busy}

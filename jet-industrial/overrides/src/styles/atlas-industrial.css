@@ -1,0 +1,89 @@
+/* ATLAS ONE · Oracle JET industrial workspace (Redwood-compatible) */
+:root{--atlas-ink:#14231d;--atlas-muted:#607268;--atlas-green:#146b55;--atlas-bg:#f4f7f5;--atlas-line:#dfe7e1;}
+.atlas-jet-shell{font:14px/1.5 "Helvetica Neue",Arial,sans-serif;color:var(--atlas-ink);background:var(--atlas-bg);min-height:100vh;}
+.atlas-jet-header{display:flex;align-items:center;justify-content:space-between;background:white;border-bottom:1px solid var(--atlas-line);padding:13px 27px;gap:15px;flex-wrap:wrap;}
+.atlas-jet-brand{display:flex;gap:12px;align-items:center;}
+.atlas-jet-brand strong{font-size:18px;letter-spacing:-.5px;}
+.atlas-jet-brand small{display:block;font-size:9px;color:var(--atlas-muted);font-weight:700;letter-spacing:1.25px;}
+.atlas-jet-mark{display:grid;place-items:center;width:38px;height:38px;background:var(--atlas-green);border-radius:10px;color:white;font-weight:900;font-size:25px;}
+.atlas-jet-context{display:flex;align-items:center;gap:14px;flex-wrap:wrap;font-size:12px;font-weight:600;}
+.atlas-jet-role{border:1px solid #c6d8cd;background:#eef6f0;border-radius:15px;padding:3px 9px;text-transform:uppercase;font-size:10px;color:#31614c;}
+.atlas-jet-body{display:grid;grid-template-columns:240px minmax(0,1fr);min-height:calc(100vh - 65px);}
+.atlas-jet-nav{display:flex;flex-direction:column;gap:6px;background:#f9fbfa;border-right:1px solid var(--atlas-line);padding:29px 18px;}
+.atlas-jet-nav>p{font-size:10px;letter-spacing:1.6px;font-weight:800;color:#81958b;padding:0 12px;}
+.atlas-jet-nav button{background:transparent;border:0;border-radius:8px;text-align:left;padding:12px 13px;cursor:pointer;color:#4e6559;font-weight:600;}
+.atlas-jet-nav button:hover,.atlas-jet-nav button:focus-visible{background:#e6efe9;outline:2px solid transparent;}
+.atlas-jet-nav button.active{background:#deede4;color:#12543f;border-left:3px solid var(--atlas-green);}
+.atlas-jet-nav-info{margin-top:auto;border:1px solid var(--atlas-line);background:white;border-radius:8px;padding:14px;}
+.atlas-jet-nav-info strong{display:block;font-size:11px;margin-bottom:7px;}
+.atlas-jet-nav-info span{font-size:11px;color:var(--atlas-muted);}
+.atlas-jet-main{max-width:1600px;width:100%;min-width:0;margin:auto;padding:28px 34px 55px;}
+.atlas-jet-toolbar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:18px;margin-bottom:24px;}
+.atlas-jet-toolbar h1{font-size:27px;font-weight:800;letter-spacing:-.8px;margin:4px 0 7px;}
+.atlas-jet-toolbar p{font-size:12px;color:var(--atlas-muted);margin:0;}
+.atlas-jet-overline{font-weight:800;font-size:10px;letter-spacing:1.4px;color:var(--atlas-green);}
+.atlas-jet-actions{display:flex;gap:9px;flex-wrap:wrap;}
+.atlas-jet-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:15px;margin-bottom:20px;}
+.atlas-jet-metric{background:white;border:1px solid var(--atlas-line);border-radius:10px;padding:23px 20px;display:grid;gap:9px;}
+.atlas-jet-metric span{font-size:11px;color:var(--atlas-muted);font-weight:700;}
+.atlas-jet-metric strong{font-size:30px;line-height:1.1;letter-spacing:-.7px;}
+.atlas-jet-card{background:white;border:1px solid var(--atlas-line);border-radius:10px;padding:21px;overflow:hidden;margin-bottom:18px;}
+.atlas-jet-card h2{font-size:17px;margin:0 0 7px;}
+.atlas-jet-card p{font-size:12px;color:var(--atlas-muted);}
+.atlas-jet-card table{width:100%;border-collapse:collapse;text-align:left;font-size:12px;margin-top:17px;}
+.atlas-jet-card th{background:#f6f9f7;color:#6a7e73;font-size:10px;text-transform:uppercase;letter-spacing:.6px;}
+.atlas-jet-card td,.atlas-jet-card th{padding:12px;border-bottom:1px solid #edf0ed;}
+.atlas-jet-row-actions{white-space:nowrap;}
+.atlas-jet-status{border-radius:5px;background:#e7f2eb;color:#246049;padding:5px 9px;font-size:11px;white-space:nowrap;}
+.atlas-jet-notice,.atlas-jet-error{border-radius:8px;padding:14px 18px;margin:0 0 18px;}
+.atlas-jet-notice{background:#ebf7ec;border:1px solid #b4d9c1;color:#17573f;}
+.atlas-jet-error{background:#fff0f0;border:1px solid #f1bfbb;color:#90322a;}
+.atlas-jet-error a{font-weight:700;color:#6d251b;}
+.atlas-jet-muted{padding:20px;color:var(--atlas-muted);}
+.atlas-jet-tree{display:grid;gap:11px;margin-top:14px;}
+.atlas-jet-tree details{border:1px solid var(--atlas-line);border-radius:8px;padding:12px 17px;}
+.atlas-jet-tree summary{cursor:pointer;display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap;}
+.atlas-jet-tree summary span{color:var(--atlas-muted);font-size:11px;}
+.atlas-jet-tree ul{padding:8px 0 0;margin:0;list-style:none;}
+.atlas-jet-tree li{display:flex;justify-content:space-between;gap:16px;padding:10px 4px;border-bottom:1px solid #eef1ee;}
+.atlas-jet-tree li:last-child{border-bottom:0;}
+.atlas-jet-card input[type=search]{max-width:340px;width:100%;padding:9px;border:1px solid var(--atlas-line);border-radius:6px;margin-top:10px;}
+.atlas-jet-scroll{overflow-x:auto;}
+.atlas-jet-dialog-backdrop{position:fixed;inset:0;z-index:50;background:rgba(8,21,16,.5);display:grid;place-items:center;padding:15px;}
+.atlas-jet-dialog{background:white;box-shadow:0 15px 60px #162d2533;width:min(570px,100%);max-height:90vh;overflow-y:auto;border-radius:12px;padding:26px;display:grid;gap:15px;}
+.atlas-jet-dialog h2{font-size:21px;margin:0;}
+.atlas-jet-dialog label{display:grid;gap:5px;font-size:12px;font-weight:700;}
+.atlas-jet-dialog input,.atlas-jet-dialog select,.atlas-jet-dialog textarea{padding:11px;border:1px solid #ccd9d0;border-radius:7px;background:white;color:var(--atlas-ink);font:inherit;}
+.atlas-jet-dialog-buttons{display:flex;justify-content:end;gap:10px;}
+.atlas-jet-dialog-buttons button{border:1px solid #c3d4c9;border-radius:8px;background:#fff;padding:11px 15px;cursor:pointer;}
+.atlas-jet-dialog-buttons button[type=submit]{background:var(--atlas-green);color:white;}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:2px solid #268861;outline-offset:2px;}
+@media(max-width:980px){.atlas-jet-metrics{grid-template-columns:repeat(2,minmax(0,1fr));}.atlas-jet-main{padding:21px;}}
+@media(max-width:720px){.atlas-jet-body{grid-template-columns:1fr;}.atlas-jet-nav{flex-direction:row;flex-wrap:wrap;border-right:0;border-bottom:1px solid var(--atlas-line);padding:10px;}.atlas-jet-nav>p,.atlas-jet-nav-info{display:none;}.atlas-jet-nav button{font-size:11px;}.atlas-jet-main{padding:14px;}.atlas-jet-metrics{gap:9px;}.atlas-jet-header{padding:10px 15px;}}
+
+/* P068 maintenance workforce and technical planning */
+.atlas-jet-two-col{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;}
+.atlas-jet-inline-form{display:grid;gap:10px;margin:14px 0 22px;}
+.atlas-jet-planning-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:18px;}
+.atlas-jet-inline-form label,.atlas-jet-planning-form label{display:grid;gap:6px;color:var(--atlas-ink);font-size:12px;font-weight:700;}
+.atlas-jet-inline-form input,.atlas-jet-inline-form select,.atlas-jet-planning-form input,.atlas-jet-planning-form select{font:inherit;color:var(--atlas-ink);background:#fff;border:1px solid #cbd9d0;border-radius:8px;padding:11px;width:100%;min-width:0;}
+.atlas-jet-inline-form button,.atlas-jet-planning-form button,.atlas-jet-scroll button,.atlas-jet-report-top button{border:1px solid #bcd1c4;border-radius:8px;background:#166a50;color:#fff;font:inherit;font-weight:700;padding:11px 16px;cursor:pointer;}
+.atlas-jet-inline-form button:disabled,.atlas-jet-planning-form button:disabled,.atlas-jet-scroll button:disabled,.atlas-jet-report-top button:disabled{opacity:.5;cursor:not-allowed;}
+.atlas-jet-scroll button{padding:7px 10px;font-size:11px;}
+.atlas-jet-directory{list-style:none;padding:0;margin:0;display:grid;gap:8px;max-height:410px;overflow:auto;}
+.atlas-jet-directory li{border:1px solid var(--atlas-line);border-radius:7px;padding:10px 13px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;}
+.atlas-jet-directory li span{font-size:11px;color:var(--atlas-muted);}
+.atlas-jet-report-top{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:16px;}
+.atlas-jet-card h3{font-size:15px;margin:25px 0 8px;}
+@media(max-width:1024px){.atlas-jet-two-col{grid-template-columns:1fr;}}
+@media(max-width:680px){.atlas-jet-planning-form{grid-template-columns:1fr;}.atlas-jet-report-top button{width:100%;}}
+
+/* V5.2 industrial menus and rule inspector */
+.atlas-jet-nav-group{display:grid;gap:5px;margin:0 0 16px;}
+.atlas-jet-nav-group>p{font-size:10px;letter-spacing:1.3px;font-weight:800;color:#738f7e;padding:0 12px;margin:10px 0 5px;}
+.atlas-jet-nav-group button{display:block;width:100%;font-size:12px;}
+.atlas-jet-rule-list{line-height:1.9;padding-left:22px;}
+.atlas-jet-rule-list li{padding:6px 0;}
+.atlas-industrial-workspace .atlas-jet-card label{display:grid;gap:5px;font-size:12px;font-weight:700;}
+.atlas-industrial-workspace .atlas-jet-card select{font:inherit;padding:9px;border:1px solid #cbd9d0;border-radius:8px;background:#fff;max-width:100%;}
+@media(max-width:720px){.atlas-jet-nav-group{display:flex;flex-wrap:wrap;align-items:center;margin:0;}.atlas-jet-nav-group>p{width:100%;margin:4px 0;}.atlas-jet-nav-group button{width:auto;}.atlas-jet-nav-info{display:none;}}
