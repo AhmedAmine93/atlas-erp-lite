@@ -302,6 +302,32 @@ final class CrmWorkspaceTest extends TestCase
         ])->assertNotFound();
     }
 
+    public function test_marketing_activity_requires_active_contact_opt_in(): void
+    {
+        $customer=Customer::create(['name'=>'Contact tests','email'=>'contact-marketing@example.test']);
+        $contact=$this->postJson('/api/crm/contacts',[
+            'customer_id'=>$customer->id,'first_name'=>'Camille','last_name'=>'Tests',
+            'email'=>'camille-marketing@example.test','consent'=>'refused',
+        ])->assertCreated()->json('id');
+        $base=['title'=>'Lettre commerciale','contact_id'=>$contact,
+            'due_at'=>'2027-01-02T10:00:00+01:00','purpose'=>'marketing'];
+        $this->postJson('/api/crm/activities',$base)->assertUnprocessable();
+        $service=$this->postJson('/api/crm/activities',array_merge($base,['purpose'=>'service']))
+            ->assertCreated()->assertJsonPath('purpose','service')->json('id');
+        $this->putJson('/api/crm/activities/'.$service,[
+            'purpose'=>'marketing','expected_revision'=>1,
+        ])->assertUnprocessable();
+        $this->putJson('/api/crm/contacts/'.$contact,[
+            'consent'=>'granted','expected_revision'=>1,
+        ])->assertOk();
+        $this->postJson('/api/crm/activities',$base)
+            ->assertCreated()->assertJsonPath('purpose','marketing');
+        $this->postJson('/api/crm/activities',[
+            'title'=>'Prospect sans consentement',
+            'purpose'=>'marketing','due_at'=>'2027-01-02T10:00:00+01:00',
+        ])->assertUnprocessable();
+    }
+
     public function test_pg_runtime_rls_isolates_all_new_crm_tables(): void
     {
         if (DB::getDriverName()!=='pgsql') $this->markTestSkipped('RLS PostgreSQL uniquement.');
