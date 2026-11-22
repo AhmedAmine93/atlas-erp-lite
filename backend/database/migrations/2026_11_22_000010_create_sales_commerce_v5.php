@@ -19,6 +19,21 @@ return new class extends Migration {
 
     public function up(): void
     {
+        // Legacy upgrades may omit the separate F14 line-owner migration.
+        // Backfill tenant ownership from immutable parent orders, never infer it
+        // from the runtime session. F14 can still run later without losing data.
+        if (!Schema::hasColumn('order_items', 'company_id')) {
+            Schema::table('order_items', function (Blueprint $t) {
+                $t->foreignId('company_id')->nullable()->constrained('companies')->restrictOnDelete();
+            });
+            DB::statement('UPDATE order_items SET company_id = (SELECT company_id FROM orders WHERE orders.id = order_items.order_id)');
+            if (DB::table('order_items')->whereNull('company_id')->exists()) {
+                throw new RuntimeException('Legacy M03 backfill failed: orphan order items.');
+            }
+            Schema::table('order_items', function (Blueprint $t) {
+                $t->foreignId('company_id')->nullable(false)->change();
+            });
+        }
         Schema::table('quotes', function (Blueprint $t) {
             $t->unsignedInteger('revision_no')->default(0);
             $t->unsignedInteger('document_version')->default(0);
