@@ -205,7 +205,7 @@ final class ProcurementCompletionController extends Controller
             abort_if((int)$order->created_by===(int)$request->user()->id,403,'Signature indépendante du créateur de la commande.');
             $line=$this->row('purchase_order_lines',$data['purchase_order_line_id'],true);
             abort_unless((int)$line->purchase_order_id===$orderId,422,'Ligne hors commande.');
-            abort_unless($line->product_id===null,422,'Le service fait ne s’utilise pas sur un article stockable.');
+            abort_unless($line->line_type==='service' && $line->product_id===null,422,'Le service fait est réservé aux lignes de prestation.');
             abort_if((int)$line->received_quantity+$data['accepted_quantity']>(int)$line->quantity,
                 409,'Service fait supérieur à la commande.');
             $id=DB::table('purchase_service_acceptances')->insertGetId([
