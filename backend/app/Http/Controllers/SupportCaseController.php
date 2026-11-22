@@ -312,6 +312,78 @@ class SupportCaseController extends Controller
         });
     }
 
+    /**
+     * M11.01 central inbox: combine existing F07 incidents and all ITSM cases.
+     * Both sources are explicitly company filtered even on SQLite, and RLS
+     * enforces the same boundary when deployed with PostgreSQL runtime.
+     */
+    public function queue(Request $request)
+    {
+        Gate::authorize('itsmRead');
+        $data = $request->validate([
+            'search' => 'nullable|string|max:100',
+            'priority' => ['nullable', Rule::in(['P1','P2','P3','P4'])],
+            'page' => 'nullable|integer|min:1',
+        ]);
+        $company = app(TenantContext::class)->requireId();
+        $cases = DB::table('support_cases')
+            ->where('company_id', $company)
+            ->selectRaw("id, reference, title, kind, status, priority, created_at");
+        $incidents = DB::table('support_incidents')
+            ->where('company_id', $company)
+            ->selectRaw("id, reference, title, 'incident' AS kind, status, severity AS priority, created_at");
+        $query = DB::query()->fromSub($cases->unionAll($incidents), 'inbox');
+        if (! empty($data['priority'])) $query->where('priority', $data['priority']);
+        if (! empty($data['search'])) {
+            $pattern = '%'.mb_strtolower($data['search']).'%';
+            $query->where(fn ($q) => $q->whereRaw('LOWER(title) LIKE ?', [$pattern])
+                ->orWhereRaw('LOWER(reference) LIKE ?', [$pattern]));
+        }
+        return $query->orderByDesc('created_at')->orderByDesc('id')->paginate(20);
+    }
+
+    /**
+     * A deliberately minimal CSV export with the exact same visibility
+     * predicate as the read path. Do not export description, diagnosis,
+     * approvals, knowledge secrets, tokens, or cross-company information.
+     */
+    public function export(Request $request, string $kind)
+    {
+        Gate::authorize('itsmRead');
+        abort_unless(in_array($kind, self::KINDS, true), 404);
+        $data = $request->validate([
+            'status' => 'nullable|string|max:24',
+            'priority' => ['nullable', Rule::in(['P1','P2','P3','P4'])],
+            'search' => 'nullable|string|max:100',
+        ]);
+        $query = SupportCase::query()->where('kind', $kind)
+            ->when($data['status'] ?? null, fn ($q, $v) => $q->where('status', $v))
+            ->when($data['priority'] ?? null, fn ($q, $v) => $q->where('priority', $v))
+            ->when($data['search'] ?? null, function ($q, $v) {
+                $pattern = '%'.mb_strtolower($v).'%';
+                $q->where(fn ($inner) => $inner->whereRaw('LOWER(title) LIKE ?', [$pattern])
+                    ->orWhereRaw('LOWER(reference) LIKE ?', [$pattern]));
+            });
+        Audit::record('support.case.export', null, ['kind' => $kind, 'filters' => $data]);
+
+        return response()->streamDownload(function () use ($query) {
+            $out = fopen('php://output', 'w');
+            fputcsv($out, ['reference','kind','title','status','priority','created_at'], ';');
+            $escape = static fn ($value) => preg_match('/^[=+\-@\t\r]/u', (string) $value)
+                ? "'".(string) $value : (string) $value;
+            foreach ($query->orderBy('id')->limit(10000)->get([
+                'reference','kind','title','status','priority','created_at',
+            ]) as $item) {
+                fputcsv($out, [
+                    $escape($item->reference), $escape($item->kind),
+                    $escape($item->title), $escape($item->status),
+                    $escape($item->priority), $escape($item->created_at),
+                ], ';');
+            }
+            fclose($out);
+        }, 'atlas-itsm-'.$kind.'.csv', ['Content-Type' => 'text/csv; charset=utf-8']);
+    }
+
     public function catalog(Request $request)
     {
         Gate::authorize('itsmRead');
