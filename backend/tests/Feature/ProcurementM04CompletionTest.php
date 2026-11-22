@@ -71,6 +71,9 @@ class ProcurementM04CompletionTest extends TestCase
         ])->assertCreated()->json('id');
         $this->postJson("/api/purchasing/orders/$orderId/transition",['action'=>'send'])
             ->assertOk();
+        $this->getJson("/api/purchasing/orders/$orderId/commitments")
+            ->assertOk()->assertJsonPath('reserved_cents',20000)
+            ->assertJsonPath('released_cents',0);
         $line=$this->getJson("/api/purchasing/orders/$orderId/lines")
             ->assertOk()->json('data.0.id');
 
@@ -87,6 +90,9 @@ class ProcurementM04CompletionTest extends TestCase
         ])->assertOk();
         $this->getJson('/api/purchasing/orders')
             ->assertOk()->assertJsonPath('data.0.total_cents',16000);
+        $this->getJson("/api/purchasing/orders/$orderId/commitments")
+            ->assertOk()->assertJsonPath('released_cents',4000)
+            ->assertJsonPath('outstanding_cents',16000);
         $this->getJson("/api/purchasing/orders/$orderId/amendments")
             ->assertOk()->assertJsonCount(1,'data');
 
