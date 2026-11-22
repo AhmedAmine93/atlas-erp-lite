@@ -38,7 +38,7 @@ test("P132: workflow housekeeping hôtel, chambre et inspection",async({page})=>
   await room.getByRole("button",{name:"Terminer le nettoyage"}).click();
   await expect(room.getByText("Propre",{exact:true})).toBeVisible();
   await room.getByRole("button",{name:"Valider l'inspection"}).click();
-  await expect(room.getByText("Inspectée",{exact:true})).toBeVisible();
+  await expect(room.locator('[data-state="inspected"]')).toHaveText("Inspectée");
   await expect(room.getByText("Propreté contrôlée")).toBeVisible();
   await expect(room.getByRole("button")).toBeDisabled();
 });
