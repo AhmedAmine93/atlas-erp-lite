@@ -45,7 +45,7 @@ const configs:Record<View,Config>={
   ],columns:["code","name","mode","revision"]}
 };
 const transitions:Record<string,Record<string,string[]>>={
-  prospects:{new:["qualified","lost"],qualified:["lost"]},
+  prospects:{new:["qualified","lost"],qualified:["lost"],lost:["qualified"]},
   opportunities:{new:["qualified","lost"],qualified:["proposal","lost"],proposal:["won","lost"]},
   activities:{planned:["completed","cancelled"]}
 };
@@ -134,6 +134,30 @@ export default function CrmWorkspace({view,activeCompanyId,canEdit}:{view:View;a
    });setNotice("Client créé ou réutilisé #"+r.customer_id);setSelected(null);setRefresh(x=>x+1);}
    catch(e){setError((e as Error).message);}finally{setBusy(false);}
  }
+ async function reschedule(row:Row){
+   const due=window.prompt("Nouvelle échéance (ex. 2026-12-30T15:00) :");
+   if(due===null)return;
+   const parsed=new Date(due);
+   if(Number.isNaN(parsed.getTime())){setError("Date d'échéance invalide.");return;}
+   const reason=window.prompt("Motif du report (3 caractères minimum) :");
+   if(reason===null)return;
+   if(reason.trim().length<3){setError("Motif trop court.");return;}
+   setBusy(true);setError("");
+   try{
+     const result=await send<Row>("crm/activities/"+row.id+"/reschedule","POST",{
+       due_at:parsed.toISOString(),reason:reason.trim(),expected_revision:row.revision
+     });
+     setNotice("Échéance reportée et auditée.");setSelected(result);setRefresh(x=>x+1);
+   }catch(e){setError((e as Error).message);}finally{setBusy(false);}
+ }
+ async function removeMember(id:number){
+   if(!selected)return;
+   setBusy(true);setError("");
+   try{
+     await send("crm/segments/"+selected.id+"/members","PUT",{customer_id:id,active:false});
+     await loadMembers(selected.id);setNotice("Client retiré du segment.");
+   }catch(e){setError((e as Error).message);}finally{setBusy(false);}
+ }
  async function loadMembers(id:number){
    try{const r=await api<{data:Array<{id:number;name:string;email:string}>}>("crm/segments/"+id+"/members");
      setMembers(r.data);
@@ -181,11 +205,18 @@ export default function CrmWorkspace({view,activeCompanyId,canEdit}:{view:View;a
     {canEdit&&(transitions[resource]?.[String(selected.stage??selected.status)]??[]).map(target=>
       <button key={target} type="button" disabled={busy} className="button secondary"
         onClick={()=>void transition(selected,target)}>{labels[target]??target}</button>)}
+    {canEdit&&resource==="activities"&&selected.status==="planned"&&
+      <button className="button secondary" type="button" disabled={busy}
+        onClick={()=>void reschedule(selected)}>Reporter l'échéance</button>}
     {canEdit&&resource==="prospects"&&selected.status==="qualified"&&
       <button type="button" disabled={busy} className="button primary"
         onClick={()=>void convert(selected)}>Convertir en client</button>}
     {resource==="segments"&&<><h3>Clients du segment</h3>
-      {members.map(m=><p key={m.id}>{m.name} — {m.email}</p>)}
+      {members.map(m=><p key={m.id}>{m.name} — {m.email}
+        {canEdit&&selected.mode==="static"&&
+          <button type="button" className="text-button" disabled={busy}
+            onClick={()=>void removeMember(m.id)}>Retirer</button>}
+      </p>)}
       {selected.mode==="static"&&canEdit&&<form onSubmit={e=>void addMember(e)}>
         <label>ID client <input required type="number" min="1" value={memberId} onChange={e=>setMemberId(e.target.value)}/></label>
         <button disabled={busy} className="button secondary">Ajouter</button>
