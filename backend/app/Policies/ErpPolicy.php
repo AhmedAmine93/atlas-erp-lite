@@ -77,6 +77,16 @@ class ErpPolicy
         return in_array(app(TenantRoles::class)->role($u)?->name, ['admin', 'support_n3'], true);
     }
 
+    public function opsRead(User $u): bool
+    {
+        return $this->oneOf($u, ['admin', 'ops_viewer', 'ops_operator']);
+    }
+
+    public function opsWrite(User $u): bool
+    {
+        return $this->oneOf($u, ['admin', 'ops_operator']);
+    }
+
     public function admin(User $u): bool
     {
         return app(TenantRoles::class)->role($u)?->name === 'admin';
