@@ -8,8 +8,8 @@
 - **PR base:** `dev` (never `main`)
 - **Base dev commit:** `9a5eb58454a34bce1b13803ec3643ffc37e3c681`
 - **Previous wave:** PR #77 (merged into dev, CI successful)
-- **Wave 02 state:** 10/20 steps validated on the feature branch.
-- **Next executable step:** 11 — minibar consumption ledger.
+- **Wave 02 state:** 18/20 steps implemented; 10/20 verified at last green checkpoint. Latest changes await fresh CI.
+- **Next executable step:** 19 — full CI and regression review; then 20 — conditional PR merge into dev.
 
 ## Scope and guardrails
 
@@ -31,14 +31,14 @@ Read this file plus the affected source files; do not re-read the entire reposit
 | 08 | Tenant-safe PostgreSQL minibar product/catalog/price history tables | **Done (B)** |
 | 09 | Minibar RLS, restricted runtime grants, indexes, composite FKs and security tests | **Done (B)** |
 | 10 | Minibar catalog REST API and validation; checkpoint B | **Done (B)** |
-| 11 | Minibar consumption ledger with immutable unit price, server-side totals, idempotency and audit | TODO |
-| 12 | Next.js hotel/date/room/article minibar entry grid | TODO |
-| 13 | Day-level reporting by room/article/hotel with historical price integrity | TODO |
-| 14 | Tenant-scoped CSV export filtered by hotel/date | TODO |
-| 15 | Validated fictitious PMS CSV import and matching configuration; checkpoint C | TODO |
-| 16 | ATLAS-vs-PMS minibar reconciliation: matching/duplicates/amount deltas/export | TODO |
-| 17 | Monthly minibar dashboard, daily trend and anomaly counts | TODO |
-| 18 | Integration/security/unit tests: RLS, amounts, idempotency, imports, state machines | TODO |
+| 11 | Minibar consumption ledger with immutable unit price, server-side totals, idempotency and audit | Implemented; CI validation pending |
+| 12 | Next.js hotel/date/room/article minibar entry grid | Implemented; CI validation pending |
+| 13 | Day-level reporting by room/article/hotel with historical price integrity | Implemented; CI validation pending |
+| 14 | Tenant-scoped CSV export filtered by hotel/date | Implemented; CI validation pending |
+| 15 | Validated fictitious PMS CSV import and matching configuration; checkpoint C | Implemented; CI validation pending |
+| 16 | ATLAS-vs-PMS minibar reconciliation: matching/duplicates/amount deltas/export | Implemented; CI validation pending |
+| 17 | Monthly minibar dashboard, daily trend and anomaly counts | Implemented; CI validation pending |
+| 18 | Integration/security/unit tests: RLS, amounts, idempotency, imports, state machines | Implemented; final CI pending |
 | 19 | Full CI: Laravel, PostgreSQL, browser, Docker, existing-module regressions | TODO |
 | 20 | Review changes and merge ONE PR into `dev` only if full CI green; checkpoint D | TODO |
 
@@ -68,3 +68,11 @@ Read this file plus the affected source files; do not re-read the entire reposit
 - PostgreSQL PHPUnit hotel/minibar/RLS filter: 12 tests, 229 assertions; full PHPUnit: 99 tests, 1119 assertions.
 - Restore rehearsal fixed by resolving grants from Laravel’s database path. Playwright: 13 passed; CI: https://github.com/AhmedAmine93/atlas-erp-lite/actions/runs/45036808524.
 - No blocking errors. Next: 11 — immutable consumption ledger and idempotent writes.
+
+### C · 15 — implementation checkpoint (NOT final validation)
+
+- Implemented on the feature branch: immutable and idempotent minibar consumption ledger, Next.js daily entry grid, daily report, tenant-scoped journal export and synthetic PMS import with mapping. These are steps 11–15; latest CI is the acceptance gate, not a green claim.
+- Unit/feature coverage exists in `HotelMinibarTest.php` for price history, idempotence, PMS replay/input validation and tenant permissions. No live PMS connector or real customer data was added.
+- Step 16: read-only PMS reconciliation, missing/duplicate/amount mismatches, 5 EUR breakfast hypothesis and CSV variance export. Step 17: monthly local revenue, quantities, article summaries, PMS import coverage and trends. Step 18: focused security/RLS/Playwright tests added.
+- Latest feature code at checkpoint preparation: `3dd1a2ba5f4cb2c8632cd42aabc4310f8b4e77b8`; GitHub Actions full CI `45042639415` was still running when this record was drafted. Subsequent checkpoint commit will require its own current-head CI.
+- **Tests not yet verified green for this checkpoint:** do not merge on the basis of older commits. Next: full CI and security/non-regression review, corrections if needed; step 20 only after a successful current-head run.
