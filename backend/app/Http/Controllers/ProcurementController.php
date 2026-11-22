@@ -483,6 +483,9 @@ final class ProcurementController extends Controller
             'amount_cents'=>'required|integer|min:1|max:100000000000']);
         return DB::transaction(function () use ($id,$data,$request) {
             $invoice=$this->row('supplier_invoices',$id,true);
+            abort_if(DB::table('supplier_invoice_payment_authorizations')
+                ->where('company_id',$this->company())->where('supplier_invoice_id',$id)->exists(),
+                409,'Bon à payer déjà autorisé : modification interdite.');
             $credits=(int)DB::table('supplier_credit_notes')->where('company_id',$this->company())
                 ->where('supplier_invoice_id',$id)->sum('amount_cents');
             abort_if($credits+$data['amount_cents']>$invoice->total_cents,409,'Avoir supérieur au montant restant.');
