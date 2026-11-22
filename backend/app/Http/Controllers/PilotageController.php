@@ -47,6 +47,7 @@ final class PilotageController extends Controller
         $data = $request->validate([
             'from' => 'nullable|date_format:Y-m-d',
             'to' => 'nullable|date_format:Y-m-d|after_or_equal:from',
+            'company_id'=>'prohibited', 'site_id'=>'prohibited', 'hotel_id'=>'prohibited',
         ]);
         $from = CarbonImmutable::parse($data['from'] ?? now()->startOfMonth()->toDateString());
         $to = CarbonImmutable::parse($data['to'] ?? now()->toDateString());
@@ -270,7 +271,8 @@ final class PilotageController extends Controller
             'section'=>$section, 'from'=>$from, 'to'=>$to,
             'scope'=>'Entreprise active uniquement', 'cards'=>$cards, 'rows'=>$rows,
             'notes'=>$notes, 'row_limit'=>($section === 'alerts' ? 200 : 100),
-            'generated_at'=>now()->toIso8601String(), 'currency'=>'EUR', 'data_status'=>'live',
+            'generated_at'=>now()->toIso8601String(), 'currency'=>'EUR',
+            'data_status'=>isset($hotelDataComplete) && !$hotelDataComplete ? 'partial' : 'live',
         ])->header('Cache-Control','no-store');
     }
 
@@ -367,7 +369,7 @@ final class PilotageController extends Controller
             fwrite($handle,"\xEF\xBB\xBF");
             fputcsv($handle,['ATLAS M01','Entreprise',$company,'Période',$payload['from'],$payload['to']],';');
             fputcsv($handle,['Données','EUR cents si suffixe _cents','Extrait le',$payload['generated_at']],';');
-            fputcsv($handle,['Indicateur','Valeur'],' ; '[1]);
+            fputcsv($handle,['Indicateur','Valeur'],';');
             foreach ($cards as $card) fputcsv($handle,[$safe($card['key']),$safe($card['value'])],';');
             fputcsv($handle,[],';');
             if ($rows) {
