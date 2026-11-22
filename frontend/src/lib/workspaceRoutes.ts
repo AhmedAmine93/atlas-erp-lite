@@ -49,7 +49,7 @@ export function canOpenWorkspaceView(view: View, role: Role["name"]): boolean {
     return ["admin", "commercial", "stock", "reader"].includes(role);
   if (["purchase-requests", "maintenance-sites", "maintenance-assets", "maintenance-requests", "maintenance-workorders", "hotel-properties", "hotel-rooms", "hotel-bookings", "hotel-checkin", "hotel-minibar", "hotel-availability", "hotel-housekeeping", "data-sources", "data-batches"].includes(view)) return role === "admin";
   if (["users", "audit-logs", "admin-companies"].includes(view)) return role === "admin";
-  if (view === "support-incidents") return ["admin", "support_n2", "support_n3"].includes(role);
+  if (view.startsWith("support-")) return ["admin", "support_n1", "support_n2", "support_n3", "support_manager", "support_cab"].includes(role);
   if (role === "admin") return true;
   if (role === "commercial") return ["customers", "suppliers", "products", "quotes", "orders", "invoices"].includes(view);
   if (role === "stock") return ["products", "stock-movements"].includes(view);
