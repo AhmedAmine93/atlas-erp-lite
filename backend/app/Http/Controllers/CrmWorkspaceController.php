@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Customer;
 use App\Services\Audit;
 use App\Services\TenantContext;
+use App\Services\TenantRoles;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -151,13 +152,23 @@ final class CrmWorkspaceController extends Controller
             $column = $resource === 'opportunities' ? 'stage' : 'status';
             $query->where($column, $filters['status']);
         }
+        if ($resource === 'contacts' && app(TenantRoles::class)->role($request->user())?->name === 'reader') {
+            $query->select('id','first_name','last_name','job_title','active','revision');
+        }
         return $query->orderByDesc('id')->paginate($filters['per_page'] ?? 20);
     }
 
-    public function show(string $resource, int $id)
+    public function show(Request $request, string $resource, int $id)
     {
         Gate::authorize('crmRead');
-        return response()->json($this->row($resource, $id));
+        $row=$this->row($resource,$id);
+        if ($resource === 'contacts' && app(TenantRoles::class)->role($request->user())?->name === 'reader') {
+            return response()->json([
+                'id'=>$row->id,'first_name'=>$row->first_name,'last_name'=>$row->last_name,
+                'job_title'=>$row->job_title,'active'=>$row->active,'revision'=>$row->revision,
+            ]);
+        }
+        return response()->json($row);
     }
 
     public function store(Request $request, string $resource)
