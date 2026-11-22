@@ -82,7 +82,9 @@ final class IndustrialJetTest extends TestCase
                 );
                 $this->assertSame(0,(int)$acl->u);
                 $this->assertSame(0,(int)$acl->d);
-                $this->assertSame(1,(int) DB::table('pg_class')->where('relname',$table)->value('relrowsecurity'));
+                $this->assertSame(1,(int) DB::selectOne(
+                    'SELECT relrowsecurity::int AS enabled FROM pg_class WHERE relname = ?',[$table]
+                )->enabled);
             }
         }
 
