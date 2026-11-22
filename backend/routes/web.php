@@ -36,6 +36,7 @@ use App\Http\Controllers\PurchaseRequestController;
 use App\Http\Controllers\ProcurementController;
 use App\Http\Controllers\ProcurementCompletionController;
 use App\Http\Controllers\ProcurementInvoiceDecisionController;
+use App\Http\Controllers\ProcurementReportingController;
 use App\Http\Controllers\DashboardLayoutController;
 use App\Http\Controllers\DataCanonicalSchemaController;
 use App\Http\Controllers\FormSchemaController;
@@ -60,6 +61,10 @@ Route::prefix('api')->group(function () {
         Route::get('data/sources/{id}/schemas', [DataCanonicalSchemaController::class, 'index'])->whereNumber('id');
         Route::post('data/sources/{id}/schemas', [DataCanonicalSchemaController::class, 'store'])->whereNumber('id');
         // M04 purchasing lifecycle; every route is inside auth, throttle and tenant middleware.
+        Route::get('purchasing/reporting/summary', [ProcurementReportingController::class, 'summary']);
+        Route::get('purchasing/reporting/{screen}/export', [ProcurementReportingController::class, 'export'])
+            ->whereIn('screen', ['suppliers','purchase-requests','supplier-quotes','purchase-orders','purchase-receipts','supplier-invoices'])
+            ->middleware('throttle:60,1');
         Route::get('purchasing/suppliers', [ProcurementController::class, 'suppliers']);
         Route::post('purchasing/suppliers/{id}/status', [ProcurementController::class, 'supplierStatus'])->whereNumber('id');
         Route::get('purchasing/suppliers/{supplierId}/bank-changes', [ProcurementController::class, 'bankList'])->whereNumber('supplierId');
