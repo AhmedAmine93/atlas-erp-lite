@@ -58,9 +58,9 @@ const screens:Record<string,{title:string;endpoint:string;columns:string[];field
       f("reference","Numéro de facture",true),f("total_cents","Montant TTC (centimes)",true,"number")]
   }
 };
-type Line = {description:string;quantity:string;unit_price_cents:string;vat_bps:string;product_id:string;
+type Line = {description:string;line_type:string;quantity:string;unit_price_cents:string;vat_bps:string;product_id:string;
   purchase_order_line_id:string;received_quantity:string;accepted_quantity:string;rejected_quantity:string};
-const blankLine=():Line=>({description:"",quantity:"1",unit_price_cents:"0",vat_bps:"0",product_id:"",
+const blankLine=():Line=>({description:"",line_type:"goods",quantity:"1",unit_price_cents:"0",vat_bps:"0",product_id:"",
   purchase_order_line_id:"",received_quantity:"1",accepted_quantity:"1",rejected_quantity:"0"});
 const label:Record<string,string>={
   reference:"Référence",name:"Nom",email:"Email",tax_registration:"Identifiant fiscal",procurement_status:"Statut",
@@ -125,7 +125,7 @@ export default function PurchasingWorkspace({view,activeCompanyId}:{view:string;
     }
     if(view==="purchase-orders") {
       payload.lines=lines.map(l=>({
-        description:l.description,quantity:number(l.quantity),unit_price_cents:number(l.unit_price_cents),
+        description:l.description,line_type:l.line_type,quantity:number(l.quantity),unit_price_cents:number(l.unit_price_cents),
         vat_bps:number(l.vat_bps),...(l.product_id?{product_id:number(l.product_id)}:{})
       }));
     }
@@ -303,6 +303,10 @@ export default function PurchasingWorkspace({view,activeCompanyId}:{view:string;
       {view==="purchase-orders"&&<div>
         <h3>Lignes de commande</h3>
         {lines.map((line,i)=><div key={i} className="atlas-domain-fields">
+          <label><span>Nature de la ligne</span>
+            <select value={line.line_type} onChange={e=>replaceLine(i,"line_type",e.target.value)}>
+              <option value="goods">Article / bien</option><option value="service">Prestation / service fait</option>
+            </select></label>
           {(["description","quantity","unit_price_cents","vat_bps","product_id"] as const).map(key=>
             <label key={key}><span>{({description:"Description",quantity:"Quantité",unit_price_cents:"Prix unitaire (centimes)",vat_bps:"TVA (points de base)",product_id:"Produit (ID, facultatif)"})[key]}</span>
               <input required={key!=="product_id"} type={key==="description"?"text":"number"}
