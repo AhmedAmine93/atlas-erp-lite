@@ -6,6 +6,7 @@ use App\Models\InventorySerial;
 use App\Models\Product;
 use App\Services\Audit;
 use App\Services\InventoryStockService;
+use App\Services\TenantContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -26,7 +27,9 @@ final class InventoryTraceabilityController extends Controller
     {
         Gate::authorize('stock');
         $v=$r->validate([
-            'product_id'=>'required|integer|min:1','code'=>'required|string|max:80',
+            'product_id'=>'required|integer|min:1','code'=>['required','string','max:80',
+                Rule::unique('inventory_lots','code')->where('company_id',app(TenantContext::class)->requireId())
+                    ->where('product_id',$r->input('product_id'))],
             'expires_on'=>'nullable|date_format:Y-m-d','company_id'=>'prohibited','status'=>'prohibited',
         ]);
         Product::findOrFail($v['product_id']);
@@ -68,13 +71,22 @@ final class InventoryTraceabilityController extends Controller
         Gate::authorize('stock');
         $v=$r->validate([
             'product_id'=>'required|integer|min:1','location_id'=>'required|integer|min:1',
-            'lot_id'=>'nullable|integer|min:1','serial_number'=>'required|string|max:120',
+            'lot_id'=>'nullable|integer|min:1','serial_number'=>['required','string','max:120',
+                Rule::unique('inventory_serials','serial_number')
+                    ->where('company_id',app(TenantContext::class)->requireId())
+                    ->where('product_id',$r->input('product_id'))],
             'company_id'=>'prohibited','status'=>'prohibited',
         ]);
         return DB::transaction(function() use($v,$service) {
             $product=Product::query()->lockForUpdate()->findOrFail($v['product_id']);
             $location=$service->location($v['location_id'],true);
             $lot=$service->lot($product,$v['lot_id']??null);
+            $balance=$service->balance($product,$location,$lot);
+            $active=InventorySerial::query()->where('product_id',$product->id)
+                ->where('location_id',$location->id)->where('lot_id',$lot?->id)
+                ->whereIn('status',['available','quarantine'])->count();
+            abort_unless($active < (int)$balance->quantity,409,
+                'Aucune unité physique restante à associer à ce numéro de série.');
             if($location->condition_code==='regulated') Gate::authorize('admin');
             $record=InventorySerial::create($v+[
                 'status'=>$lot && $lot->status!=='available'?'quarantine':'available',
