@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\HotelBooking;
 use App\Models\HotelRoom;
+use App\Models\HotelProperty;
+use App\Services\HotelRoomInventory;
 use App\Services\Audit;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
@@ -72,15 +74,11 @@ final class HotelBookingController extends Controller
                 $room = HotelRoom::query()->lockForUpdate()->findOrFail($booking->room_id);
                 abort_unless($room->hotel_id === $booking->hotel_id
                     && $room->room_status === 'available', 409, 'Chambre indisponible.');
-                $overlap = HotelBooking::query()
-                    ->where('hotel_id', $booking->hotel_id)
-                    ->where('room_id', $room->id)
-                    ->where('id', '!=', $booking->id)
-                    ->whereIn('status', ['confirmed', 'checked_in'])
-                    ->where('arrival_date', '<', $booking->departure_date)
-                    ->where('departure_date', '>', $booking->arrival_date)
-                    ->exists();
-                abort_if($overlap, 409, 'Chambre déjà réservée sur ces dates.');
+                $hotel = HotelProperty::query()->findOrFail($room->hotel_id);
+                $reasons = app(HotelRoomInventory::class)->reasons(
+                    $hotel, $room, $booking->arrival_date, $booking->departure_date, $booking->id
+                );
+                abort_if($reasons !== [], 409, 'Chambre indisponible : '.implode(', ', $reasons));
                 $booking->status = 'confirmed';
                 $booking->save();
                 Audit::record('hotel.booking.confirmed', $booking);
