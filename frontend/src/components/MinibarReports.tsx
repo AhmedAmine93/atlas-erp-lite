@@ -1,19 +1,23 @@
 "use client";
 
 import {useEffect,useState,type FormEvent} from "react";
-import {api,fetchTenantBlob} from "@/lib/api";
+import {api,fetchTenantBlob,ApiError} from "@/lib/api";
 
 type Line={room_number:string;sku:string;name:string;unit_cents:number;quantity:number;total_cents:number};
 type Daily={lines:Line[];total_cents:number;by_room:Record<string,number>;by_sku:Record<string,number>};
 type Mapping={mode:string;delimiter:string;amount_unit:string;date_header:string;room_header:string;amount_header:string;sku_header?:string};
+type ReconciliationLine={room_number:string;sku:string|null;atlas_cents:number;pms_cents:number;delta_cents:number;pms_line_count:number;status:string;possible_breakfast_difference:boolean};
+type Reconciliation={import_id:number;import_mode:string;atlas_total_cents:number;pms_total_cents:number;delta_cents:number;counts:Record<string,number>;manual_review_required:boolean;lines:ReconciliationLine[]};
+const reconciliationLabels:Record<string,string>={matched:"Conforme",amount_mismatch:"Écart",missing_in_pms:"Absent du PMS",missing_in_atlas:"Absent d’ATLAS",duplicate_pms:"Doublon PMS"};
 const initial:Mapping={mode:"room",delimiter:";",amount_unit:"cents",date_header:"business_date",room_header:"room_number",amount_header:"total_cents",sku_header:"sku"};
 const money=(value:number)=>new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR"}).format(value/100);
 
 export default function MinibarReports({hotel,day,refresh}:{hotel:number;day:string;refresh:number}){
   const base="hotels/"+hotel+"/minibar",query="?business_date="+day;
   const [report,setReport]=useState<Daily|null>(null),[mapping,setMapping]=useState<Mapping>(initial);
+  const [reconciliation,setReconciliation]=useState<Reconciliation|null>(null);
   const [error,setError]=useState(""),[notice,setNotice]=useState(""),[busy,setBusy]=useState(false);
-  const [,setRevision]=useState(0);
+  const [revision,setRevision]=useState(0);
   useEffect(()=>{
     let live=true;
     api<Daily>(base+"/report"+query).then(value=>{if(live)setReport(value);}).catch(e=>{if(live)setError(e.message);});
@@ -25,6 +29,12 @@ export default function MinibarReports({hotel,day,refresh}:{hotel:number;day:str
       .catch(e=>{if(live)setError(e.message);});
     return ()=>{live=false;};
   },[base]);
+  useEffect(()=>{
+    let live=true;setReconciliation(null);
+    api<Reconciliation>(base+"/reconciliation"+query).then(value=>{if(live)setReconciliation(value);})
+      .catch(e=>{if(live&&!(e instanceof ApiError&&e.status===404))setError(e.message);});
+    return ()=>{live=false;};
+  },[base,query,refresh,revision]);
   async function download(path:string,name:string){
     setError("");
     try{
@@ -55,6 +65,21 @@ export default function MinibarReports({hotel,day,refresh}:{hotel:number;day:str
           <h4>Par article</h4>{Object.entries(report.by_sku).map(([k,v])=><p key={k}>{k} · {money(v)}</p>)}
         </details></div>}
       <button onClick={()=>void download("/export"+query,"minibar-"+hotel+"-"+day+".csv")}>Exporter le journal CSV</button></>}
+    <section aria-label="Rapprochement minibar PMS"><h3>Rapprochement ATLAS / PMS</h3>
+      {!reconciliation&&<p>Aucun import PMS sélectionné pour cette journée.</p>}
+      {reconciliation&&<>
+        <p>Import #{reconciliation.import_id} · {reconciliation.import_mode==="room"?"Par chambre":"Par chambre et article"}</p>
+        <p>ATLAS : <strong>{money(reconciliation.atlas_total_cents)}</strong> · PMS : <strong>{money(reconciliation.pms_total_cents)}</strong> · Écart ATLAS − PMS : <strong>{money(reconciliation.delta_cents)}</strong></p>
+        <p role="status">{reconciliation.manual_review_required?"Revue manuelle obligatoire : aucune écriture n’est modifiée automatiquement.":"Montants rapprochés, sans correction automatique."}</p>
+        <div className="table-scroll"><table><thead><tr>{["Chambre","Article","ATLAS","PMS","Écart","Contrôle"].map(k=><th key={k}>{k}</th>)}</tr></thead>
+          <tbody>{reconciliation.lines.map((line,i)=><tr key={line.room_number+"-"+(line.sku??"")+"-"+i}>
+            <td>{line.room_number}</td><td>{line.sku??"Total chambre"}</td>
+            <td>{money(line.atlas_cents)}</td><td>{money(line.pms_cents)}</td><td>{money(line.delta_cents)}</td>
+            <td>{reconciliationLabels[line.status]??line.status}{line.possible_breakfast_difference&&" · Hypothèse petit-déjeuner (+/- 5 €)"}</td>
+          </tr>)}</tbody></table></div>
+        <button type="button" onClick={()=>void download("/reconciliation/export"+query+"&import_id="+reconciliation.import_id,"rapprochement-minibar-"+hotel+"-"+day+".csv")}>Exporter les écarts CSV</button>
+      </>}
+    </section>
     <details><summary>Importer un CSV PMS fictif</summary><form onSubmit={upload}>
       <label>Rapprochement <select value={mapping.mode} onChange={e=>setMapping({...mapping,mode:e.target.value})}>
         <option value="room">Total par chambre</option><option value="room_product">Total par chambre et article</option></select></label>
