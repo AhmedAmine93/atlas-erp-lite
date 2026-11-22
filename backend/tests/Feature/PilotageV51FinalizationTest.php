@@ -49,6 +49,8 @@ final class PilotageV51FinalizationTest extends TestCase
         $this->assertDatabaseHas('pilotage_target_versions',[
             'id'=>$id,'company_id'=>$company->id,'version'=>1,'target_value'=>9000,
         ]);
+        $this->postJson($url,[...$base,'target_value'=>11000,'reason'=>'Révision direction approuvée'])
+            ->assertOk()->assertJsonPath('version',2)->assertJsonPath('replayed',true);
         $this->assertDatabaseCount('pilotage_target_versions',2);
         $this->getJson('/api/pilotage/direction?from=2026-11-01&to=2026-11-30')
             ->assertOk()->assertJsonFragment(['key'=>'target_issued_ht_cents','value'=>11000])
