@@ -10,6 +10,7 @@ use App\Http\Controllers\MetricsController;
 use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\SalesController;
+use App\Http\Controllers\SalesCommerceController;
 use App\Http\Controllers\TenantContextController;
 use App\Http\Controllers\SupportIncidentController;
 use App\Http\Controllers\SupportDiagnosticController;
@@ -138,6 +139,28 @@ Route::prefix('api')->group(function () {
         Route::post('{kind}', [ContactController::class, 'save'])->whereIn('kind', ['customers', 'suppliers']);
         Route::put('{kind}/{id}', [ContactController::class, 'save'])->whereIn('kind', ['customers', 'suppliers'])->whereNumber('id');
         Route::delete('{kind}/{id}', [ContactController::class, 'destroy'])->whereIn('kind', ['customers', 'suppliers'])->whereNumber('id');
+        // M03 V5 commerce: static namespace before legacy dynamic sales routes.
+        Route::get('sales-v5/{kind}', [SalesCommerceController::class, 'index'])
+            ->whereIn('kind', ['revisions','approvals','reservations','deliveries','contracts','returns','credits','pricing']);
+        Route::get('sales-v5/{kind}/{id}', [SalesCommerceController::class, 'detail'])
+            ->whereIn('kind', ['revisions','approvals','reservations','deliveries','contracts','returns','credits','pricing'])->whereNumber('id');
+        Route::post('sales-v5/quotes/{quote}/revisions', [SalesCommerceController::class, 'reviseQuote'])->whereNumber('quote');
+        Route::post('sales-v5/approvals/{id}/decide', [SalesCommerceController::class, 'approveDiscount'])->whereNumber('id');
+        Route::post('sales-v5/revisions/{revision}/{action}', [SalesCommerceController::class, 'quoteTransition'])
+            ->whereNumber('revision')->whereIn('action', ['send','accept']);
+        Route::post('sales-v5/revisions/{revision}/convert', [SalesCommerceController::class, 'convertQuote'])->whereNumber('revision');
+        Route::post('sales-v5/orders/{order}/reserve', [SalesCommerceController::class, 'reserveOrder'])->whereNumber('order');
+        Route::post('sales-v5/orders/{order}/ship', [SalesCommerceController::class, 'ship'])->whereNumber('order');
+        Route::post('sales-v5/orders/{id}/cancel', [SalesCommerceController::class, 'cancelOrder'])->whereNumber('id');
+        Route::post('sales-v5/deliveries/{id}/acknowledge', [SalesCommerceController::class, 'acknowledge'])->whereNumber('id');
+        Route::post('sales-v5/contracts', [SalesCommerceController::class, 'createContract']);
+        Route::post('sales-v5/contracts/{id}/{action}', [SalesCommerceController::class, 'contractTransition'])
+            ->whereNumber('id')->whereIn('action',['publish','amend','terminate']);
+        Route::post('sales-v5/pricing', [SalesCommerceController::class, 'createPricing']);
+        Route::post('sales-v5/pricing/{id}/publish', [SalesCommerceController::class, 'publishPricing'])->whereNumber('id');
+        Route::post('sales-v5/returns', [SalesCommerceController::class, 'createReturn']);
+        Route::post('sales-v5/returns/{id}/inspect', [SalesCommerceController::class, 'inspectReturn'])->whereNumber('id');
+        Route::post('sales-v5/returns/{id}/credit', [SalesCommerceController::class, 'creditReturn'])->whereNumber('id');
         Route::get('{salesKind}', [SalesController::class, 'index'])->whereIn('salesKind', ['quotes', 'orders']);
         Route::post('{salesKind}', [SalesController::class, 'store'])->whereIn('salesKind', ['quotes', 'orders']);
         Route::get('{salesKind}/{id}', [SalesController::class, 'show'])->whereIn('salesKind', ['quotes', 'orders'])->whereNumber('id');
