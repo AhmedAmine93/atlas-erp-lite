@@ -8,8 +8,8 @@
 - **PR base:** `dev` (never `main`)
 - **Base dev commit:** `9a5eb58454a34bce1b13803ec3643ffc37e3c681`
 - **Previous wave:** PR #77 (merged into dev, CI successful)
-- **Wave 02 state:** 5/20 steps validated on the feature branch.
-- **Next executable step:** 06 — per-room hotel/day summary API.
+- **Wave 02 state:** 10/20 steps validated on the feature branch.
+- **Next executable step:** 11 — minibar consumption ledger.
 
 ## Scope and guardrails
 
@@ -26,11 +26,11 @@ Read this file plus the affected source files; do not re-read the entire reposit
 | 03 | Booking state/security hardening, date checks, GiST, RLS, concurrency, tenant scopes | **Done (A)** |
 | 04 | Next.js reception actions: confirm/check-in/check-out/cancel, server errors | **Done (A)** |
 | 05 | Focused Laravel/PostgreSQL tests; checkpoint A | **Done (A)** |
-| 06 | Hotel/day per-room summary read API: physical state, housekeeping, occupancy and local arrivals/departures | TODO |
-| 07 | Existing housekeeping room cards: verified status badges; no sellability inference | TODO |
-| 08 | Tenant-safe PostgreSQL minibar product/catalog/price history tables | TODO |
-| 09 | Minibar RLS, restricted runtime grants, indexes, composite FKs and security tests | TODO |
-| 10 | Minibar catalog REST API and validation; checkpoint B | TODO |
+| 06 | Hotel/day per-room summary read API: physical state, housekeeping, occupancy and local arrivals/departures | **Done (B)** |
+| 07 | Existing housekeeping room cards: verified status badges; no sellability inference | **Done (B)** |
+| 08 | Tenant-safe PostgreSQL minibar product/catalog/price history tables | **Done (B)** |
+| 09 | Minibar RLS, restricted runtime grants, indexes, composite FKs and security tests | **Done (B)** |
+| 10 | Minibar catalog REST API and validation; checkpoint B | **Done (B)** |
 | 11 | Minibar consumption ledger with immutable unit price, server-side totals, idempotency and audit | TODO |
 | 12 | Next.js hotel/date/room/article minibar entry grid | TODO |
 | 13 | Day-level reporting by room/article/hotel with historical price integrity | TODO |
@@ -60,3 +60,11 @@ Read this file plus the affected source files; do not re-read the entire reposit
 - Isolated PostgreSQL: vendor/bin/phpunit --filter 'Hotel|Minibar|V5RuntimeTenantRls' — 10 tests, 206 assertions.
 - Full PHPUnit: 97 tests, 1096 assertions; Playwright: 13 passed; CI: https://github.com/AhmedAmine93/atlas-erp-lite/actions/runs/45035854974.
 - No blocking errors. Next: 06 — per-room hotel/day summary API.
+
+### B · 10
+
+- Verified head: dcd9c6c2a95cd1ca67a38f6b4b6c87c2a863d137; steps 06–10 validated.
+- Changed: HotelHousekeepingController/Workspace, routes, minibar_runtime.php, catalog migration, MinibarProduct, HotelMinibarCatalogController, HotelMinibarTest.
+- PostgreSQL PHPUnit hotel/minibar/RLS filter: 12 tests, 229 assertions; full PHPUnit: 99 tests, 1119 assertions.
+- Restore rehearsal fixed by resolving grants from Laravel’s database path. Playwright: 13 passed; CI: https://github.com/AhmedAmine93/atlas-erp-lite/actions/runs/45036808524.
+- No blocking errors. Next: 11 — immutable consumption ledger and idempotent writes.
