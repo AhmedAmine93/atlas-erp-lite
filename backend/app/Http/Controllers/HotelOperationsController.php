@@ -263,7 +263,7 @@ final class HotelOperationsController extends Controller
             'request_id' => 'required|uuid',
         ]);
         return DB::transaction(function () use ($property,$folio,$entry,$data,$request) {
-            $key = ['company_id' => $property->company_id, 'hotel_id' => $hotel];
+            $key = ['company_id' => $property->company_id, 'hotel_id' => $property->id];
             $folioRow = DB::table('hotel_folios')->where($key)
                 ->where('id',$folio)->lockForUpdate()->first();
             abort_unless($folioRow, 404);
