@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\HotelBooking;
 use App\Models\HotelRoom;
 use App\Models\HotelProperty;
+use App\Models\HotelHousekeepingTask;
 use App\Services\HotelRoomInventory;
 use App\Services\Audit;
 use Illuminate\Database\QueryException;
@@ -90,6 +91,55 @@ final class HotelBookingController extends Controller
             }
             throw $e;
         }
+    }
+
+    /**
+     * A confirmed booking is not a check-in authorization by itself.
+     * Inspection must match the actual hotel's business date, and the room
+     * is locked before checking maintenance/hold windows and changing state.
+     * Historical confirmed nights belong to THIS reservation and are excluded
+     * from the conflict query, while competing reservations remain blocked.
+     */
+    public function checkin(int $id)
+    {
+        Gate::authorize('admin');
+
+        return DB::transaction(function () use ($id) {
+            $booking = HotelBooking::query()->lockForUpdate()->findOrFail($id);
+            abort_unless($booking->status === 'confirmed', 409, 'Seule une réservation confirmée peut être enregistrée à l’arrivée.');
+
+            $room = HotelRoom::query()->lockForUpdate()->findOrFail($booking->room_id);
+            abort_unless($room->hotel_id === $booking->hotel_id, 409, 'La chambre ne correspond pas à l’hôtel.');
+
+            $hotel = HotelProperty::query()->findOrFail($booking->hotel_id);
+            $today = \Carbon\CarbonImmutable::now($hotel->timezone)->toDateString();
+            abort_unless($booking->arrival_date <= $today && $today < $booking->departure_date,
+                409, 'Check-in hors de la période du séjour.');
+
+            $inspection = HotelHousekeepingTask::query()
+                ->where('hotel_id', $hotel->id)
+                ->where('room_id', $room->id)
+                ->whereDate('business_date', $today)
+                ->where('status', 'inspected')
+                ->whereNotNull('inspected_at')
+                ->first();
+            abort_unless($inspection !== null, 409, 'Inspection housekeeping requise pour cette journée.');
+
+            $reasons = app(HotelRoomInventory::class)->reasons(
+                $hotel, $room, $today, $booking->departure_date, $booking->id
+            );
+            abort_if($reasons !== [], 409, 'Check-in interdit : '.implode(', ', $reasons));
+
+            $booking->status = 'checked_in';
+            $booking->save();
+            Audit::record('hotel.booking.checked_in', $booking, [
+                'room_id' => $room->id,
+                'business_date' => $today,
+                'housekeeping_task_id' => $inspection->id,
+            ]);
+
+            return response()->json($booking);
+        }, 3);
     }
 
     public function cancel(int $id)
