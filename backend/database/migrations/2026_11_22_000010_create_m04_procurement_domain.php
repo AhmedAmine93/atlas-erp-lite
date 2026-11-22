@@ -120,7 +120,7 @@ return new class extends Migration {
             $t->string('currency', 3); $t->unsignedBigInteger('total_cents');
             $t->unsignedBigInteger('matched_cents')->default(0);
             $t->unsignedBigInteger('dispute_cents')->default(0);
-            $t->string('status', 16)->default('disputed');
+            $t->string('status', 32)->default('disputed');
             $t->foreignId('created_by')->constrained('users')->restrictOnDelete();
             $t->timestamps(); $t->unique(['company_id','supplier_id','normalized_reference'], 'm04_supplier_invoice_ref_unique');
         });
