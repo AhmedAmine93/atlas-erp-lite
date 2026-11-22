@@ -333,6 +333,53 @@ final class CrmWorkspaceController extends Controller
         });
     }
 
+    /** Associate an existing quote with one opportunity, never mutate its issued snapshot. */
+    public function linkQuote(Request $request, int $id)
+    {
+        Gate::authorize('crm');
+        Gate::authorize('sales');
+        $data=$request->validate(['quote_id'=>'required|integer|min:1']);
+        return DB::transaction(function()use($request,$id,$data){
+            $opportunity=$this->row('opportunities',$id,true);
+            abort_if($opportunity->stage==='lost',409,'Opportunité perdue.');
+            $quote=DB::table('quotes')->where('company_id',$this->company())
+                ->where('id',$data['quote_id'])->first();
+            abort_unless($quote,404,'Devis introuvable.');
+            if($opportunity->customer_id !== null) {
+                abort_unless((int)$opportunity->customer_id === (int)$quote->customer_id,
+                    422,'Le devis et l’opportunité doivent concerner le même client.');
+            }
+            $existing=DB::table('crm_opportunity_quotes')
+                ->where('company_id',$this->company())->where('quote_id',$quote->id)->first();
+            if($existing){
+                abort_unless((int)$existing->opportunity_id===$id,409,'Devis lié à une autre opportunité.');
+                return response()->json($existing);
+            }
+            $newId=DB::table('crm_opportunity_quotes')->insertGetId([
+                'company_id'=>$this->company(),'opportunity_id'=>$id,'quote_id'=>$quote->id,
+                'linked_by'=>$request->user()->id,'created_at'=>now(),'updated_at'=>now(),
+            ]);
+            $this->audit('quote_linked','opportunities',$id,['quote_id'=>$quote->id]);
+            return response()->json(
+                DB::table('crm_opportunity_quotes')->where('company_id',$this->company())
+                    ->where('id',$newId)->first(),201
+            );
+        });
+    }
+
+    public function opportunityQuotes(int $id)
+    {
+        Gate::authorize('crmRead');
+        $this->row('opportunities',$id);
+        return DB::table('crm_opportunity_quotes as linked')
+            ->join('quotes as q',function($join) {
+                $join->on('q.id','=','linked.quote_id')->on('q.company_id','=','linked.company_id');
+            })
+            ->where('linked.company_id',$this->company())->where('linked.opportunity_id',$id)
+            ->select('q.id','q.number','q.status','q.total_cents','linked.created_at')
+            ->orderByDesc('linked.id')->paginate(20);
+    }
+
     public function segmentMembers(Request $request, int $id)
     {
         Gate::authorize('crmRead');
