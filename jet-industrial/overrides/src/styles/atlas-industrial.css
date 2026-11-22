@@ -77,3 +77,13 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .atlas-jet-card h3{font-size:15px;margin:25px 0 8px;}
 @media(max-width:1024px){.atlas-jet-two-col{grid-template-columns:1fr;}}
 @media(max-width:680px){.atlas-jet-planning-form{grid-template-columns:1fr;}.atlas-jet-report-top button{width:100%;}}
+
+/* V5.2 industrial menus and rule inspector */
+.atlas-jet-nav-group{display:grid;gap:5px;margin:0 0 16px;}
+.atlas-jet-nav-group>p{font-size:10px;letter-spacing:1.3px;font-weight:800;color:#738f7e;padding:0 12px;margin:10px 0 5px;}
+.atlas-jet-nav-group button{display:block;width:100%;font-size:12px;}
+.atlas-jet-rule-list{line-height:1.9;padding-left:22px;}
+.atlas-jet-rule-list li{padding:6px 0;}
+.atlas-industrial-workspace .atlas-jet-card label{display:grid;gap:5px;font-size:12px;font-weight:700;}
+.atlas-industrial-workspace .atlas-jet-card select{font:inherit;padding:9px;border:1px solid #cbd9d0;border-radius:8px;background:#fff;max-width:100%;}
+@media(max-width:720px){.atlas-jet-nav-group{display:flex;flex-wrap:wrap;align-items:center;margin:0;}.atlas-jet-nav-group>p{width:100%;margin:4px 0;}.atlas-jet-nav-group button{width:auto;}.atlas-jet-nav-info{display:none;}}
