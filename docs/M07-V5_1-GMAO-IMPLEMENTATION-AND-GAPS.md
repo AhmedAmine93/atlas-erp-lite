@@ -7,7 +7,7 @@ Branche: `feature/m07-gmao-maintenance-v5-1`, créée depuis `dev`. Aucune fusio
 | Sous-menu | Couverture implémentée | Limites identifiées |
 |---|---|---|
 | M07.01 Pilotage | KPI DI/BT, coûts, arrêts, préventif | MTTR proxy; MTBF/SLA certifiés non disponibles |
-| M07.02 Sites/localisations | Sites existants + emplacements hiérarchiques, historique déplacements | Contrôle anti-cycle de localisation à renforcer |
+| M07.02 Sites/localisations | Sites existants + emplacements hiérarchiques, historique déplacements | Triggers SQL anti-cycle et cohérence site ajoutés ; parcours de modification de hiérarchie à enrichir |
 | M07.03 Équipements | Référentiel, immobilisation et contrôle de remise en service | Composants hiérarchiques, procédure de retrait à compléter |
 | M07.04 DI | Création, qualification, refus motivé, conversion DI→BT déjà idempotente | Pièces jointes, habilitations métiers granulaires |
 | M07.05 BT | Démarrage/fin préexistants, temps/main-d'œuvre, coûts, inspections | Cycle complet planifié/contrôlé/clos et BT parents/enfants |
@@ -24,6 +24,8 @@ Branche: `feature/m07-gmao-maintenance-v5-1`, créée depuis `dev`. Aucune fusio
 - SQL additionnel toujours filtré par `company_id`.
 - FK composites tenant pour les nouvelles relations internes et stocks.
 - RLS PostgreSQL + rôle applicatif restreint + interdiction SQL DELETE.
+- Triggers PL/pgSQL contre les cycles de hiérarchie d'actifs/emplacements et les références à un site incohérent.
+- Clés d'idempotence persistées pour les réservations, consommations, restitutions, temps et événements terrain.
 - Audit des changements métier; transactions, verrous, erreurs 409, idempotence partielle.
 
 ## Recette nécessaire avant GO
