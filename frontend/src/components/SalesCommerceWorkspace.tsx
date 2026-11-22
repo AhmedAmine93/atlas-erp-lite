@@ -43,10 +43,11 @@ function format(name:string,value:unknown):string {
 export const salesCommerceViews = new Set<Module>(["quotes","orders","deliveries","sales-contracts","sales-returns","pricing"]);
 const getUniqueId = () => crypto.randomUUID().replaceAll("-","");
 
-export default function SalesCommerceWorkspace({view,activeCompanyId,canWrite,embedded=false}:{
-  view:Module; activeCompanyId:number|null; canWrite:boolean; embedded?:boolean
+export default function SalesCommerceWorkspace({view,activeCompanyId,canWrite,canApprove=false,embedded=false}:{
+  view:Module; activeCompanyId:number|null; canWrite:boolean; canApprove?:boolean; embedded?:boolean
 }) {
   const [items,setItems] = useState<Entry[]>([]);
+  const [approvals,setApprovals] = useState<Entry[]>([]);
   const [pages,setPages] = useState({current_page:1,last_page:1,total:0});
   const [page,setPage] = useState(1);
   const [status,setStatus] = useState("");
@@ -82,6 +83,13 @@ export default function SalesCommerceWorkspace({view,activeCompanyId,canWrite,em
     })).then(r=>{if(alive)setLookups(Object.fromEntries(r));}).catch(()=>{});
     return()=>{alive=false;};
   },[activeCompanyId,refresh]);
+  useEffect(()=>{
+    if(view!=="quotes"){setApprovals([]);return;}
+    let live=true;
+    api<Page<Entry>>("sales-v5/approvals?page=1").then(r=>{if(live)setApprovals(r.data);})
+      .catch(()=>{if(live)setApprovals([])});
+    return()=>{live=false;};
+  },[view,activeCompanyId,refresh]);
   const labelFor=(key:string,row:Entry):string=> {
     if(key==="products")return String(row.reference??row.id)+" · "+String(row.name??"");
     if(key==="customers")return String(row.name??row.id);
@@ -277,6 +285,24 @@ export default function SalesCommerceWorkspace({view,activeCompanyId,canWrite,em
         <button type="button" className="button secondary" disabled={loading||page>=pages.last_page} onClick={()=>setPage(x=>x+1)}>Suivant</button>
       </div>
     </div>
+    {view==="quotes"&&<div className="atlas-domain-list">
+      <h3>Demandes d'approbation des remises</h3>
+      <div className="table-scroll"><table><thead><tr><th>Révision</th><th>Remise</th><th>Statut</th><th>Décision</th></tr></thead><tbody>
+        {approvals.map(a=><tr key={a.id}><td>{String(a.revision_id)}</td><td>{format("discount_bps",a.discount_bps)}</td>
+          <td>{String(a.status??"—")}</td><td>{canApprove&&a.status==="pending"?
+            <div className="atlas-domain-actions">
+              <button type="button" className="button secondary" onClick={()=>begin({
+                label:"Approuver la remise",endpoint:`sales-v5/approvals/${a.id}/decide`,
+                fields:[f("reason","Justification","textarea")]
+              }) || setValues(x=>({...x,decision:"approved"}))}>Approuver</button>
+              <button type="button" className="button secondary" onClick={()=>begin({
+                label:"Refuser la remise",endpoint:`sales-v5/approvals/${a.id}/decide`,
+                fields:[f("reason","Justification du refus","textarea")]
+              }) || setValues(x=>({...x,decision:"rejected"}))}>Refuser</button>
+            </div>:"—"}</td></tr>)}
+      </tbody></table></div>
+      {!approvals.length&&<p>Aucune demande de remise.</p>}
+    </div>}
     {focus&&details&&<div className="atlas-domain-form"><div className="atlas-domain-form-heading">
       <h3>Historique et détail #{focus.id}</h3>
       <button type="button" className="button secondary" onClick={()=>{setFocus(null);setDetails(null)}}>Fermer</button></div>
