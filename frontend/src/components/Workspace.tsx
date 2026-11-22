@@ -43,6 +43,7 @@ import { canEditWorkspaceView, canOpenWorkspaceView, parseWorkspacePath, workspa
 import OrganizationWorkspace from "@/components/OrganizationWorkspace";
 import DomainWorkspace, { domainViews } from "@/components/DomainWorkspace";
 import CrmWorkspace from "@/components/CrmWorkspace";
+import CrmCustomerImport from "@/components/CrmCustomerImport";
 import HotelHousekeepingWorkspace from "@/components/HotelHousekeepingWorkspace";
 import HotelMinibarWorkspace from "@/components/HotelMinibarWorkspace";
 import HotelAvailabilityWorkspace from "@/components/HotelAvailabilityWorkspace";
@@ -581,6 +582,10 @@ export default function Workspace() {
               onCompanySaved={async () => setUser(await api<User>("me"))}
             />
           ) : (
+            <>
+            {view === "customers" && ["admin","commercial"].includes(user.role.name) && (
+              <CrmCustomerImport onImported={() => setRefresh(n => n + 1)} />
+            )}
             <ListView
               key={view}
               view={view}
@@ -594,6 +599,7 @@ export default function Workspace() {
               }
               busy={busy}
             />
+            </>
           )}
           <footer className="page-footer">
             <span>ATLAS ONE</span>
