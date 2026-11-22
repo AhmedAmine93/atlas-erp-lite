@@ -148,8 +148,8 @@ final class PilotageController extends Controller
             $notes[] = 'Les mouvements de stock sont une mesure de flux distincte des factures.';
         } else {
             $rules = DB::table('pilotage_alert_rules')->where('company_id',$company)
-                ->where('active',true)->whereDate('effective_from','<=',$to)
-                ->where(fn ($q) => $q->whereNull('effective_to')->orWhereDate('effective_to','>=',$from))
+                ->where('active',true)->whereDate('effective_from','<=',now()->toDateString())
+                ->where(fn ($q) => $q->whereNull('effective_to')->orWhereDate('effective_to','>=',now()->toDateString()))
                 ->orderBy('id')->limit(100)->get();
             $list = [];
             foreach ($rules as $rule) {
@@ -185,7 +185,7 @@ final class PilotageController extends Controller
                 'rules_count'=>$rules->count(), 'alerts_count'=>count($rows),
                 'unacknowledged_count'=>count(array_filter($rows,fn ($r)=>!$r['acknowledged_at'])),
             ]);
-            $notes[] = 'Alertes calculées depuis les pièces actuelles ; un accusé réception ne clôture pas le défaut sous-jacent.';
+            $notes[] = 'Alertes calculées à la date courante, indépendamment du filtre de période ; un accusé de réception ne clôture pas le défaut sous-jacent.';
             $notes[] = 'Chaque règle est datée ; l’escalade automatique et les objectifs budgétaires sont non disponibles.';
         }
         return response()->json([
@@ -241,6 +241,8 @@ final class PilotageController extends Controller
             $rule=DB::table('pilotage_alert_rules')->where('company_id',$company)
                 ->where('id',$d['rule_id'])->where('active',true)->lockForUpdate()->first();
             abort_unless($rule,404);
+            abort_unless($rule->effective_from <= now()->toDateString()
+                && ($rule->effective_to === null || $rule->effective_to >= now()->toDateString()),409);
             abort_unless(($rule->metric==='low_stock' && $d['entity_type']==='product')
                 || ($rule->metric==='unpaid_invoice_age_days' && $d['entity_type']==='invoice'),422);
             if ($d['entity_type']==='product') {
@@ -252,6 +254,8 @@ final class PilotageController extends Controller
             $inserted=DB::table('pilotage_alert_acknowledgements')->insertOrIgnore([
                 'company_id'=>$company,'rule_id'=>$rule->id,
                 'entity_type'=>$d['entity_type'],'entity_id'=>$d['entity_id'],
+                'product_id'=>$d['entity_type']==='product' ? $d['entity_id'] : null,
+                'invoice_id'=>$d['entity_type']==='invoice' ? $d['entity_id'] : null,
                 'acknowledged_by'=>$request->user()->id,'acknowledged_at'=>now(),
                 'comment'=>$d['comment'],
             ]);
