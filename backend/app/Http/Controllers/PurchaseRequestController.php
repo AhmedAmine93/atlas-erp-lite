@@ -41,6 +41,20 @@ final class PurchaseRequestController extends Controller {
             abort_unless($item->status === 'submitted', 409, 'Seule une demande soumise peut être approuvée.');
             abort_if((int) $item->requested_by === (int) $request->user()->id,
                 403, 'Le demandeur ne peut pas approuver sa propre demande.');
+            // Explicit limits apply when the tenant configures delegations for this currency.
+            // Legacy companies without any policy keep their existing four-eyes workflow.
+            $tenant=app(TenantContext::class)->requireId();
+            $policies=DB::table('purchase_approval_delegations')
+                ->where('company_id',$tenant)->where('currency',$item->currency);
+            if((clone $policies)->exists()){
+                $grant=(clone $policies)->where('user_id',$request->user()->id)
+                    ->where('active',true)
+                    ->where(function($query){
+                        $query->whereNull('valid_until')->orWhereDate('valid_until','>=',now()->toDateString());
+                    })->lockForUpdate()->first();
+                abort_unless($grant && (int)$grant->max_amount_cents >= (int)$item->estimated_total_cents,
+                    403, 'Plafond de délégation insuffisant ou expiré.');
+            }
             $item->status = 'approved';
             $item->approved_by = $request->user()->id;
             $item->approved_at = now();
