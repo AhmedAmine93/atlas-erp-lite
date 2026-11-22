@@ -70,6 +70,8 @@ export default function CrmWorkspace({view,activeCompanyId,canEdit}:{view:View;a
  const [form,setForm]=useState(false),[values,setValues]=useState<Record<string,string|boolean>>(defaultValues);
  const [refresh,setRefresh]=useState(0);
  const [members,setMembers]=useState<Array<{id:number;name:string;email:string}>>([]);
+ const [audience,setAudience]=useState<Array<{id:number;customer_id:number;first_name:string;last_name:string;email:string}>>([]);
+ const [audienceTotal,setAudienceTotal]=useState(0);
  const [memberId,setMemberId]=useState("");
  const [quoteId,setQuoteId]=useState("");
  const [summary,setSummary]=useState<{customers_active:number;prospects_open:number;opportunities_open:number;forecast_cents:number;activities_overdue:number;activities_due_today:number}|null>(null);
@@ -198,6 +200,14 @@ export default function CrmWorkspace({view,activeCompanyId,canEdit}:{view:View;a
      setNotice("Devis rattaché à l'opportunité.");await loadQuotes(selected.id);
    }catch(e){setError((e as Error).message);}finally{setBusy(false);}
  }
+ async function loadAudience(id:number){
+   setBusy(true);setError("");setAudience([]);
+   try {
+     const r=await api<{data:Array<{id:number;customer_id:number;first_name:string;last_name:string;email:string}>;total:number}>("crm/segments/"+id+"/marketing-audience");
+     setAudience(r.data);setAudienceTotal(r.total);
+     setNotice("Aperçu des contacts ayant autorisé la prospection.");
+   }catch(e){setError((e as Error).message);}finally{setBusy(false);}
+ }
  async function loadMembers(id:number){
    try{const r=await api<{data:Array<{id:number;name:string;email:string}>}>("crm/segments/"+id+"/members");
      setMembers(r.data);
@@ -274,6 +284,17 @@ export default function CrmWorkspace({view,activeCompanyId,canEdit}:{view:View;a
       </form>}
     </section>}
     {resource==="segments"&&<><h3>Clients du segment</h3>
+      {canEdit&&<div>
+        <button type="button" className="button secondary" disabled={busy}
+          onClick={()=>void loadAudience(selected.id)}>Prévisualiser les contacts ayant consenti</button>
+        {audience.length>0&&<div className="table-scroll"><p>{audienceTotal} contact(s) admissible(s) au total ; première page affichée.</p>
+          <table><thead><tr><th>Contact</th><th>Email autorisé</th><th>Client</th></tr></thead><tbody>
+            {audience.map(person=><tr key={person.id}>
+              <td>{person.first_name} {person.last_name}</td><td>{person.email}</td><td>#{person.customer_id}</td>
+            </tr>)}
+          </tbody></table>
+        </div>}
+      </div>}
       {members.map(m=><p key={m.id}>{m.name} — {m.email}
         {canEdit&&selected.mode==="static"&&
           <button type="button" className="text-button" disabled={busy}
