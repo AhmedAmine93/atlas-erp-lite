@@ -37,6 +37,7 @@ jobs:
           npm --prefix jet-industrial/node-api install --no-audit --no-fund
           npm --prefix jet-industrial/node-api run check
           npm --prefix jet-industrial/node-api test
+          node scripts/setup.mjs
           docker compose -f compose.yaml -f compose.jet.yaml config --quiet
       - name: Generate official Oracle JET 21 application
         run: node jet-industrial/scripts/bootstrap.mjs
