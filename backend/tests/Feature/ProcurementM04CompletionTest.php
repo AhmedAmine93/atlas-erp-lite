@@ -66,7 +66,7 @@ class ProcurementM04CompletionTest extends TestCase
 
         $orderId=$this->postJson('/api/purchasing/orders',[
             'reference'=>'PO-COMPLETE-001','supplier_quote_id'=>$quoteIds[1],
-            'lines'=>[['description'=>'Consulting services','quantity'=>10,
+            'lines'=>[['description'=>'Consulting services','line_type'=>'service','quantity'=>10,
                 'unit_price_cents'=>2000,'vat_bps'=>0]]
         ])->assertCreated()->json('id');
         $this->postJson("/api/purchasing/orders/$orderId/transition",['action'=>'send'])
@@ -163,7 +163,7 @@ class ProcurementM04CompletionTest extends TestCase
         ])->assertOk();
         $order=$this->postJson('/api/purchasing/orders',[
             'reference'=>'SERVICE-PO','supplier_quote_id'=>$quote,
-            'lines'=>[['description'=>'Service','quantity'=>2,'unit_price_cents'=>500,'vat_bps'=>0]]
+            'lines'=>[['description'=>'Service','line_type'=>'service','quantity'=>2,'unit_price_cents'=>500,'vat_bps'=>0]]
         ])->assertCreated()->json('id');
         $this->postJson("/api/purchasing/orders/$order/transition",['action'=>'send'])->assertOk();
         $line=$this->getJson("/api/purchasing/orders/$order/lines")->json('data.0.id');
