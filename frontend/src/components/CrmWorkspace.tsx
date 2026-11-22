@@ -1,6 +1,6 @@
 "use client";
 import {useEffect,useState,type FormEvent} from "react";
-import {api,send} from "@/lib/api";
+import {api,send,fetchTenantBlob} from "@/lib/api";
 
 type View="prospects"|"crm-contacts"|"opportunities"|"crm-activities"|"customer-segments";
 type Row={id:number;revision:number;status?:string;stage?:string;[key:string]:unknown};
@@ -167,6 +167,21 @@ export default function CrmWorkspace({view,activeCompanyId,canEdit}:{view:View;a
      await loadMembers(selected.id);setNotice("Client retiré du segment.");
    }catch(e){setError((e as Error).message);}finally{setBusy(false);}
  }
+ async function exportCsv(){
+   setBusy(true);setError("");
+   try {
+     const params=new URLSearchParams();
+     if(query) params.set("search",query);
+     const blob=await fetchTenantBlob("crm/export/"+resource+(params.size?"?"+params.toString():""),"text/csv");
+     const url=URL.createObjectURL(blob);
+     try {
+       const link=document.createElement("a");
+       link.href=url;link.download="atlas_crm_"+resource+".csv";
+       document.body.appendChild(link);link.click();link.remove();
+       setNotice("Export CRM généré.");
+     } finally { window.setTimeout(()=>URL.revokeObjectURL(url),1000); }
+   } catch(e){setError((e as Error).message);}finally{setBusy(false);}
+ }
  async function loadQuotes(id:number){
    setQuotes([]);setQuoteId("");
    try{const r=await api<{data:Array<{id:number;number:string;status:string;total_cents:number}>}>("crm/opportunities/"+id+"/quotes");
@@ -196,7 +211,10 @@ export default function CrmWorkspace({view,activeCompanyId,canEdit}:{view:View;a
  return <section className="atlas-domain">
   <div className="atlas-domain-toolbar"><div><h2>{conf.title}</h2>
    <p>Référentiel multi-entreprises, historique et contrôles métier côté serveur.</p></div>
-   {canEdit&&<button type="button" className="button primary" onClick={()=>start()}>+ Nouvelle fiche</button>}
+   <div className="row-actions">
+     {canEdit&&<button type="button" className="button secondary" disabled={busy} onClick={()=>void exportCsv()}>Exporter CSV</button>}
+     {canEdit&&<button type="button" className="button primary" onClick={()=>start()}>+ Nouvelle fiche</button>}
+   </div>
   </div>
   {summary&&<div className="atlas-housekeeping-stats" aria-label="Indicateurs CRM">
     <div><span>Clients actifs</span><strong>{summary.customers_active}</strong></div>
