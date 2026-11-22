@@ -39,7 +39,8 @@ final class PilotageManagementController extends Controller
 
     public function centers(Request $request)
     {
-        $this->authorizeRead($request);
+        $role=$this->authorizeRead($request);
+        abort_unless(in_array($role,['admin','commercial','reader'],true),403);
         $company = app(TenantContext::class)->requireId();
         return response()->json(
             DB::table('pilotage_cost_centers')->where('company_id', $company)
@@ -57,6 +58,7 @@ final class PilotageManagementController extends Controller
                 Rule::unique('pilotage_cost_centers')->where('company_id',$company)],
             'name' => 'required|string|min:3|max:160',
             'company_id' => 'prohibited', 'created_by' => 'prohibited',
+            'site_id' => 'prohibited', 'hotel_id'=>'prohibited',
         ]);
         return DB::transaction(function () use ($request, $company, $data) {
             $id = DB::table('pilotage_cost_centers')->insertGetId([
@@ -75,7 +77,8 @@ final class PilotageManagementController extends Controller
         $company = app(TenantContext::class)->requireId();
         $data = $request->validate([
             'from'=>'nullable|date_format:Y-m-d',
-            'to'=>'nullable|date_format:Y-m-d',
+            'to'=>'nullable|date_format:Y-m-d|after_or_equal:from',
+            'company_id'=>'prohibited', 'hotel_id'=>'prohibited', 'site_id'=>'prohibited',
         ]);
         $query = DB::table('pilotage_target_versions')->where('company_id',$company);
         if (!in_array($role,['admin','commercial','reader'],true)) {
@@ -100,13 +103,19 @@ final class PilotageManagementController extends Controller
             'target_value'=>'required|integer|min:0|max:9000000000000000',
             'reason'=>'required|string|min:10|max:300',
             'company_id'=>'prohibited','version'=>'prohibited','unit'=>'prohibited','created_by'=>'prohibited',
+            'site_id'=>'prohibited','hotel_id'=>'prohibited','currency'=>'prohibited',
         ]);
         abort_if(\Carbon\CarbonImmutable::parse($data['period_from'])
             ->diffInDays(\Carbon\CarbonImmutable::parse($data['period_to'])) > 366,
             422, 'Période supérieure à 366 jours.');
         return DB::transaction(function () use ($company,$data,$request) {
             // Serializes version allocation across users and DB workers.
-            DB::table('companies')->where('id',$company)->lockForUpdate()->first();
+            if (DB::getDriverName() === 'pgsql') {
+                // PostgreSQL advisory lock avoids UPDATE privileges on companies.
+                DB::selectOne('SELECT pg_advisory_xact_lock(?, ?) AS locked', [11701, $company]);
+            } else {
+                DB::table('companies')->where('id',$company)->lockForUpdate()->first();
+            }
             $query = DB::table('pilotage_target_versions')->where('company_id',$company)
                 ->where('metric',$data['metric'])
                 ->where('period_from',$data['period_from'])->where('period_to',$data['period_to']);
