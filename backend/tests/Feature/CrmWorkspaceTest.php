@@ -201,6 +201,27 @@ final class CrmWorkspaceTest extends TestCase
         $this->getJson('/api/crm/opportunities/'.$opportunity.'/quotes')->assertNotFound();
     }
 
+    public function test_tenant_scoped_crm_kpi_forecast_and_overdue_counts(): void
+    {
+        $this->postJson('/api/crm/prospects',['name'=>'Prospect KPI'])->assertCreated();
+        $this->postJson('/api/crm/opportunities',[
+            'title'=>'Projet KPI','amount_cents'=>100000,'probability_bps'=>5000
+        ])->assertCreated();
+        $this->postJson('/api/crm/activities',[
+            'title'=>'Relance ancienne','due_at'=>'2025-01-01T09:00:00Z'
+        ])->assertCreated();
+        $this->getJson('/api/crm/summary')->assertOk()
+            ->assertJsonPath('prospects_open',1)
+            ->assertJsonPath('opportunities_open',1)
+            ->assertJsonPath('forecast_cents',50000)
+            ->assertJsonPath('activities_overdue',1);
+        $foreign=Company::create(['code'=>'CRM_KPI_B','name'=>'Entreprise KPI B'])->id;
+        $this->login('admin','kpi',$foreign);
+        $this->getJson('/api/crm/summary')->assertOk()
+            ->assertJsonPath('prospects_open',0)
+            ->assertJsonPath('forecast_cents',0);
+    }
+
     public function test_pg_runtime_rls_isolates_all_new_crm_tables(): void
     {
         if (DB::getDriverName()!=='pgsql') $this->markTestSkipped('RLS PostgreSQL uniquement.');
