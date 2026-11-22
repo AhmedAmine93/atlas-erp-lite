@@ -20,7 +20,7 @@ test("M02 CRM : prospects, contacts, opportunités, activités et segments acces
   await page.getByRole("button",{name:"Prospects",exact:true}).click();
   await page.getByRole("button",{name:"+ Nouvelle fiche",exact:true}).click();
   const name="Entreprise CRM "+Date.now();
-  await page.getByLabel("Nom",{exact:true}).fill(name);
+  await page.getByRole("textbox",{name:/^Nom/}).fill(name);
   await page.getByLabel("Email",{exact:true}).fill("crm-browser-"+Date.now()+"@example.test");
   await page.getByRole("button",{name:"Enregistrer",exact:true}).click();
   await expect(page.getByRole("status").filter({hasText:"Fiche enregistrée"})).toBeVisible();
