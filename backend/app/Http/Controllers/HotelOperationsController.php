@@ -208,7 +208,7 @@ final class HotelOperationsController extends Controller
     {
         $reference = trim($reference);
         $remove = (int)$rule->prefix_digits;
-        if ($remove && preg_match('/^\\d{'.$remove.'}\\'.preg_quote($rule->separator, '/').'(.+)$/uD', $reference, $match)) {
+        if ($remove && preg_match('/^\\d{'.$remove.'}'.preg_quote($rule->separator, '/').'(.+)$/uD', $reference, $match)) {
             return $match[1];
         }
         return $reference;
