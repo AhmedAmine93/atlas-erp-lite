@@ -38,9 +38,11 @@ class InvoiceController extends Controller
     public function transition(Request $r, int $id, InvoiceService $s)
     {
         Gate::authorize('sales');
-        $d = $r->validate(['status' => 'required|in:issued,paid,cancelled']);
+        $d = $r->validate(['status' => 'required|in:issued,paid,cancelled', 'due_at' => 'sometimes|date_format:Y-m-d']);
 
-        return $s->transition($id, $d['status']);
+        abort_if(isset($d['due_at']) && $d['status'] !== 'issued', 422, 'Date d’échéance modifiable uniquement à émission.');
+
+        return $s->transition($id, $d['status'], $d['due_at'] ?? null);
     }
 
     public function pdf(int $id)
