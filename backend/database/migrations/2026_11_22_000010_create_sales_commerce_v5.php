@@ -199,7 +199,13 @@ return new class extends Migration {
             ] as $sql) DB::statement($sql);
 
             // Database enforcement of tenant-consistent relationships, not just Eloquent scopes.
-            DB::statement('CREATE UNIQUE INDEX sales_order_items_company_id_uq ON order_items (company_id, id)');
+            // Legacy/F14 compatibility: PostgreSQL requires explicit tenant-key
+            // unique indexes on referenced parent tables. IF NOT EXISTS makes
+            // clean installations compatible with an already-applied F14.
+            foreach (['customers','products','quotes','orders','order_items','establishments','invoices'] as $parent) {
+                $index = "sales_{$parent}_company_id_uq";
+                DB::statement("CREATE UNIQUE INDEX IF NOT EXISTS \"{$index}\" ON \"{$parent}\" (company_id, id)");
+            }
             foreach ([
                 ['sales_quote_revisions','quote_id','quotes'],
                 ['sales_discount_approvals','revision_id','sales_quote_revisions'],
@@ -259,7 +265,9 @@ return new class extends Migration {
         }
         foreach (array_reverse(self::TABLES) as $table) Schema::dropIfExists($table);
         if (DB::getDriverName() === 'pgsql') {
-            DB::statement('DROP INDEX IF EXISTS sales_order_items_company_id_uq');
+            foreach (['customers','products','quotes','orders','order_items','establishments','invoices'] as $parent) {
+                DB::statement('DROP INDEX IF EXISTS sales_'.$parent.'_company_id_uq');
+            }
             DB::statement('DROP INDEX IF EXISTS sales_establishments_company_id_uq');
             DB::statement('DROP INDEX IF EXISTS sales_invoices_company_id_uq');
             DB::statement('ALTER TABLE orders DROP CONSTRAINT IF EXISTS sales_orders_mode_check');
