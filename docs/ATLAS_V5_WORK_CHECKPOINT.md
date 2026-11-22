@@ -8,9 +8,8 @@
 - **PR base:** `dev` (never `main`)
 - **Base dev commit:** `9a5eb58454a34bce1b13803ec3643ffc37e3c681`
 - **Previous wave:** PR #77 (merged into dev, CI successful)
-- **Wave 02 state:** CREATED / NOT STARTED. **0/20 steps implemented.**
-- **Next executable step:** 02 — Implement checkout Laravel. Step 01 (verify/merge PR #77 and create branch) is finished, but the other 19 development/validation steps remain.
-- **Checkpoint authoring note:** this is an initialization checkpoint, NOT proof that any Wave 02 module or test is complete. Work must update this document with real evidence after each lot.
+- **Wave 02 state:** 5/20 steps validated on the feature branch.
+- **Next executable step:** 06 — per-room hotel/day summary API.
 
 ## Scope and guardrails
 
@@ -23,10 +22,10 @@ Read this file plus the affected source files; do not re-read the entire reposit
 | Step | Work | Status |
 |---|---|---|
 | 01 | Validate and merge PR #77; create Wave 02 branch and PR/checkpoint | **Done** (PR #78 draft created) |
-| 02 | Laravel checkout: `checked_in -> checked_out`, authorized, audited, business-date aware; early departure reason | TODO |
-| 03 | Booking state/security hardening, date checks, GiST, RLS, concurrency, tenant scopes | TODO |
-| 04 | Next.js reception actions: confirm/check-in/check-out/cancel, server errors | TODO |
-| 05 | Focused Laravel/PostgreSQL tests; checkpoint A | TODO |
+| 02 | Laravel checkout: `checked_in -> checked_out`, authorized, audited, business-date aware; early departure reason | **Done (A)** |
+| 03 | Booking state/security hardening, date checks, GiST, RLS, concurrency, tenant scopes | **Done (A)** |
+| 04 | Next.js reception actions: confirm/check-in/check-out/cancel, server errors | **Done (A)** |
+| 05 | Focused Laravel/PostgreSQL tests; checkpoint A | **Done (A)** |
 | 06 | Hotel/day per-room summary read API: physical state, housekeeping, occupancy and local arrivals/departures | TODO |
 | 07 | Existing housekeeping room cards: verified status badges; no sellability inference | TODO |
 | 08 | Tenant-safe PostgreSQL minibar product/catalog/price history tables | TODO |
@@ -54,10 +53,10 @@ Read this file plus the affected source files; do not re-read the entire reposit
 
 ## Most recent checkpoint
 
-- **Completed steps:** 01/20 (setup and PR #77 merge only)
-- **Pending steps:** 02–20
-- **Commit:** recorded by GitHub as the commit introducing this file; query branch head once when resuming
-- **Files changed in Wave 02 so far:** only this checkpoint (PR draft metadata is not code)
-- **Tests executed for Wave 02:** none; previous PR #77 CI succeeded
-- **Known blockers:** none identified yet; checkout date semantics require validation from existing model and API
-- **Next action:** implement step 02, run targeted tests, commit, then step 03
+### A · 05
+
+- Verified head: 6be5639dd2646be5c63ab68eb2582290c7f466af; steps 01–05 validated.
+- Changed: HotelBookingController, two stay migrations, routes, DomainWorkspace, Workspace/navigation/workspaceRoutes, HotelCheckinTest, hotel-reception.spec.ts, scripts/ci.sh.
+- Isolated PostgreSQL: vendor/bin/phpunit --filter 'Hotel|Minibar|V5RuntimeTenantRls' — 10 tests, 206 assertions.
+- Full PHPUnit: 97 tests, 1096 assertions; Playwright: 13 passed; CI: https://github.com/AhmedAmine93/atlas-erp-lite/actions/runs/45035854974.
+- No blocking errors. Next: 06 — per-room hotel/day summary API.
