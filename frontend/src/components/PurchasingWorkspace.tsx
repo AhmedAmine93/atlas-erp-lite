@@ -84,6 +84,7 @@ export default function PurchasingWorkspace({view,activeCompanyId}:{view:string;
   const [lines,setLines]=useState<Line[]>([blankLine()]);
   const [editingRequestLines,setEditingRequestLines]=useState<number|null>(null);
   const [details,setDetails]=useState<{id:number;label:string;rows:RecordRow[]}|null>(null);
+  const [comparison,setComparison]=useState<{purchase_request_id:number;currency:string;offers:RecordRow[]}|null>(null);
   useEffect(()=>{
     let live=true;setLoading(true);setError("");setDetails(null);
     api<Page<RecordRow>>(screen.endpoint+"?page="+page).then(p=>{if(live){setRows(p.data);setTotal(p.total);setPages(p.last_page);}})
@@ -102,7 +103,7 @@ export default function PurchasingWorkspace({view,activeCompanyId}:{view:string;
 
   function openCreate() {
     setValues({currency:"EUR",delivery_days:"0",shipping_cents:"0"});
-    setLines([blankLine()]);setEditingRequestLines(null);setError("");setEditing(true);
+    setLines([blankLine()]);setEditingRequestLines(null);setComparison(null);setError("");setEditing(true);
   }
   function replaceLine(i:number,key:keyof Line,value:string) {
     setLines(current=>current.map((line,k)=>k===i?{...line,[key]:value}:line));
@@ -155,6 +156,38 @@ export default function PurchasingWorkspace({view,activeCompanyId}:{view:string;
     await perform("purchasing/requests/"+editingRequestLines+"/lines",payload,"PUT");
     setEditingRequestLines(null);
   }
+  async function compareQuotes(requestId:number) {
+    setError("");
+    try {
+      const data=await api<{purchase_request_id:number;currency:string;offers:RecordRow[]}>(
+        "purchasing/requests/"+requestId+"/quotes/compare");
+      setComparison(data);setDetails(null);
+    }catch(e){setError((e as Error).message);}
+  }
+  function requestAmendment(orderId:number) {
+    const line=window.prompt("Identifiant de la ligne (consultez Lignes)");
+    if(!line)return;
+    const qty=window.prompt("Nouvelle quantité totale (ne peut pas augmenter)");
+    if(!qty)return;
+    const reason=window.prompt("Justification de l’avenant (minimum 10 caractères)");
+    if(!reason)return;
+    void perform("purchasing/orders/"+orderId+"/amendments",{
+      purchase_order_line_id:Number(line),new_quantity:Number(qty),reason:reason.trim()
+    });
+  }
+  function acceptService(orderId:number) {
+    const line=window.prompt("Identifiant de la ligne de prestation (voir Lignes)");
+    if(!line)return;
+    const reference=window.prompt("Référence unique du procès-verbal");
+    if(!reference)return;
+    const qty=window.prompt("Quantité de service acceptée");
+    if(!qty)return;
+    const evidence_reference=window.prompt("Référence du justificatif signé");
+    if(!evidence_reference)return;
+    void perform("purchasing/orders/"+orderId+"/services",{
+      purchase_order_line_id:Number(line),reference,accepted_quantity:Number(qty),evidence_reference
+    });
+  }
   async function fetchLines(path:string,title:string,id:number) {
     setError("");try{const data=await all<RecordRow>(path);setDetails({label:title,id,rows:data});}
     catch(e){setError((e as Error).message);}
@@ -186,10 +219,17 @@ export default function PurchasingWorkspace({view,activeCompanyId}:{view:string;
       {["draft","submitted","rejected","approved"].includes(status)&&action("Réviser les lignes",()=>void editRequestLines(id))}
       {action("Historique",()=>void fetchLines("purchasing/requests/"+id+"/history","Historique de demande",id))}
     </>;
-    if(view==="supplier-quotes")return status==="received"?
-      action("Attribuer",()=>ask("purchasing/quotes/"+id+"/award","reason","Justification du choix, délai et prix",5)):null;
+    if(view==="supplier-quotes")return <>
+      {action("Comparer les offres",()=>void compareQuotes(Number(row.purchase_request_id)))}
+      {status==="received"&&action("Attribuer / ré-arbitrer",()=>ask("purchasing/quotes/"+id+"/award","reason","Justification du choix (10 caractères minimum)",10))}
+      {action("Historique des décisions",()=>void fetchLines("purchasing/requests/"+row.purchase_request_id+"/awards","Arbitrages fournisseurs",Number(row.purchase_request_id)))}
+    </>;
     if(view==="purchase-orders")return <>
       {action("Lignes",()=>void fetchLines("purchasing/orders/"+id+"/lines","Lignes de commande",id))}
+      {action("Avenants",()=>void fetchLines("purchasing/orders/"+id+"/amendments","Avenants de commande",id))}
+      {["sent","confirmed"].includes(status)&&action("Proposer avenant",()=>requestAmendment(id))}
+      {["sent","confirmed"].includes(status)&&action("Signer service fait",()=>acceptService(id))}
+      {action("Services faits",()=>void fetchLines("purchasing/orders/"+id+"/services","Prestations signées",id))}
       {status==="draft"&&action("Envoyer",()=>void perform("purchasing/orders/"+id+"/transition",{action:"send"}))}
       {status==="sent"&&action("Confirmer",()=>void perform("purchasing/orders/"+id+"/transition",{action:"confirm"}))}
       {["sent","confirmed"].includes(status)&&action("Annuler reliquat",()=> {
@@ -291,14 +331,35 @@ export default function PurchasingWorkspace({view,activeCompanyId}:{view:string;
       </div>}
       <button className="button primary" type="submit" disabled={busy}>{busy?"Enregistrement…":"Enregistrer"}</button>
     </form>}
+    {comparison&&<div className="atlas-domain-form">
+      <div className="atlas-domain-form-heading"><h3>Comparaison des offres — demande #{comparison.purchase_request_id}</h3>
+        <button className="button secondary" type="button" onClick={()=>setComparison(null)}>Fermer</button>
+      </div>
+      <p>Montants TTC, frais de livraison compris, en {comparison.currency}. Les devises différentes ne sont pas classées sans taux officiel validé.</p>
+      <div className="table-scroll"><table><thead><tr><th>Fournisseur</th><th>Référence</th><th>Prix HT</th><th>Taxes</th><th>Livraison</th><th>Total TTC</th><th>Délai (jours)</th><th>Valable jusqu’au</th><th>Statut</th></tr></thead><tbody>
+        {comparison.offers.map(offer=><tr key={offer.id}>
+          <td>{asText(offer.supplier_name)}</td><td>{asText(offer.reference)}</td>
+          <td>{money(offer.subtotal_cents,String(offer.currency))}</td>
+          <td>{money(offer.tax_cents,String(offer.currency))}</td>
+          <td>{money(offer.shipping_cents,String(offer.currency))}</td>
+          <td>{money(offer.total_cents,String(offer.currency))}</td>
+          <td>{asText(offer.delivery_days)}</td><td>{asText(offer.valid_until)}</td>
+          <td>{offer.valid?"Valide":"Expirée"} · {asText(offer.status)}</td>
+        </tr>)}
+      </tbody></table></div>
+    </div>}
     {details&&<div className="atlas-domain-form">
       <div className="atlas-domain-form-heading"><h3>{details.label} — #{details.id}</h3>
         <button type="button" className="button secondary" onClick={()=>setDetails(null)}>Fermer</button></div>
       {details.rows.length===0?<p>Aucune donnée.</p>:<div className="table-scroll"><table><thead>
         <tr>{Object.keys(details.rows[0]).filter(k=>k!=="snapshot"&&k!=="encrypted_iban").map(k=><th key={k}>{label[k]??k}</th>)}
-        {details.label==="Demandes bancaires"&&<th>Validation</th>}</tr></thead><tbody>
+        {["Demandes bancaires","Avenants de commande"].includes(details.label)&&<th>Validation</th>}</tr></thead><tbody>
         {details.rows.map(r=><tr key={r.id}>
           {Object.keys(details.rows[0]).filter(k=>k!=="snapshot"&&k!=="encrypted_iban").map(k=><td key={k}>{asText(r[k])}</td>)}
+          {details.label==="Avenants de commande"&&<td>{r.status==="pending"&&<>
+            {action("Approuver",()=>void perform("purchasing/amendments/"+r.id+"/decision",{decision:"approved"}))}
+            {action("Refuser",()=>void perform("purchasing/amendments/"+r.id+"/decision",{decision:"rejected"}))}
+          </>}</td>}
           {details.label==="Demandes bancaires"&&<td>{r.status==="pending"&&<>
             {action("Approuver",()=>void perform("purchasing/bank-changes/"+r.id+"/decision",{decision:"approved"}))}
             {action("Refuser",()=>{const reason=window.prompt("Motif du refus");if(reason)void perform("purchasing/bank-changes/"+r.id+"/decision",{decision:"rejected",reason});})}
