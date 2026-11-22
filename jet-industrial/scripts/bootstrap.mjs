@@ -17,7 +17,7 @@ if(!existsSync(resolve(app,"oraclejetconfig.json"))){
   if(result.status!==0)process.exit(result.status??1);
 }
 if(!existsSync(resolve(app,"oraclejetconfig.json")))throw Error("Official Oracle JET generator failed.");
-for(const path of ["src/components/content/index.tsx","src/components/content/atlas-api.ts","src/styles/atlas-industrial.css"]){
+for(const path of ["src/components/content/index.tsx","src/components/content/atlas-api.ts","src/components/content/planning.tsx","src/styles/atlas-industrial.css"]){
   cpSync(resolve(src,path),resolve(app,path),{force:true});
 }
 const indexPath=resolve(app,"src/index.ts");
