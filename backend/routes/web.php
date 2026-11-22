@@ -21,6 +21,7 @@ use App\Http\Controllers\HotelRegistryController;
 use App\Http\Controllers\MaintenanceRegistryController;
 use App\Http\Controllers\MaintenanceRequestController;
 use App\Http\Controllers\MaintenanceWorkOrderController;
+use App\Http\Controllers\MaintenancePlanningController;
 use App\Http\Controllers\PurchaseRequestController;
 use App\Http\Controllers\DashboardLayoutController;
 use App\Http\Controllers\DataCanonicalSchemaController;
@@ -58,6 +59,16 @@ Route::prefix('api')->group(function () {
         Route::get('maintenance/requests', [MaintenanceRequestController::class, 'index']);
         Route::post('maintenance/requests', [MaintenanceRequestController::class, 'store']);
         Route::post('maintenance/requests/{id}/qualify', [MaintenanceRequestController::class, 'qualify'])->whereNumber('id');
+        // Team and technician directory, protected by the tenant middleware.
+        Route::get('maintenance/teams', [MaintenancePlanningController::class, 'teams']);
+        Route::post('maintenance/teams', [MaintenancePlanningController::class, 'createTeam']);
+        Route::get('maintenance/technicians', [MaintenancePlanningController::class, 'technicians']);
+        Route::post('maintenance/technicians', [MaintenancePlanningController::class, 'createTechnician']);
+        // Static reports/planning routes must precede variable work-order routes.
+        Route::get('maintenance/planning', [MaintenancePlanningController::class, 'slots']);
+        Route::get('maintenance/reports/summary', [MaintenancePlanningController::class, 'report']);
+        Route::post('maintenance/work-orders/{id}/schedule', [MaintenancePlanningController::class, 'schedule'])->whereNumber('id');
+        Route::post('maintenance/planning/{id}/cancel', [MaintenancePlanningController::class, 'cancel'])->whereNumber('id');
         Route::get('maintenance/work-orders', [MaintenanceWorkOrderController::class, 'index']);
         Route::post('maintenance/requests/{id}/work-orders', [MaintenanceWorkOrderController::class, 'createFromRequest'])->whereNumber('id');
         Route::post('maintenance/work-orders/{id}/start', [MaintenanceWorkOrderController::class, 'start'])->whereNumber('id');
