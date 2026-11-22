@@ -4,6 +4,7 @@
 
 - **Repository:** `AhmedAmine93/atlas-erp-lite`
 - **Working branch:** `feature/v5-hotel-wave-02`
+- **PR:** #78 — https://github.com/AhmedAmine93/atlas-erp-lite/pull/78 (draft)
 - **PR base:** `dev` (never `main`)
 - **Base dev commit:** `9a5eb58454a34bce1b13803ec3643ffc37e3c681`
 - **Previous wave:** PR #77 (merged into dev, CI successful)
@@ -21,7 +22,7 @@ Read this file plus the affected source files; do not re-read the entire reposit
 
 | Step | Work | Status |
 |---|---|---|
-| 01 | Validate and merge PR #77; create Wave 02 branch and PR/checkpoint | **Done** (draft PR is created after checkpoint commit) |
+| 01 | Validate and merge PR #77; create Wave 02 branch and PR/checkpoint | **Done** (PR #78 draft created) |
 | 02 | Laravel checkout: `checked_in -> checked_out`, authorized, audited, business-date aware; early departure reason | TODO |
 | 03 | Booking state/security hardening, date checks, GiST, RLS, concurrency, tenant scopes | TODO |
 | 04 | Next.js reception actions: confirm/check-in/check-out/cancel, server errors | TODO |
