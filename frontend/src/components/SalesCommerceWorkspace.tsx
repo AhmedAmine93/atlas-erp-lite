@@ -291,14 +291,14 @@ export default function SalesCommerceWorkspace({view,activeCompanyId,canWrite,ca
         {approvals.map(a=><tr key={a.id}><td>{String(a.revision_id)}</td><td>{format("discount_bps",a.discount_bps)}</td>
           <td>{String(a.status??"—")}</td><td>{canApprove&&a.status==="pending"?
             <div className="atlas-domain-actions">
-              <button type="button" className="button secondary" onClick={()=>begin({
+              <button type="button" className="button secondary" onClick={()=>{begin({
                 label:"Approuver la remise",endpoint:`sales-v5/approvals/${a.id}/decide`,
                 fields:[f("decision","Décision","select",true,["approved","rejected"]),f("reason","Justification","textarea")]
-              }) || setValues(x=>({...x,decision:"approved"}))}>Approuver</button>
-              <button type="button" className="button secondary" onClick={()=>begin({
+              });setValues(x=>({...x,decision:"approved"}));}}>Approuver</button>
+              <button type="button" className="button secondary" onClick={()=>{begin({
                 label:"Refuser la remise",endpoint:`sales-v5/approvals/${a.id}/decide`,
                 fields:[f("decision","Décision","select",true,["approved","rejected"]),f("reason","Justification du refus","textarea")]
-              }) || setValues(x=>({...x,decision:"rejected"}))}>Refuser</button>
+              });setValues(x=>({...x,decision:"rejected"}));}}>Refuser</button>
             </div>:"—"}</td></tr>)}
       </tbody></table></div>
       {!approvals.length&&<p>Aucune demande de remise.</p>}
