@@ -173,15 +173,19 @@ final class CrmWorkspaceController extends Controller
         $company=$this->company();
         $opp=DB::table('crm_opportunities')->where('company_id',$company)
             ->whereNotIn('stage',['lost','won']);
-        $forecast=(clone $opp)
-            ->selectRaw('COALESCE(SUM(amount_cents * probability_bps / 10000),0) AS amount')
-            ->first();
+        // Never aggregate unlike currencies: FX conversion requires a priced,
+        // dated FX rate, which is deliberately outside this CRM scope.
+        $byCurrency=(clone $opp)
+            ->selectRaw('currency, COALESCE(SUM(amount_cents * probability_bps / 10000),0) AS forecast_cents')
+            ->groupBy('currency')->orderBy('currency')->get();
+        $eurForecast=(int)($byCurrency->firstWhere('currency','EUR')?->forecast_cents ?? 0);
         return response()->json([
             'customers_active'=>Customer::query()->whereNull('archived_at')->count(),
             'prospects_open'=>DB::table('crm_prospects')->where('company_id',$company)
                 ->whereIn('status',['new','qualified'])->count(),
             'opportunities_open'=>(clone $opp)->count(),
-            'forecast_cents'=>(int)($forecast->amount??0),
+            'forecast_cents'=>$eurForecast,
+            'pipeline_by_currency'=>$byCurrency,
             'activities_overdue'=>DB::table('crm_activities')->where('company_id',$company)
                 ->where('status','planned')->where('due_at','<',now())->count(),
             'activities_due_today'=>DB::table('crm_activities')->where('company_id',$company)
