@@ -33,8 +33,8 @@ test("M04: create supplier, block it, keep supplier visible for historical track
   await page.getByRole("button",{name:"Fournisseurs",exact:true}).click();
   await page.locator(".atlas-domain").getByRole("button",{name:/Nouvelle fiche/}).click();
   const unique=String(Date.now());
-  await page.locator(".atlas-domain-form").getByText("Nom",{exact:true}).locator("..").locator("input").fill("Fournisseur test M04 "+unique);
-  await page.locator(".atlas-domain-form").getByText("Email",{exact:true}).locator("..").locator("input").fill("m04-"+unique+"@example.test");
+  await page.locator(".atlas-domain-form").getByRole("textbox",{name:/^Nom/}).fill("Fournisseur test M04 "+unique);
+  await page.locator(".atlas-domain-form").getByRole("textbox",{name:/^Email/}).fill("m04-"+unique+"@example.test");
   await page.locator(".atlas-domain-form").getByRole("button",{name:"Enregistrer",exact:true}).click();
   const row=page.locator(".atlas-domain-list tbody tr").filter({hasText:"Fournisseur test M04 "+unique});
   await expect(row).toBeVisible();
