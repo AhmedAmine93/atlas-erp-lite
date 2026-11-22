@@ -2011,7 +2011,7 @@ function Detail({
             className="button primary"
             disabled={busy}
             onClick={() =>
-              action(`invoices/${row.id}`, "PATCH", { status: "issued" })
+              action(`invoices/${row.id}`, "PATCH", (() => { const dueAt = window.prompt("Date d’échéance (AAAA-MM-JJ), laisser vide si non définie"); return dueAt?.trim() ? { status: "issued", due_at: dueAt.trim() } : { status: "issued" }; })())
             }
           >
             Émettre la facture
