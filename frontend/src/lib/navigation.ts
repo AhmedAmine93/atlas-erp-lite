@@ -246,11 +246,11 @@ export const navigationSections: NavigationSection[] = [
     label: "IA & Assistant ATLAS",
     icon: Search,
     items: [
-      { id: "ai-assistant", label: "Assistant métier" },
-      { id: "ai-search", label: "Recherche intelligente" },
-      { id: "ai-anomalies", label: "Détection d’anomalies" },
-      { id: "ai-forecasts", label: "Prévisions" },
-      { id: "ai-suggestions", label: "Suggestions d’actions" },
+      { id: "ai-assistant", label: "Assistant métier", ready: true },
+      { id: "ai-search", label: "Recherche intelligente", ready: true },
+      { id: "ai-anomalies", label: "Détection d’anomalies", ready: true },
+      { id: "ai-forecasts", label: "Prévisions", ready: true },
+      { id: "ai-suggestions", label: "Suggestions d’actions", ready: true },
     ],
   },
   {
