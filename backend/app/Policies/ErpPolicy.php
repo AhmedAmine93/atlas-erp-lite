@@ -69,7 +69,7 @@ class ErpPolicy
 
     public function support(User $u): bool
     {
-        return in_array(app(TenantRoles::class)->role($u)?->name, ['admin', 'support_n2', 'support_n3'], true);
+        return in_array(app(TenantRoles::class)->role($u)?->name, ['admin', 'support_n1', 'support_n2', 'support_n3', 'support_manager', 'support_cab'], true);
     }
 
     public function supportDiagnostics(User $u): bool
