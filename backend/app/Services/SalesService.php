@@ -38,6 +38,8 @@ class SalesService
         return DB::transaction(function () use ($id) {
             $q = Quote::lockForUpdate()->findOrFail($id);
             abort_if($q->status !== 'draft', 409, 'Ce devis a déjà été converti.');
+            // Revised V5 quotations must complete approval and acceptance first.
+            abort_if((int) $q->revision_no > 0, 409, 'Utilisez la conversion de la révision acceptée.');
             $order = Order::create(array_merge($q->only(['customer_id', 'notes', 'subtotal_cents', 'tax_cents', 'total_cents']),
                 ['number' => DocumentNumber::next('CMD'), 'quote_id' => $q->id, 'created_by' => auth()->id()]));
             $order->items()->createMany($q->items->map(fn ($i) => $i->only(['product_id', 'reference', 'name', 'quantity', 'price_cents', 'vat_bps', 'subtotal_cents', 'tax_cents', 'total_cents']))->all());
