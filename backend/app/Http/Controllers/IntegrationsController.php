@@ -238,8 +238,8 @@ final class IntegrationsController extends Controller
             'mapping_version'=>'required|string|max:30',
             'rows'=>'required|array|max:500',
             'rows.*'=>'required|array',
-            'rows.*.external_id'=>'required|string|max:120',
-            'rows.*.value'=>'required|string|max:300',
+            'rows.*.external_id'=>'nullable|string|max:120',
+            'rows.*.value'=>'nullable|string|max:300',
             'commit'=>'required|boolean',
         ]);
         $seen=[];$report=[];$valid=0;$invalid=0;
@@ -248,6 +248,7 @@ final class IntegrationsController extends Controller
             $reason=!is_string($id)||trim($id)===''?'invalid_reference':
                 (isset($seen[$id])?'duplicate_reference':null);
             $seen[$id]=true;
+            if (!$reason && (!isset($line['value']) || !is_string($line['value']) || trim($line['value'])==='')) $reason='invalid_value';
             if ($reason) $invalid++; else $valid++;
             $report[]=['line'=>$i+1,'external_id'=>is_string($id)?$id:null,'status'=>$reason?'rejected':'accepted','reason'=>$reason];
         }
