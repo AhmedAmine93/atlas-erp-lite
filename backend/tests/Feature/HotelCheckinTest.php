@@ -81,6 +81,21 @@ final class HotelCheckinTest extends TestCase
                 'company_id' => $a->id, 'action' => 'hotel.booking.checked_in',
             ]);
 
+            $next = $this->postJson('/api/hotel-bookings', [
+                'room_id' => $room, 'reference' => 'CK-TURNOVER', 'guest_display_name' => 'Séjour fictif',
+                'arrival_date' => '2026-12-12', 'departure_date' => '2026-12-14',
+            ])->assertCreated()->json('id');
+            $this->postJson("/api/hotels/rooms/blocks/$block/release")->assertOk();
+            $this->postJson("/api/hotel-bookings/$next/confirm")->assertOk();
+            CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-12-12 11:00:00', 'Europe/Paris'));
+            $turnover = $this->postJson('/api/hotels/housekeeping/tasks', [
+                'room_id' => $room, 'business_date' => '2026-12-12',
+            ])->assertCreated()->json('id');
+            foreach (['in_progress','clean','inspected'] as $state) {
+                $this->postJson("/api/hotels/housekeeping/tasks/$turnover/transition", ['status' => $state])->assertOk();
+            }
+            $this->postJson("/api/hotel-bookings/$next/checkin")->assertConflict();
+            CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-12-10 11:00:00', 'Europe/Paris'));
             $checkout = "/api/hotel-bookings/$booking/checkout";
             $this->postJson($checkout)->assertUnprocessable()->assertJsonValidationErrors('reason');
             $this->postJson($checkout, ['reason' => 'Départ anticipé fictif'])
@@ -88,6 +103,7 @@ final class HotelCheckinTest extends TestCase
                 ->assertJsonPath('checked_out_on', '2026-12-10')
                 ->assertJsonPath('departure_date', '2026-12-12');
             $this->postJson($checkout)->assertConflict();
+            $this->assertDatabaseHas('hotel_housekeeping_tasks', ['id' => $todayTask, 'status' => 'dirty', 'inspected_at' => null]);
             $this->assertDatabaseHas('audit_logs', [
                 'company_id' => $a->id, 'action' => 'hotel.booking.checked_out',
                 'entity_id' => $booking,
@@ -121,7 +137,6 @@ final class HotelCheckinTest extends TestCase
             // operations: the check-in must still fail closed.
             DB::table('hotel_rooms')->where('id', $room2)->update(['room_status' => 'out_of_service']);
             $this->postJson("/api/hotel-bookings/$book2/checkin")->assertStatus(409);
-            $this->postJson("/api/hotels/rooms/blocks/$block/release")->assertOk();
         } finally {
             CarbonImmutable::setTestNow();
         }
@@ -146,7 +161,17 @@ final class HotelCheckinTest extends TestCase
             ])->assertCreated()->json('id');
             $this->postJson("/api/hotel-bookings/$booking/confirm")->assertOk();
             $this->postJson("/api/hotel-bookings/$booking/checkin")->assertStatus(409);
+            // At 23:30 UTC it is already departure day in Paris. This also covers
+            // an in-house booking created before actual check-in dates were recorded.
+            DB::table('hotel_bookings')->where('id', $booking)->update(['status' => 'checked_in']);
+            CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-12-12 23:30:00', 'UTC'));
+            $checkout = "/api/hotel-bookings/$booking/checkout";
+            $this->postJson($checkout, ['business_date' => '2026-12-12'])->assertUnprocessable();
             $this->admin($a, 'reader', 'reader');
+            $this->postJson($checkout)->assertForbidden();
+            $this->admin($a, 'departure');
+            $this->postJson($checkout)->assertOk()->assertJsonPath('checked_out_on', '2026-12-13');
+            $this->admin($a, 'reader2', 'reader');
             $this->postJson("/api/hotel-bookings/$booking/checkin")->assertForbidden();
         } finally {
             CarbonImmutable::setTestNow();

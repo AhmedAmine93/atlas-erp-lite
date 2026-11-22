@@ -116,6 +116,9 @@ final class HotelBookingController extends Controller
             abort_unless($booking->arrival_date <= $today && $today < $booking->departure_date,
                 409, 'Check-in hors de la période du séjour.');
 
+            abort_if(HotelBooking::query()->where('room_id', $room->id)
+                ->where('status', 'checked_in')->exists(), 409, 'Le séjour précédent est encore en cours.');
+
             $inspection = HotelHousekeepingTask::query()
                 ->where('hotel_id', $hotel->id)
                 ->where('room_id', $room->id)
@@ -162,6 +165,22 @@ final class HotelBookingController extends Controller
                 'company_id' => 'prohibited', 'room_id' => 'prohibited', 'hotel_id' => 'prohibited',
                 'status' => 'prohibited', 'business_date' => 'prohibited', 'checked_out_on' => 'prohibited',
             ]);
+            // A same-day turnover needs a fresh inspection before the next arrival.
+            $task = HotelHousekeepingTask::query()->where('room_id', $room->id)
+                ->whereDate('business_date', $today)->lockForUpdate()->first();
+            if ($task && $task->status !== 'dirty') {
+                $before = $task->status;
+                $task->status = 'dirty';
+                $task->inspected_by = null;
+                $task->inspected_at = null;
+                $task->save();
+                DB::table('hotel_room_status_events')->insert([
+                    'company_id' => $booking->company_id, 'task_id' => $task->id,
+                    'room_id' => $room->id, 'actor_id' => $request->user()->id,
+                    'from_status' => $before, 'to_status' => 'dirty', 'reason' => 'Check-out',
+                    'created_at' => now(), 'updated_at' => now(),
+                ]);
+            }
             $booking->checked_out_on = $today;
             $booking->status = 'checked_out';
             $booking->save();

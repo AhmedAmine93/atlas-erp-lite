@@ -15,7 +15,7 @@ const definitions:Record<string,Definition>={
  "maintenance-workorders":{endpoint:"maintenance/work-orders",description:"Démarrage et clôture tracés. Les BT sont créés depuis les DI qualifiées.",columns:["id","maintenance_request_id","asset_id","priority","status","due_at"],fields:[]},
  "hotel-properties":{endpoint:"hotels",description:"Établissements hôteliers et fuseaux horaires.",columns:["code","name","timezone","active"],fields:[field("code","Code",true),field("name","Nom",true),field("timezone","Fuseau IANA",true)]},
  "hotel-rooms":{endpoint:"hotel-rooms",description:"Chambres rattachées à chaque hôtel.",columns:["hotel_id","room_number","floor_code","category","room_status"],fields:[field("hotel_id","Hôtel",true,"select",undefined,"hotels"),field("room_number","Numéro",true),field("floor_code","Étage"),field("category","Catégorie",true)]},
- "hotel-bookings":{endpoint:"hotel-bookings",description:"Brouillons, confirmations sous contrôle anti-surbooking et annulations.",columns:["reference","guest_display_name","room_id","arrival_date","departure_date","status"],fields:[field("room_id","Chambre",true,"select",undefined,"hotel-rooms"),field("reference","Référence",true),field("guest_display_name","Client",true),field("arrival_date","Arrivée",true,"date"),field("departure_date","Départ",true,"date")]},
+ "hotel-bookings":{endpoint:"hotel-bookings",description:"Réservations, arrivées, départs et annulations.",columns:["reference","guest_display_name","room_id","arrival_date","departure_date","status"],fields:[field("room_id","Chambre",true,"select",undefined,"hotel-rooms"),field("reference","Référence",true),field("guest_display_name","Client",true),field("arrival_date","Arrivée",true,"date"),field("departure_date","Départ",true,"date")]},
  "data-sources":{endpoint:"data/sources",description:"Sources déclarées et validées sans credentials.",columns:["code","name","source_type","classification","status"],fields:[field("code","Code",true),field("name","Nom",true),field("source_type","Type",true,"select",["csv","pms","api","postgresql","oracle","kafka"]),field("classification","Classification",true,"select",["internal","public","confidential","restricted"]),field("schema_version","Version du schéma"),field("purpose","Finalité",false,"textarea")]},
  "data-batches":{endpoint:"data/ingestion-batches",description:"Ingestion CSV v1 vérifiée par manifeste SHA-256 et idempotence.",columns:["batch_key","source_id","expected_rows","sha256","status"],fields:[field("source_id","Source CSV validée",true,"select",undefined,"data/sources"),field("batch_key","Clé du lot",true),field("csv_file","CSV : external_id,amount_cents",true,"file")]}
 };
@@ -62,7 +62,24 @@ export default function DomainWorkspace({view,activeCompanyId}:{view:string;acti
  function actions(row:Row){const state=row.status??"";if(view==="purchase-requests")return <>{state==="draft"&&button(row,"Soumettre","purchasing/requests/"+row.id+"/submit")}{state==="submitted"&&button(row,"Approuver","purchasing/requests/"+row.id+"/approve")}{state==="submitted"&&button(row,"Refuser","purchasing/requests/"+row.id+"/reject","reason")}{["draft","submitted","rejected"].includes(state)&&<button type="button" className="button secondary" onClick={()=>{setEdit(row);setValues(Object.fromEntries(conf.fields.map(f=>[f.key,row[f.key]==null?"":String(row[f.key])])));setForm(true);}}>Réviser</button>}</>;
  if(view==="maintenance-requests")return <>{state==="new"&&button(row,"Qualifier","maintenance/requests/"+row.id+"/qualify")}{state==="qualified"&&button(row,"Créer / voir BT","maintenance/requests/"+row.id+"/work-orders")}</>;
  if(view==="maintenance-workorders")return <>{state==="open"&&button(row,"Démarrer","maintenance/work-orders/"+row.id+"/start")}{state==="in_progress"&&button(row,"Clôturer","maintenance/work-orders/"+row.id+"/complete","resolution")}</>;
- if(view==="hotel-bookings")return <>{state==="draft"&&button(row,"Confirmer","hotel-bookings/"+row.id+"/confirm")}{state==="confirmed"&&button(row,"Effectuer le check-in","hotel-bookings/"+row.id+"/checkin")}{["draft","confirmed"].includes(state)&&button(row,"Annuler","hotel-bookings/"+row.id+"/cancel")}</>;
+ if(view==="hotel-bookings"){
+   const bookingPath="hotel-bookings/"+row.id;
+   return <>
+     {state==="draft"&&button(row,"Confirmer",bookingPath+"/confirm")}
+     {state==="confirmed"&&button(row,"Effectuer le check-in",bookingPath+"/checkin")}
+     {state==="checked_in"&&<details><summary>Effectuer le check-out</summary>
+       <form onSubmit={event=>{
+         event.preventDefault();
+         const reason=String(new FormData(event.currentTarget).get("reason")??"").trim();
+         void action(bookingPath+"/checkout",reason?{reason}:{});
+       }}>
+         <label>Motif du départ anticipé<input name="reason" maxLength={300}/></label>
+         <button type="submit" className="button secondary" disabled={busy}>Valider le départ</button>
+       </form>
+     </details>}
+     {["draft","confirmed"].includes(state)&&button(row,"Annuler",bookingPath+"/cancel")}
+   </>;
+ }
  if(view==="data-sources"&&state==="draft")return button(row,"Valider","data/sources/"+row.id+"/validate");
  if(view==="data-batches"&&state==="registered")return <label className="button secondary">Charger CSV<input type="file" accept=".csv,text/csv" className="atlas-domain-hidden-upload" disabled={busy} onChange={async e=>{const f=e.target.files?.[0];if(!f)return;setBusy(true);setError("");try{await upload(row.id,f);setNotice("CSV ingéré.");setRefresh(n=>n+1);}catch(err){setError((err as Error).message);}finally{setBusy(false);e.target.value="";}}}/></label>;
  return <span aria-label="Aucune action disponible">—</span>;
