@@ -276,10 +276,10 @@ final class AiWorkspaceController extends Controller
         $this->read();
         return $this->listing('ai_suggestions',$r,['id','action_type','arguments','cost_cents','revision','policy_version','explanation','status','expires_at','created_by','decided_by','work_order_id','created_at']);
     }
-    private function digest(string $action, array $args, int $cost, string $policy): string
+    private function digest(string $action, array $args, int $cost, string $policy, string $explanation, string $expiresAt): string
     {
         ksort($args);
-        return hash('sha256',json_encode([$action,$args,$cost,$policy],JSON_THROW_ON_ERROR));
+        return hash('sha256',json_encode([$action,$args,$cost,$policy,$explanation,$expiresAt],JSON_THROW_ON_ERROR));
     }
     public function propose(Request $r) {
         $this->read();
@@ -299,8 +299,9 @@ final class AiWorkspaceController extends Controller
         abort_unless(count($args)===count($d['arguments']),422,'Arguments non autorisés.');
         $di=MaintenanceRequest::query()->findOrFail((int)$args['maintenance_request_id']);
         abort_unless($di->status==='qualified',409,'DI non qualifiée.');
-        $hash=$this->digest($d['action_type'],$args,(int)$d['cost_cents'],$d['policy_version']);
-        return DB::transaction(function () use ($d,$args,$hash) {
+        $expiresAt=\Carbon\CarbonImmutable::parse($d['expires_at'])->toISOString();
+        $hash=$this->digest($d['action_type'],$args,(int)$d['cost_cents'],$d['policy_version'],$d['explanation'],$expiresAt);
+        return DB::transaction(function () use ($d,$args,$hash,$expiresAt) {
             $prior=$this->rows('ai_suggestions')->where('idempotency_key',$d['idempotency_key'])->lockForUpdate()->first();
             if ($prior) {
                 abort_unless(hash_equals($prior->payload_sha256,$hash),409,'Clé utilisée avec des arguments différents.');
@@ -311,7 +312,7 @@ final class AiWorkspaceController extends Controller
                 'payload_sha256'=>$hash,'action_type'=>$d['action_type'],
                 'arguments'=>json_encode($args,JSON_THROW_ON_ERROR),'cost_cents'=>$d['cost_cents'],
                 'policy_version'=>$d['policy_version'],'explanation'=>$d['explanation'],
-                'expires_at'=>$d['expires_at'],'status'=>'proposed','created_by'=>auth()->id(),
+                'expires_at'=>$expiresAt,'status'=>'proposed','created_by'=>auth()->id(),
                 'created_at'=>now(),'updated_at'=>now()
             ]);
             $this->event('suggestion.proposed',['id'=>$id,'payload_sha256'=>$hash,'cost_cents'=>$d['cost_cents']],$id);
@@ -343,7 +344,7 @@ final class AiWorkspaceController extends Controller
             abort_unless($s->status==='approved',409,'Approbation requise.');
             abort_unless(now()->lessThan($s->expires_at),409,'Approbation expirée.');
             $args=json_decode($s->arguments,true,512,JSON_THROW_ON_ERROR);
-            abort_unless(hash_equals($s->payload_sha256,$this->digest($s->action_type,$args,(int)$s->cost_cents,$s->policy_version)),409,'Arguments modifiés.');
+            abort_unless(hash_equals($s->payload_sha256,$this->digest($s->action_type,$args,(int)$s->cost_cents,$s->policy_version,$s->explanation,\Carbon\CarbonImmutable::parse($s->expires_at)->toISOString())),409,'Arguments modifiés.');
             abort_unless($s->action_type==='maintenance_create_work_order',403,'Outil inconnu.');
             $di=MaintenanceRequest::query()->lockForUpdate()->findOrFail((int)$args['maintenance_request_id']);
             abort_unless($di->status==='qualified',409,'DI non qualifiée.');
