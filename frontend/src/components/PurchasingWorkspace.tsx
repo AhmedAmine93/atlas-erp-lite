@@ -13,7 +13,7 @@ const screens:Record<string,{title:string;endpoint:string;columns:string[];field
     title:"Fournisseurs",endpoint:"purchasing/suppliers",
     description:"Référentiel, blocage et validation indépendante des coordonnées bancaires.",
     columns:["name","email","tax_registration","procurement_status","blocked_reason"],
-    fields:[f("name","Nom",true),f("email","Email",true),f("phone","Téléphone"),f("address","Adresse")]
+    fields:[f("name","Nom",true),f("email","Email",true),f("tax_registration","Identifiant fiscal"),f("phone","Téléphone"),f("address","Adresse")]
   },
   "purchase-requests":{
     title:"Demandes d’achat",endpoint:"purchasing/requests",
@@ -172,10 +172,10 @@ export default function PurchasingWorkspace({view,activeCompanyId}:{view:string;
   function rowActions(row:RecordRow) {
     const id=row.id,status=row.status??"";
     if(view==="suppliers") return <>
-      {action("Bloquer",()=>{const reason=window.prompt("Motif du blocage");if(reason?.trim())void perform("purchasing/suppliers/"+id+"/status",{status:"blocked",reason:reason.trim()});})}
-      {action("Activer",()=>void perform("purchasing/suppliers/"+id+"/status",{status:"active"}))}
-      {action("Archiver",()=>{if(window.confirm("Archiver ce fournisseur ?"))void perform("purchasing/suppliers/"+id+"/status",{status:"archived"});})}
-      {action("IBAN : demande",()=>ask("purchasing/suppliers/"+id+"/bank-changes","iban","Nouvel IBAN (il sera chiffré côté serveur)",15))}
+      {row.procurement_status==="active"&&action("Bloquer",()=>{const reason=window.prompt("Motif du blocage");if(reason?.trim())void perform("purchasing/suppliers/"+id+"/status",{status:"blocked",reason:reason.trim()});})}
+      {row.procurement_status==="blocked"&&action("Activer",()=>void perform("purchasing/suppliers/"+id+"/status",{status:"active"}))}
+      {row.procurement_status!=="archived"&&action("Archiver",()=>{if(window.confirm("Archiver ce fournisseur ?"))void perform("purchasing/suppliers/"+id+"/status",{status:"archived"});})}
+      {row.procurement_status==="active"&&action("IBAN : demande",()=>ask("purchasing/suppliers/"+id+"/bank-changes","iban","Nouvel IBAN (il sera chiffré côté serveur)",15))}
       {action("IBAN : décisions",()=>void fetchLines("purchasing/suppliers/"+id+"/bank-changes","Demandes bancaires",id))}
     </>;
     if(view==="purchase-requests")return <>
