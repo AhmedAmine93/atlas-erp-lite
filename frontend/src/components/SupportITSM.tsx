@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { api, send } from "@/lib/api";
 import type { Page, Role } from "@/lib/types";
-import DataTableFrame from "@/components/ui/DataTableFrame";
 
 type CaseKind = "ticket" | "problem" | "service" | "change";
 type View = "support-tickets" | "support-problems" | "support-services" | "support-changes" | "support-sla" | "support-knowledge";
