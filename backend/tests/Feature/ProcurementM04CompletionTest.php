@@ -111,8 +111,10 @@ class ProcurementM04CompletionTest extends TestCase
         ])->assertCreated()->assertJsonPath('matched_cents',12000)
             ->assertJsonPath('dispute_cents',4000)
             ->assertJsonPath('status','disputed')->json('id');
+        $this->as($buyer,$tenant);
         $this->postJson("/api/purchasing/invoices/$invoiceId/authorize-payment")
             ->assertStatus(409);
+        $this->as($requester,$tenant);
         $this->postJson("/api/purchasing/orders/$orderId/services",[
             'purchase_order_line_id'=>$line,'reference'=>'PV-SVC-002',
             'accepted_quantity'=>2,'evidence_reference'=>'SIGNED-PV-002'
