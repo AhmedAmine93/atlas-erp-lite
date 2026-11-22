@@ -164,23 +164,24 @@ final class OpsController extends Controller
                 $data['window_end'] ?? null, (int) $data['max_attempts'],
             ], JSON_THROW_ON_ERROR));
             return DB::transaction(function () use ($table, $companyId, $request, $data, $digest) {
-                // Unique tenant+key enforces consistency under concurrent requests.
-                $existing = DB::table($table)->where('company_id', $companyId)
-                    ->where('idempotency_key', $data['idempotency_key'])->first();
-                if ($existing) {
-                    abort_unless(hash_equals($existing->payload_digest, $digest), 409, 'Clé de rejeu utilisée avec un contenu différent.');
-                    return response()->json(['record' => $existing, 'already_exists' => true]);
-                }
-                $id = DB::table($table)->insertGetId([
+                // PostgreSQL ON CONFLICT DO NOTHING serializes simultaneous submissions
+                // on the tenant/key UNIQUE constraint. Only the winner emits an audit.
+                $inserted = DB::table($table)->insertOrIgnore([
                     ...$data, 'company_id' => $companyId, 'created_by' => $request->user()->id,
                     'correlation_id' => (string) Str::uuid(), 'payload_digest' => $digest,
                     'created_at' => now(), 'updated_at' => now(),
                 ]);
-                Audit::record('ops.job_registered', null, ['id' => $id]);
+                $record = DB::table($table)->where('company_id', $companyId)
+                    ->where('idempotency_key', $data['idempotency_key'])->first();
+                abort_unless($record, 500, 'Échec de lecture après enregistrement du job.');
+                abort_unless(hash_equals($record->payload_digest, $digest), 409,
+                    'Clé de rejeu utilisée avec un contenu différent.');
+                if ($inserted) {
+                    Audit::record('ops.job_registered', null, ['id' => $record->id]);
+                }
                 return response()->json([
-                    'record' => DB::table($table)->where('company_id', $companyId)->find($id),
-                    'already_exists' => false,
-                ], 201);
+                    'record' => $record, 'already_exists' => ! (bool) $inserted,
+                ], $inserted ? 201 : 200);
             }, 3);
         }
         if ($section === 'backups') {
