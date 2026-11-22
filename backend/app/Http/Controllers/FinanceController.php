@@ -166,6 +166,9 @@ final class FinanceController extends Controller
             'reference'=>'nullable|string|max:120','external_event_id'=>'nullable|string|max:140',
             'request_key'=>'required|string|min:8|max:120']);
         $result=$this->idempotent('receipt',$d,function()use($d,$r){
+            if (isset($d['external_event_id']) && $this->query('receipts')->where('external_event_id',$d['external_event_id'])->exists()) {
+                abort(409,'Identifiant externe déjà enregistré.');
+            }
             $id=DB::table('finance_receipts')->insertGetId([
                 'company_id'=>$this->tenant(),'amount_cents'=>$d['amount_cents'],
                 'currency'=>$d['currency']??'EUR','received_on'=>$d['received_on'],
@@ -548,10 +551,14 @@ final class FinanceController extends Controller
             $debit=0;$credit=0;
             $csv=fopen('php://temp','w+');
             fputcsv($csv,['entry_date','entry_reference','account','debit_cents','credit_cents','entry_id','line_id'],',','"','');
+            // Defuse spreadsheet formulae in human-readable CSV fields.
+            $safeCell = static function (string $text): string {
+                return preg_match('/^[\\s]*[=+@-]/u', $text) ? "'".$text : $text;
+            };
             foreach($rows as $row){
                 abort_unless($row->account,409,'Compte comptable non mappé.');
                 $debit+=(int)$row->debit_cents;$credit+=(int)$row->credit_cents;
-                fputcsv($csv,[(string)$row->entry_date,$row->reference,$row->account,$row->debit_cents,$row->credit_cents,$row->entry_id,$row->line_id],',','"','');
+                fputcsv($csv,[(string)$row->entry_date,$safeCell((string)$row->reference),$safeCell((string)$row->account),$row->debit_cents,$row->credit_cents,$row->entry_id,$row->line_id],',','"','');
             }
             abort_unless($debit===$credit && $debit>0,409,'Export comptable déséquilibré.');
             rewind($csv);$snapshot=stream_get_contents($csv);fclose($csv);
