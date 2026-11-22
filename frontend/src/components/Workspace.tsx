@@ -47,6 +47,7 @@ import HotelHousekeepingWorkspace from "@/components/HotelHousekeepingWorkspace"
 import HotelMinibarWorkspace from "@/components/HotelMinibarWorkspace";
 import HotelAvailabilityWorkspace from "@/components/HotelAvailabilityWorkspace";
 import SupportIncidents from "@/components/SupportIncidents";
+import QualityWorkspace, { qualityViews } from "@/components/QualityWorkspace";
 import Login from "@/components/auth/Login";
 import WorkspaceSidebar from "@/components/layout/WorkspaceSidebar";
 import WorkspaceWelcome from "@/components/layout/WorkspaceWelcome";
@@ -522,6 +523,7 @@ export default function Workspace() {
                 "invoices",
                 "admin-companies",
                 "support-incidents",
+                "quality-controls", "nonconformities", "corrective-actions", "quality-audits", "compliance-docs",
               ].includes(view) && !domainViews.has(view) && (
                 <button
                   className="button primary"
@@ -568,6 +570,8 @@ export default function Workspace() {
             </>
           ) : ["direction-dashboard", "sales-dashboard", "finance-dashboard", "logistics-dashboard", "alerts-dashboard"].includes(view) ? (
             <PilotageWorkspace key={view + "-" + user.active_company_id} view={view} user={user} />
+          ) : qualityViews.has(view) ? (
+            <QualityWorkspace key={view+"-"+user.active_company_id} view={view as "quality-controls" | "nonconformities" | "corrective-actions" | "quality-audits" | "compliance-docs"} user={user} />
           ) : view === "support-incidents" ? (
             <SupportIncidents canDiagnose={["admin", "support_n3"].includes(user.role.name)} />
           ) : view === "hotel-minibar" ? (

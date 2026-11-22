@@ -23,6 +23,9 @@ const roleLabels: Record<string, string> = {
   reader: "Lecture seule",
   support_n2: "Support N2",
   support_n3: "Support N3",
+  quality_manager: "Responsable qualité",
+  quality_auditor: "Auditeur qualité",
+  quality_operator: "Opérateur qualité",
 };
 
 /** Sidebar owns menu-search/expansion state; authentication and tenant state live in Workspace. */
