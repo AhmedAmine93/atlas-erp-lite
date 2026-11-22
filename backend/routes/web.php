@@ -16,6 +16,7 @@ use App\Http\Controllers\SupportDiagnosticController;
 use App\Http\Controllers\DataCsvIngestionController;
 use App\Http\Controllers\DataIngestionBatchController;
 use App\Http\Controllers\DataSourceCatalogController;
+use App\Http\Controllers\HotelMinibarCatalogController;
 use App\Http\Controllers\HotelBookingController;
 use App\Http\Controllers\HotelRegistryController;
 use App\Http\Controllers\HotelHousekeepingController;
@@ -81,6 +82,13 @@ Route::prefix('api')->group(function () {
         Route::post('maintenance/requests/{id}/work-orders', [MaintenanceWorkOrderController::class, 'createFromRequest'])->whereNumber('id');
         Route::post('maintenance/work-orders/{id}/start', [MaintenanceWorkOrderController::class, 'start'])->whereNumber('id');
         Route::post('maintenance/work-orders/{id}/complete', [MaintenanceWorkOrderController::class, 'complete'])->whereNumber('id');
+        Route::prefix('hotels/{hotel}/minibar')->where(['hotel' => '[0-9]+'])->group(function () {
+            Route::get('products', [HotelMinibarCatalogController::class, 'index']);
+            Route::post('products', [HotelMinibarCatalogController::class, 'store']);
+            Route::patch('products/{id}', [HotelMinibarCatalogController::class, 'update'])->whereNumber('id');
+            Route::post('products/{id}/prices', [HotelMinibarCatalogController::class, 'price'])->whereNumber('id');
+        });
+        Route::get('hotels/room-day', [HotelHousekeepingController::class, 'roomDay']);
         Route::get('hotels/housekeeping/tasks', [HotelHousekeepingController::class, 'index']);
         Route::post('hotels/housekeeping/tasks', [HotelHousekeepingController::class, 'create']);
         Route::post('hotels/housekeeping/tasks/{id}/transition', [HotelHousekeepingController::class, 'transition'])->whereNumber('id');

@@ -38,6 +38,36 @@ final class HotelHousekeepingController extends Controller
         return $query->paginate(50);
     }
 
+    public function roomDay(Request $request): JsonResponse
+    {
+        Gate::authorize('admin');
+        $data = $request->validate([
+            'hotel_id' => 'required|integer|min:1', 'business_date' => 'required|date_format:Y-m-d',
+            'company_id' => 'prohibited',
+        ]);
+        $hotel = HotelProperty::query()->findOrFail($data['hotel_id']);
+        $today = \Carbon\CarbonImmutable::now($hotel->timezone)->toDateString();
+        $rooms = DB::select(<<<'SQL'
+            WITH dates AS (SELECT CAST(? AS date) AS day, CAST(? AS date) AS today)
+            SELECT r.id, r.hotel_id, r.room_number, r.category, r.floor_code, r.room_status,
+                t.id AS task_id, t.status AS housekeeping_status,
+                COUNT(b.id) FILTER (WHERE COALESCE(b.checked_in_on,b.arrival_date) <= d.day
+                    AND d.day <= d.today AND b.status IN ('checked_in','checked_out')
+                    AND (b.status = 'checked_in' OR COALESCE(b.checked_out_on,b.departure_date) > d.day)) AS occupied,
+                COUNT(b.id) FILTER (WHERE COALESCE(b.checked_in_on,b.arrival_date) = d.day) AS arrivals,
+                COUNT(b.id) FILTER (WHERE COALESCE(b.checked_out_on,b.departure_date) = d.day) AS departures
+            FROM hotel_rooms r CROSS JOIN dates d
+            LEFT JOIN hotel_housekeeping_tasks t ON (t.company_id,t.hotel_id,t.room_id,t.business_date)
+                = (r.company_id,r.hotel_id,r.id,d.day)
+            LEFT JOIN hotel_bookings b ON (b.company_id,b.hotel_id,b.room_id) = (r.company_id,r.hotel_id,r.id)
+                AND b.status IN ('confirmed','checked_in','checked_out') AND b.arrival_date <= d.day
+                AND (b.status = 'checked_in' OR COALESCE(b.checked_out_on,b.departure_date) >= d.day)
+            WHERE r.company_id = ? AND r.hotel_id = ?
+            GROUP BY r.id, t.id ORDER BY r.floor_code, r.room_number, r.id
+            SQL, [$data['business_date'], $today, $hotel->company_id, $hotel->id]);
+        return response()->json(['business_date' => $data['business_date'], 'rooms' => $rooms]);
+    }
+
     public function create(Request $request): JsonResponse
     {
         Gate::authorize('admin');

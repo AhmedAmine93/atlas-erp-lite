@@ -1,13 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { all, api, send } from "@/lib/api";
 
 type Hotel = {id:number;code:string;name:string;timezone:string;active:boolean};
 type Room = {id:number;hotel_id:number;room_number:string;floor_code:string|null;category:string;room_status:string};
 type Status = "dirty"|"in_progress"|"clean"|"inspected";
-type Task = {id:number;hotel_id:number;room_id:number;business_date:string;status:Status;inspected_at:string|null};
-type Page<T> = {data:T[];last_page:number;total:number};
+type Task = {id:number;hotel_id:number;room_id:number;business_date:string;status:Status};
+type RoomDay = Room & {task_id:number|null;housekeeping_status:Status|null;occupied:number;arrivals:number;departures:number};
 const states:Record<Status,string> = {
   dirty:"Sale",in_progress:"En cours",clean:"Propre",inspected:"Inspectée"
 };
@@ -25,8 +25,8 @@ const localDate=()=> {
 
 export default function HotelHousekeepingWorkspace({activeCompanyId}:{activeCompanyId:number|null}){
   const [hotels,setHotels]=useState<Hotel[]>([]);
-  const [rooms,setRooms]=useState<Room[]>([]);
-  const [tasks,setTasks]=useState<Task[]>([]);
+  const [rooms,setRooms]=useState<RoomDay[]>([]);
+
   const [hotelId,setHotelId]=useState<number|null>(null);
   const [businessDate,setBusinessDate]=useState(localDate);
   const [filter,setFilter]=useState("");
@@ -39,11 +39,11 @@ export default function HotelHousekeepingWorkspace({activeCompanyId}:{activeComp
 
   useEffect(()=>{
     let live=true;
-    setLoading(true);setError("");setRooms([]);setHotels([]);setTasks([]);setHotelId(null);
-    Promise.all([all<Hotel>("hotels"),all<Room>("hotel-rooms")])
-      .then(([h,r])=>{
+    setLoading(true);setError("");setRooms([]);setHotels([]);setHotelId(null);
+    all<Hotel>("hotels")
+      .then(h=>{
         if(!live)return;
-        setHotels(h);setRooms(r);
+        setHotels(h);
         setHotelId(h[0]?.id??null);
       })
       .catch((e:Error)=>{if(live)setError(e.message);})
@@ -56,30 +56,23 @@ export default function HotelHousekeepingWorkspace({activeCompanyId}:{activeComp
     (a,b)=>(a.floor_code??"").localeCompare(b.floor_code??"","fr")||
       a.room_number.localeCompare(b.room_number,"fr",{numeric:true})
   ),[hotelId,rooms]);
-  const taskByRoom=useMemo(()=>new Map(tasks.map(t=>[t.room_id,t])),[tasks]);
-
-  const loadTasks=useCallback(async(hotel:number,date:string)=>{
-    const result:Task[]=[];
-    for(let page=1;page<=30;page++){
-      const response=await api<Page<Task>>(
-        "hotels/housekeeping/tasks?hotel_id="+hotel+"&business_date="+encodeURIComponent(date)+"&page="+page
-      );
-      result.push(...response.data);
-      if(page>=response.last_page)return result;
-    }
-    throw Error("Trop de missions pour cette vue. Une pagination serveur est nécessaire.");
-  },[]);
+  const taskByRoom=useMemo(()=>new Map(rooms.flatMap(room=>
+    room.task_id && room.housekeeping_status ? [[room.id,{
+      id:room.task_id,room_id:room.id,hotel_id:room.hotel_id,
+      business_date:businessDate,status:room.housekeeping_status
+    }] as const] : []
+  )),[rooms,businessDate]);
 
   useEffect(()=>{
-    if(hotelId===null)return;
+    if(hotelId===null || !businessDate) return;
     let live=true;
-    setTasks([]);setTasksLoading(true);setError("");
-    loadTasks(hotelId,businessDate)
-      .then(list=>{if(live)setTasks(list);})
+    setRooms([]);setTasksLoading(true);setError("");
+    api<{rooms:RoomDay[]}>("hotels/room-day?hotel_id="+hotelId+"&business_date="+encodeURIComponent(businessDate))
+      .then(result=>{if(live)setRooms(result.rooms);})
       .catch((e:Error)=>{if(live)setError(e.message);})
       .finally(()=>{if(live)setTasksLoading(false);});
     return()=>{live=false;};
-  },[hotelId,businessDate,reload,loadTasks,activeCompanyId]);
+  },[hotelId,businessDate,reload,activeCompanyId]);
 
   const counters=useMemo(()=>{
     const counts={dirty:0,in_progress:0,clean:0,inspected:0,unassigned:0,blocked:0};
@@ -133,7 +126,7 @@ export default function HotelHousekeepingWorkspace({activeCompanyId}:{activeComp
         </label>
         <label>Journée d'exploitation
           <input type="date" aria-label="Journée housekeeping"
-            value={businessDate} onChange={e=>setBusinessDate(e.target.value)}/>
+            value={businessDate} onChange={e=>{setRooms([]);setBusinessDate(e.target.value);}}/>
         </label>
         <label>Rechercher une chambre
           <input type="search" aria-label="Rechercher chambre housekeeping"
@@ -162,7 +155,7 @@ export default function HotelHousekeepingWorkspace({activeCompanyId}:{activeComp
       </div>
       <p className="atlas-housekeeping-note">
         Une chambre inspectée mais bloquée pour maintenance reste non prête pour l'accueil.
-        Cette vue n'effectue pas de vérification des réservations et ne constitue pas un moteur de commercialisation.
+        Les arrivées et les départs proviennent des réservations locales.
       </p>
       {floors.map(floor=><div className="atlas-housekeeping-floor" key={floor}>
         <h3>{floor}</h3>
@@ -178,6 +171,9 @@ export default function HotelHousekeepingWorkspace({activeCompanyId}:{activeComp
               </div>
               <div className="atlas-housekeeping-room-badges">
                 <span data-state={task?.status??"none"}>{task?states[task.status]:"Sans mission"}</span>
+                <span>{Number(room.occupied)>0?"Séjour en cours":"Aucun séjour en cours enregistré"}</span>
+                {Number(room.arrivals)>0&&<span>Arrivées : {room.arrivals}</span>}
+                {Number(room.departures)>0&&<span>Départs : {room.departures}</span>}
                 {blocked&&<span className="atlas-housekeeping-blocked">Indisponible : {room.room_status}</span>}
                 {ready&&<span className="atlas-housekeeping-inspected">Propreté contrôlée</span>}
               </div>
