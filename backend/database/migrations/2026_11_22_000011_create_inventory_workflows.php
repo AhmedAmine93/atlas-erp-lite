@@ -168,6 +168,10 @@ return new class extends Migration {
         }
 
         DB::statement('CREATE UNIQUE INDEX inv_balance_one_per_lot ON inventory_balances(company_id, product_id, location_id, COALESCE(lot_id, 0))');
+        // Compatibility with F14 legacy restore: the retrofit may have marked
+        // the earlier composite-key migration as applied before creating its indexes.
+        // A unique parent key is mandatory for every tenant-composite FK below.
+        DB::statement('CREATE UNIQUE INDEX IF NOT EXISTS inv_products_company_id_pk_idx ON products(company_id, id)');
         DB::statement('CREATE UNIQUE INDEX inv_supplier_company_id_pk_idx ON suppliers(company_id, id)');
         DB::statement("ALTER TABLE inventory_lots ADD CONSTRAINT inv_lot_state CHECK (status IN ('available','quarantine','blocked','recalled'))");
         DB::statement("ALTER TABLE inventory_serials ADD CONSTRAINT inv_serial_state CHECK (status IN ('available','quarantine','sold'))");
@@ -245,6 +249,7 @@ return new class extends Migration {
         }
         if (DB::getDriverName() === 'pgsql') {
             DB::statement('DROP INDEX IF EXISTS inv_supplier_company_id_pk_idx');
+            DB::statement('DROP INDEX IF EXISTS inv_products_company_id_pk_idx');
         }
     }
 };
