@@ -14,6 +14,7 @@ const configs:Record<View,Config>={
   ],columns:["name","email","source","status"]},
   "crm-contacts":{resource:"contacts",title:"Contacts",fields:[
     {key:"customer_id",label:"ID client",type:"number"},
+    {key:"supplier_id",label:"ID fournisseur",type:"number"},
     {key:"first_name",label:"Prénom",required:true},{key:"last_name",label:"Nom",required:true},
     {key:"email",label:"Email",type:"email"},{key:"phone",label:"Téléphone"},
     {key:"job_title",label:"Fonction"},{key:"consent",label:"Consentement",type:"select",options:["unknown","granted","refused"]},
