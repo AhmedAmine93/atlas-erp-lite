@@ -1,0 +1,34 @@
+# Optional local-only Oracle JET industrial Node/Redis layer.
+# Start beside existing ERP: docker compose -f compose.yaml -f compose.jet.yaml up -d --build --wait
+# Browser -> 127.0.0.1:8100 (JET gateway) -> Node BFF 127.0.0.1:8300
+services:
+  jet-redis:
+    image: redis:7.4-alpine
+    command: ["redis-server","--appendonly","yes","--maxmemory","128mb","--maxmemory-policy","allkeys-lru"]
+    volumes: ["jet_redis:/data"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD","redis-cli","ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  jet-node:
+    build: ./jet-industrial/node-api
+    environment:
+      HOST: 0.0.0.0
+      PORT: "8300"
+      ATLAS_LARAVEL_URL: http://frontend:3000
+      REDIS_URL: redis://jet-redis:6379
+      ATLAS_JET_GATEWAY_PORT: "${ATLAS_JET_GATEWAY_PORT:-8100}"
+    ports: ["127.0.0.1:8300:8300"]
+    depends_on:
+      jet-redis: {condition: service_healthy}
+      frontend: {condition: service_healthy}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD","node","-e","fetch('http://127.0.0.1:8300/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+volumes:
+  jet_redis:
