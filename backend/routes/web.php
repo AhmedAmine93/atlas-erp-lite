@@ -9,6 +9,7 @@ use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\MetricsController;
 use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\InventoryLocationController;
 use App\Http\Controllers\SalesController;
 use App\Http\Controllers\TenantContextController;
 use App\Http\Controllers\SupportIncidentController;
@@ -127,6 +128,13 @@ Route::prefix('api')->group(function () {
         Route::post('data/ingestion-batches', [DataIngestionBatchController::class, 'store']);
         Route::post('data/ingestion-batches/{id}/ingest-csv', [DataCsvIngestionController::class, 'ingest'])->whereNumber('id');
         Route::get('search', GlobalSearchController::class);
+        // M05.03: versioned by business domain, authenticated and tenant-scoped.
+        Route::get('inventory/warehouses', [InventoryLocationController::class, 'warehouses']);
+        Route::post('inventory/warehouses', [InventoryLocationController::class, 'createWarehouse']);
+        Route::patch('inventory/warehouses/{id}', [InventoryLocationController::class, 'updateWarehouse'])->whereNumber('id');
+        Route::get('inventory/locations', [InventoryLocationController::class, 'locations']);
+        Route::post('inventory/locations', [InventoryLocationController::class, 'createLocation']);
+        Route::patch('inventory/locations/{id}', [InventoryLocationController::class, 'updateLocation'])->whereNumber('id');
         Route::get('stock-movements', [ProductController::class, 'movements']);
         Route::get('products', [ProductController::class, 'index']);
         Route::post('products', [ProductController::class, 'save']);
