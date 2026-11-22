@@ -95,7 +95,7 @@ export default function MinibarReports({hotel,day,refresh}:{hotel:number;day:str
         {monthly.compared_days>0&&<p>Écart sur journées comparables : {money(monthly.compared_delta_cents)} (ATLAS {money(monthly.compared_atlas_cents)} / PMS {money(monthly.compared_pms_cents)})</p>}
         <div aria-label="Tendance quotidienne des consommations mini-bar" style={{display:"flex",height:110,alignItems:"end",gap:3}}>
           {monthly.days.map(d=><div key={d.business_date} title={d.business_date+" · "+money(d.atlas_total_cents)}
-            style={{flex:1,minWidth:2,height:Math.max(2,100*d.atlas_total_cents/Math.max(1,...monthly.days.map(x=>x.atlas_total_cents)))+"%",background:"currentColor",opacity:d.import_id===null?.3:.85}} />)}
+            style={{flex:1,minWidth:2,height:Math.max(2,100*d.atlas_total_cents/Math.max(1,...monthly.days.map(x=>x.atlas_total_cents)))+"%",background:"currentColor",opacity:d.import_id===null ? 0.3 : 0.85}} />)}
         </div>
         <div className="table-scroll"><table><thead><tr><th>Journée</th><th>ATLAS</th><th>PMS</th><th>Écart</th><th>Anomalies</th></tr></thead>
           <tbody>{monthly.days.map(d=><tr key={d.business_date}>
