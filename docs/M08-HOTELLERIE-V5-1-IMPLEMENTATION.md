@@ -15,7 +15,7 @@
 | M08.05 Arrivées/départs | Check-in/out et historique | Lecture dans snapshot | Validation identité/garanties selon hôtel |
 | M08.06 Housekeeping | Missions, inspection, état propre distinct de maintenance | Conservation des fonctions présentes | Assignations, transitions détaillées, application mobile |
 | M08.07 Mini-bar | Produits, prix historiques, consommation, comparaison PMS fictive | Trigger SQL interdisant saisie dans un jour clôturé | Régularisations tardives et workflow d'export PMS |
-| M08.08 Folios | Absent | Tables, API, écrans, écritures immuables, solde calculé, fermeture et audit | Transferts entre folios, pièces comptables définitives et conformité fiscale |
+| M08.08 Folios | Absent | Tables, API, écrans, écritures immuables, solde calculé, transfert équilibré, correction append-only, fermeture et audit | Pièces comptables définitives et conformité fiscale |
 | M08.09 Canaux | Absent (hors imports minibar) | Règles de référence versionnées, imports fictifs, écarts, ambiguïtés, écran | Connecteurs vrais, webhooks, accusés, corrections manuelles |
 | M08.10 Night audit | Absent | Calendrier versionné, snapshot par journée et par hôtel, verrou, écran, SQL anti-écriture tardive | Reprise externe, journal des corrections et recette night auditor |
 
@@ -26,6 +26,8 @@
 - `GET /api/hotels/{hotel}/folios/{folio}` — lignes + solde dérivé.
 - `POST /api/hotels/{hotel}/folios/{folio}/entries` — écriture sous clé UUID idempotente, montant positif en centimes, motif et journée métier.
 - `POST /api/hotels/{hotel}/folios/{folio}/close` — fermeture tracée.
+- `POST /api/hotels/{hotel}/folios/{folio}/transfer` — deux écritures équilibrées entre folios du même séjour.
+- `POST /api/hotels/{hotel}/folios/{folio}/entries/{entry}/correct` — contre-écriture dupliquée ni effacée, sur journée ouverte.
 - `GET/POST /api/hotels/{hotel}/channel/rules` — normalisation versionnée par hôtel.
 - `GET/POST /api/hotels/{hotel}/channel/imports` — imports fictifs, lignes et références originales conservées.
 - `GET /api/hotels/{hotel}/channel/reconciliation?pms_import_id=…&crs_import_id=…` — résultats locaux, ambiguïtés et écarts sans écriture automatique.
@@ -53,7 +55,7 @@ cd backend && php artisan test --filter=HotelOperationsTest
 cd frontend && npm run build
 ```
 
-Les tests nouveaux vérifient les rejouements folio et import, l'écart PMS/CRS, la séparation des tenants, les permissions lecture seule et l'unicité de clôture. La CI générale doit aussi exécuter la concurrence, le TypeScript et les E2E.
+Les tests nouveaux visent les rejouements folio et import, les transferts équilibrés, les corrections après clôture, l'écart PMS/CRS, la séparation des tenants, les permissions lecture seule et l'unicité de clôture. Une suite Playwright parcourt les dix pages depuis la navigation. La CI générale doit aussi exécuter la concurrence, le TypeScript et les E2E.
 
 **Ne pas lancer de migration ni de seed sur une base de production sans sauvegarde et validation du schéma cible.** Le rollback de la migration est destructeur pour les tables nouvelles ; le traiter uniquement en environnement éphémère. Pour une production contenant des données, privilégier la migration corrective.
 
