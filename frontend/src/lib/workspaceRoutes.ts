@@ -41,6 +41,13 @@ export function parseWorkspacePath(pathname: string): WorkspaceRoute | null {
 export function canOpenWorkspaceView(view: View, role: Role["name"]): boolean {
   if (!allowedViews.has(view)) return false;
   if (view === "dashboard") return true;
+  if (["direction-dashboard", "sales-dashboard", "finance-dashboard"].includes(view))
+    return ["admin", "commercial", "reader"].includes(role);
+  if (view === "logistics-dashboard")
+    return ["admin", "stock", "reader"].includes(role);
+  if (view === "alerts-dashboard")
+    return ["admin", "commercial", "stock", "reader"].includes(role);
+  if (view.startsWith("integrations-")) return role === "admin";
   if (["purchase-requests", "maintenance-sites", "maintenance-assets", "maintenance-requests", "maintenance-workorders", "hotel-properties", "hotel-rooms", "hotel-bookings", "hotel-checkin", "hotel-minibar", "hotel-availability", "hotel-housekeeping", "data-sources", "data-batches"].includes(view)) return role === "admin";
   if (["users", "audit-logs", "admin-companies"].includes(view)) return role === "admin";
   if (view === "support-incidents") return ["admin", "support_n2", "support_n3"].includes(role);
