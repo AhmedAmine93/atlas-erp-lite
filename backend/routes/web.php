@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\HumanResourcesController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PilotageController;
@@ -62,6 +63,12 @@ Route::prefix('api')->group(function () {
         Route::post('builders/forms/validate', [FormSchemaController::class, 'validateDraft']);
         Route::get('data/sources/{id}/schemas', [DataCanonicalSchemaController::class, 'index'])->whereNumber('id');
         Route::post('data/sources/{id}/schemas', [DataCanonicalSchemaController::class, 'store'])->whereNumber('id');
+        // M09: versioned and company-scoped HR endpoints.
+        Route::get('hr/summary', [HumanResourcesController::class, 'summary']);
+        Route::get('hr/{resource}', [HumanResourcesController::class, 'index']);
+        Route::get('hr/{resource}/{id}', [HumanResourcesController::class, 'show'])->whereNumber('id');
+        Route::post('hr/{resource}', [HumanResourcesController::class, 'store']);
+        Route::post('hr/{resource}/{id}/transition', [HumanResourcesController::class, 'transition'])->whereNumber('id');
         Route::get('purchasing/requests', [PurchaseRequestController::class, 'index']);
         Route::post('purchasing/requests', [PurchaseRequestController::class, 'store']);
         Route::post('purchasing/requests/{id}/submit', [PurchaseRequestController::class, 'submit'])->whereNumber('id');

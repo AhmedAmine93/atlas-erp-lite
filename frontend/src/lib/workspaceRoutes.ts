@@ -47,6 +47,7 @@ export function canOpenWorkspaceView(view: View, role: Role["name"]): boolean {
     return ["admin", "stock", "reader"].includes(role);
   if (view === "alerts-dashboard")
     return ["admin", "commercial", "stock", "reader"].includes(role);
+  if (view.startsWith("hr-")) return ["admin", "hr"].includes(role);
   if (["purchase-requests", "maintenance-sites", "maintenance-assets", "maintenance-requests", "maintenance-workorders", "hotel-properties", "hotel-rooms", "hotel-bookings", "hotel-checkin", "hotel-minibar", "hotel-availability", "hotel-housekeeping", "data-sources", "data-batches"].includes(view)) return role === "admin";
   if (["users", "audit-logs", "admin-companies"].includes(view)) return role === "admin";
   if (view === "support-incidents") return ["admin", "support_n2", "support_n3"].includes(role);
@@ -59,6 +60,7 @@ export function canOpenWorkspaceView(view: View, role: Role["name"]): boolean {
 
 /** Existing UI edit actions mirror Laravel's write Gates. */
 export function canEditWorkspaceView(view: View, role: Role["name"]): boolean {
+  if (view.startsWith("hr-")) return ["admin", "hr"].includes(role);
   if (role === "admin") return ["customers", "suppliers", "products", "quotes", "orders", "invoices", "users"].includes(view);
   if (role === "commercial") return ["customers", "suppliers", "quotes", "orders", "invoices"].includes(view);
   if (role === "stock") return view === "products";
