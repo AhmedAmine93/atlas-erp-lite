@@ -314,6 +314,20 @@ final class CrmWorkspaceController extends Controller
                 || ($resource === 'prospects' && $row->status === 'lost')) {
                 abort_unless(strlen(trim((string)($data['reason']??''))) >= 3,422,'Motif ou résultat obligatoire.');
             }
+            if ($resource === 'opportunities' && $data['target'] === 'won') {
+                // The ERP marks a quote as 'converted' after it becomes an order.
+                // An accepted/converted quote is evidence of business won.
+                $linkedAccepted=DB::table('crm_opportunity_quotes as linked')
+                    ->join('quotes as q',function($join){
+                        $join->on('q.id','=','linked.quote_id')
+                            ->on('q.company_id','=','linked.company_id');
+                    })
+                    ->where('linked.company_id',$this->company())
+                    ->where('linked.opportunity_id',$id)
+                    ->whereIn('q.status',['accepted','converted'])->exists();
+                abort_unless($linkedAccepted || mb_strlen(trim((string)($data['reason']??''))) >= 15,
+                    422,'Un devis accepté/converti ou une justification hors devis détaillée est obligatoire.');
+            }
             $update = [$field=>$data['target'],'revision'=>$row->revision+1,'updated_at'=>now()];
             if ($resource === 'prospects' && $data['target'] === 'lost') $update['lost_reason']=$data['reason'];
             if ($resource === 'opportunities' && in_array($data['target'],['won','lost'],true)) $update['decision_reason']=$data['reason'];
