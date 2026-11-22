@@ -9,7 +9,7 @@ type Mapping={mode:string;delimiter:string;amount_unit:string;date_header:string
 type ReconciliationLine={room_number:string;sku:string|null;atlas_cents:number;pms_cents:number;delta_cents:number;pms_line_count:number;status:string;possible_breakfast_difference:boolean};
 type Reconciliation={import_id:number;import_mode:string;atlas_total_cents:number;pms_total_cents:number;delta_cents:number;counts:Record<string,number>;manual_review_required:boolean;lines:ReconciliationLine[]};
 type MonthDay={business_date:string;atlas_total_cents:number;pms_total_cents:number|null;delta_cents:number|null;import_id:number|null;anomalies_count:number|null};
-type Monthly={month:string;atlas_total_cents:number;compared_atlas_cents:number;compared_pms_cents:number;compared_delta_cents:number;compared_days:number;uncompared_days:number;anomalies_count:number;days:MonthDay[]};
+type Monthly={month:string;total_quantity:number;by_article:{sku:string;name:string;quantity:number;total_cents:number}[];atlas_total_cents:number;compared_atlas_cents:number;compared_pms_cents:number;compared_delta_cents:number;compared_days:number;uncompared_days:number;anomalies_count:number;days:MonthDay[]};
 const reconciliationLabels:Record<string,string>={matched:"Conforme",amount_mismatch:"Écart",missing_in_pms:"Absent du PMS",missing_in_atlas:"Absent d’ATLAS",duplicate_pms:"Doublon PMS"};
 const initial:Mapping={mode:"room",delimiter:";",amount_unit:"cents",date_header:"business_date",room_header:"room_number",amount_header:"total_cents",sku_header:"sku"};
 const money=(value:number)=>new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR"}).format(value/100);
@@ -91,8 +91,13 @@ export default function MinibarReports({hotel,day,refresh}:{hotel:number;day:str
     </section>
     <details><summary>Tableau de bord mensuel · {day.slice(0,7)}</summary>
       {monthly&&<>
-        <p>Total ATLAS : <strong>{money(monthly.atlas_total_cents)}</strong> · Journées rapprochées : {monthly.compared_days} · Journées sans import : {monthly.uncompared_days} · Anomalies : {monthly.anomalies_count}</p>
+        <p>Total ATLAS : <strong>{money(monthly.atlas_total_cents)}</strong> · Articles consommés : <strong>{monthly.total_quantity}</strong> · Journées rapprochées : {monthly.compared_days} · Journées sans import : {monthly.uncompared_days} · Anomalies : {monthly.anomalies_count}</p>
         {monthly.compared_days>0&&<p>Écart sur journées comparables : {money(monthly.compared_delta_cents)} (ATLAS {money(monthly.compared_atlas_cents)} / PMS {money(monthly.compared_pms_cents)})</p>}
+        <details><summary>Consommations mensuelles par article</summary>
+          <div className="table-scroll"><table><thead><tr><th>Référence</th><th>Article</th><th>Quantité</th><th>Chiffre d'affaires</th></tr></thead>
+            <tbody>{monthly.by_article.map(a=><tr key={a.sku}><td>{a.sku}</td><td>{a.name}</td><td>{a.quantity}</td><td>{money(a.total_cents)}</td></tr>)}</tbody>
+          </table></div>
+        </details>
         <div aria-label="Tendance quotidienne des consommations mini-bar" style={{display:"flex",height:110,alignItems:"end",gap:3}}>
           {monthly.days.map(d=><div key={d.business_date} title={d.business_date+" · "+money(d.atlas_total_cents)}
             style={{flex:1,minWidth:2,height:Math.max(2,100*d.atlas_total_cents/Math.max(1,...monthly.days.map(x=>x.atlas_total_cents)))+"%",background:"currentColor",opacity:d.import_id===null ? 0.3 : 0.85}} />)}
