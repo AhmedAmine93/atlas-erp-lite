@@ -145,6 +145,28 @@ final class CrmWorkspaceTest extends TestCase
         $this->assertSame(1,DB::table('crm_import_batches')->count());
     }
 
+    public function test_lost_prospect_reopen_and_activity_reschedule_are_audited(): void
+    {
+        $prospect=$this->postJson('/api/crm/prospects',['name'=>'Prospect retrouvé','email'=>'reopen@example.test'])
+            ->assertCreated()->json('id');
+        $this->postJson('/api/crm/prospects/'.$prospect.'/transition',[
+            'target'=>'lost','reason'=>'Pas de budget','expected_revision'=>1
+        ])->assertOk()->assertJsonPath('status','lost');
+        $this->postJson('/api/crm/prospects/'.$prospect.'/transition',[
+            'target'=>'qualified','reason'=>'Budget validé','expected_revision'=>2
+        ])->assertOk()->assertJsonPath('status','qualified');
+        $activity=$this->postJson('/api/crm/activities',[
+            'title'=>'Relancer prospect','prospect_id'=>$prospect,'due_at'=>'2026-12-01T10:00:00+01:00',
+        ])->assertCreated()->json('id');
+        $this->postJson('/api/crm/activities/'.$activity.'/reschedule',[
+            'due_at'=>'2027-01-02T11:00:00+01:00','reason'=>'Rendez-vous déplacé','expected_revision'=>1,
+        ])->assertOk()->assertJsonPath('reschedule_count',1);
+        $this->postJson('/api/crm/activities/'.$activity.'/reschedule',[
+            'due_at'=>'2027-01-03T11:00:00+01:00','reason'=>'Rejeu périmé','expected_revision'=>1,
+        ])->assertConflict();
+        $this->assertDatabaseHas('audit_logs',['action'=>'crm.activities.rescheduled']);
+    }
+
     public function test_pg_runtime_rls_isolates_all_new_crm_tables(): void
     {
         if (DB::getDriverName()!=='pgsql') $this->markTestSkipped('RLS PostgreSQL uniquement.');
