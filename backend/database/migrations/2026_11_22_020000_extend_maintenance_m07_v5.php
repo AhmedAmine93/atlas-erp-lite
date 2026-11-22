@@ -110,7 +110,9 @@ return new class extends Migration {
             $t->id();
             $t->foreignId('company_id')->constrained('companies')->restrictOnDelete();
             $t->unsignedBigInteger('work_order_id');
-            $t->foreignId('product_id')->constrained('products')->restrictOnDelete();
+            $t->unsignedBigInteger('product_id');
+            $t->foreign(['company_id','product_id'])->references(['company_id','id'])
+                ->on('products')->restrictOnDelete();
             $t->unsignedInteger('reserved_quantity');
             $t->unsignedInteger('consumed_quantity')->default(0);
             $t->unsignedInteger('released_quantity')->default(0);
