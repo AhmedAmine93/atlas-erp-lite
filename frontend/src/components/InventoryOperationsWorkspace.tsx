@@ -117,6 +117,16 @@ export default function InventoryOperationsWorkspace({view,role,activeCompanyId}
           const reference=window.prompt("Référence du bordereau de réception ?");
           if(quantity!==null&&quantity>0&&reference?.trim())void action("inventory/transfers/"+row.id+"/receive",{quantity,reference,operation_key:uuid()});
         }}>Réceptionner</button>
+        <button type="button" disabled={busy} onClick={()=>{
+          const quantity=promptNumber("Quantité endommagée à réceptionner en quarantaine ?");
+          const location=promptNumber("Identifiant de l'emplacement quarantaine dans le dépôt destination ?");
+          const reference=window.prompt("Référence du bordereau de dommages ?");
+          const reason=promptReason("Motif des dommages (5 caractères minimum) ?");
+          if(quantity!==null&&quantity>0&&location!==null&&location>0&&reference?.trim()&&reason)
+            void action("inventory/transfers/"+row.id+"/damaged-receipt",{
+              quantity,damage_location_id:location,reference,reason,operation_key:uuid()
+            });
+        }}>Réceptionner les dommages</button>
         {canApprove&&<button type="button" disabled={busy} onClick={()=>{
           const quantity=promptNumber("Quantité perdue pendant le transit ?");
           const reason=promptReason("Motif de la perte (5 caractères minimum) ?");
