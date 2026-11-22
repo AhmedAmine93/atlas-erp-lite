@@ -97,6 +97,7 @@ Route::prefix('api')->group(function () {
         Route::post('hotel-bookings', [HotelBookingController::class, 'store']);
         Route::post('hotel-bookings/{id}/confirm', [HotelBookingController::class, 'confirm'])->whereNumber('id');
         Route::post('hotel-bookings/{id}/checkin', [HotelBookingController::class, 'checkin'])->whereNumber('id');
+        Route::post('hotel-bookings/{id}/checkout', [HotelBookingController::class, 'checkout'])->whereNumber('id');
         Route::post('hotel-bookings/{id}/cancel', [HotelBookingController::class, 'cancel'])->whereNumber('id');
         Route::get('data/sources', [DataSourceCatalogController::class, 'index']);
         Route::post('data/sources', [DataSourceCatalogController::class, 'store']);

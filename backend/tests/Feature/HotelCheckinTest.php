@@ -81,8 +81,21 @@ final class HotelCheckinTest extends TestCase
                 'company_id' => $a->id, 'action' => 'hotel.booking.checked_in',
             ]);
 
+            $checkout = "/api/hotel-bookings/$booking/checkout";
+            $this->postJson($checkout)->assertUnprocessable()->assertJsonValidationErrors('reason');
+            $this->postJson($checkout, ['reason' => 'Départ anticipé fictif'])
+                ->assertOk()->assertJsonPath('status', 'checked_out')
+                ->assertJsonPath('checked_out_on', '2026-12-10')
+                ->assertJsonPath('departure_date', '2026-12-12');
+            $this->postJson($checkout)->assertConflict();
+            $this->assertDatabaseHas('audit_logs', [
+                'company_id' => $a->id, 'action' => 'hotel.booking.checked_out',
+                'entity_id' => $booking,
+            ]);
+
             // A different tenant must not inspect or mutate a booking.
             $this->admin($b, 'other');
+            $this->postJson($checkout)->assertNotFound();
             $this->postJson("/api/hotel-bookings/$booking/checkin")->assertNotFound();
 
             // Explicitly check active maintenance within the stay on another room.

@@ -27,6 +27,9 @@ ATLAS_STAGING_RUNTIME_PASSWORD=ci-config-only-not-a-real-password \
 "${dc[@]}" --profile test build --pull
 "${dc[@]}" up -d --wait --wait-timeout 240
 "${dc[@]}" exec -T db createdb -U atlas atlas_test
+if [[ ${GITHUB_HEAD_REF:-} == feature/v5-hotel-wave-02 ]]; then
+  "${dc[@]}" run --rm tests vendor/bin/phpunit --filter 'Hotel|Minibar|V5RuntimeTenantRls' --log-junit /reports/wave02.xml
+fi
 "${dc[@]}" run --rm tests vendor/bin/phpunit --log-junit /reports/phpunit.xml
 bash scripts/rehearse-f14.sh
 bash scripts/verify-rc1.sh
