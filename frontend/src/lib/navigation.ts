@@ -55,11 +55,11 @@ export const navigationSections: NavigationSection[] = [
     icon: Users,
     items: [
       { id: "customers", label: "Clients", ready: true },
-      { id: "prospects", label: "Prospects" },
-      { id: "crm-contacts", label: "Contacts" },
-      { id: "opportunities", label: "Opportunités" },
-      { id: "crm-activities", label: "Activités et relances" },
-      { id: "customer-segments", label: "Segmentation clients" },
+      { id: "prospects", label: "Prospects", ready: true },
+      { id: "crm-contacts", label: "Contacts", ready: true },
+      { id: "opportunities", label: "Opportunités", ready: true },
+      { id: "crm-activities", label: "Activités et relances", ready: true },
+      { id: "customer-segments", label: "Segmentation clients", ready: true },
     ],
   },
   {
