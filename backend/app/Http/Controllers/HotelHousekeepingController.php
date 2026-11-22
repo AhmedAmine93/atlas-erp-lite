@@ -7,7 +7,7 @@ use App\Models\HotelProperty;
 use App\Models\HotelRoom;
 use App\Services\Audit;
 use App\Services\TenantContext;
-use Carbon\CarbonImmutable;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -52,7 +52,8 @@ final class HotelHousekeepingController extends Controller
         ]);
         $room = HotelRoom::query()->findOrFail($data['room_id']);
         HotelProperty::query()->findOrFail($room->hotel_id);
-        return DB::transaction(function () use ($room, $data, $request) {
+        try {
+            return DB::transaction(function () use ($room, $data, $request) {
             $existing = HotelHousekeepingTask::query()
                 ->where('room_id', $room->id)
                 ->whereDate('business_date', $data['business_date'])->first();
@@ -75,7 +76,13 @@ final class HotelHousekeepingController extends Controller
             ]);
             Audit::record('hotel.housekeeping.task.created', $task);
             return response()->json($task, 201);
-        });
+            });
+        } catch (QueryException $exception) {
+            if (($exception->errorInfo[0] ?? $exception->getCode()) === '23505') {
+                abort(409, 'Une mission existe déjà pour cette chambre et cette journée.');
+            }
+            throw $exception;
+        }
     }
 
     public function transition(Request $request, int $id): JsonResponse
