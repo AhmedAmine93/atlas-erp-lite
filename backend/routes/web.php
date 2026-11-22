@@ -18,6 +18,7 @@ use App\Http\Controllers\DataIngestionBatchController;
 use App\Http\Controllers\DataSourceCatalogController;
 use App\Http\Controllers\HotelBookingController;
 use App\Http\Controllers\HotelRegistryController;
+use App\Http\Controllers\HotelHousekeepingController;
 use App\Http\Controllers\MaintenanceRegistryController;
 use App\Http\Controllers\MaintenanceRequestController;
 use App\Http\Controllers\MaintenanceWorkOrderController;
@@ -73,6 +74,10 @@ Route::prefix('api')->group(function () {
         Route::post('maintenance/requests/{id}/work-orders', [MaintenanceWorkOrderController::class, 'createFromRequest'])->whereNumber('id');
         Route::post('maintenance/work-orders/{id}/start', [MaintenanceWorkOrderController::class, 'start'])->whereNumber('id');
         Route::post('maintenance/work-orders/{id}/complete', [MaintenanceWorkOrderController::class, 'complete'])->whereNumber('id');
+        Route::get('hotels/housekeeping/tasks', [HotelHousekeepingController::class, 'index']);
+        Route::post('hotels/housekeeping/tasks', [HotelHousekeepingController::class, 'create']);
+        Route::post('hotels/housekeeping/tasks/{id}/transition', [HotelHousekeepingController::class, 'transition'])->whereNumber('id');
+        Route::get('hotels/housekeeping/readiness', [HotelHousekeepingController::class, 'readiness']);
         Route::get('hotels', [HotelRegistryController::class, 'hotels']);
         Route::post('hotels', [HotelRegistryController::class, 'createHotel']);
         Route::get('hotel-rooms', [HotelRegistryController::class, 'rooms']);
