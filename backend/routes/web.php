@@ -4,6 +4,7 @@ use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\PilotageController;
 use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\MetricsController;
@@ -61,7 +62,11 @@ Route::prefix('api')->group(function () {
         Route::get('analytics/exports/{id}/download', [BiReportingController::class, 'download'])->whereNumber('id');
         Route::get('analytics/{dataset}', [BiReportingController::class, 'show'])
             ->whereIn('dataset', ['sales', 'finance', 'stock', 'suppliers']);
-
+        Route::get('pilotage/{section}', [PilotageController::class, 'show'])
+            ->whereIn('section', ['direction','sales','finance','logistics','alerts']);
+        Route::get('pilotage/alerts/rules', [PilotageController::class, 'rules']);
+        Route::post('pilotage/alerts/rules', [PilotageController::class, 'createRule']);
+        Route::post('pilotage/alerts/acknowledge', [PilotageController::class, 'acknowledge']);
         Route::get('dashboard/layout', [DashboardLayoutController::class, 'show']);
         Route::put('dashboard/layout', [DashboardLayoutController::class, 'save']);
         Route::post('builders/forms/validate', [FormSchemaController::class, 'validateDraft']);
