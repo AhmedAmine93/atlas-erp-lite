@@ -9,6 +9,7 @@ use App\Http\Controllers\CrmExportController;
 use App\Http\Controllers\CrmCustomerQualityController;
 use App\Http\Controllers\CrmSegmentAudienceController;
 use App\Http\Controllers\CrmExternalIdentityController;
+use App\Http\Controllers\CrmCustomerLifecycleController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PilotageController;
 use App\Http\Controllers\GlobalSearchController;
@@ -147,6 +148,8 @@ Route::prefix('api')->group(function () {
         Route::post('products/{id}/stock', [ProductController::class, 'adjust'])->whereNumber('id');
         // M02 CRM: explicit allowlisted resources, always behind auth + tenant middleware.
         Route::get('crm/summary', [CrmWorkspaceController::class,'summary']);
+        Route::get('crm/customers/archived', [CrmCustomerLifecycleController::class,'archived']);
+        Route::post('crm/customers/{id}/restore', [CrmCustomerLifecycleController::class,'restore'])->whereNumber('id');
         Route::get('crm/external-identifiers/{kind}/{id}', [CrmExternalIdentityController::class,'index'])
             ->whereIn('kind',['customers','suppliers','contacts','prospects'])->whereNumber('id');
         Route::post('crm/external-identifiers/{kind}/{id}', [CrmExternalIdentityController::class,'store'])
