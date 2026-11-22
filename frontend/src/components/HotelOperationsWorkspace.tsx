@@ -30,6 +30,10 @@ export default function HotelOperationsWorkspace({view,activeCompanyId}:{
  const [booking,setBooking] = useState("");
  const [folioNumber,setFolioNumber] = useState("");
  const [folioId,setFolioId] = useState("");
+ const [transferTarget,setTransferTarget] = useState("");
+ const [transferEntry,setTransferEntry] = useState("");
+ const [transferAmount,setTransferAmount] = useState("");
+ const [transferReason,setTransferReason] = useState("");
  const [kind,setKind] = useState("charge");
  const [sourceType,setSourceType] = useState("manual");
  const [amount,setAmount] = useState("");
@@ -132,6 +136,18 @@ export default function HotelOperationsWorkspace({view,activeCompanyId}:{
     <label>Montant (centimes) <input type="number" min="1" required value={amount} onChange={e=>setAmount(e.target.value)}/></label>
     <label>Justification <input required minLength={3} maxLength={300} value={note} onChange={e=>setNote(e.target.value)}/></label>
     <button className="button primary" disabled={working || !hotel}>Ajouter sans écraser l’historique</button>
+   </form>
+   <h3>Transférer une prestation vers un autre folio du même séjour</h3>
+   <form onSubmit={e=>void submit(e,`${base}/folios/${folioId}/transfer`,{
+     destination_folio_id:Number(transferTarget),source_entry_id:Number(transferEntry),
+     amount_cents:Number(transferAmount),business_date:date,
+     reason:transferReason,request_id:crypto.randomUUID()})}>
+    <label>Folio source <input type="number" min="1" required value={folioId} onChange={e=>setFolioId(e.target.value)}/></label>
+    <label>Folio destinataire <input type="number" min="1" required value={transferTarget} onChange={e=>setTransferTarget(e.target.value)}/></label>
+    <label>Identifiant ligne source <input type="number" min="1" required value={transferEntry} onChange={e=>setTransferEntry(e.target.value)}/></label>
+    <label>Montant à transférer en centimes <input type="number" min="1" required value={transferAmount} onChange={e=>setTransferAmount(e.target.value)}/></label>
+    <label>Motif <input required minLength={5} maxLength={300} value={transferReason} onChange={e=>setTransferReason(e.target.value)}/></label>
+    <button className="button secondary" disabled={working || !hotel}>Transférer et tracer les deux écritures</button>
    </form>
   </div>}
   {view==="hotel-channel" && <div className="atlas-domain-form">
