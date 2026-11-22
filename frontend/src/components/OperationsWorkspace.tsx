@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, send } from "@/lib/api";
-import { FeedbackState } from "@/components/ui/FeedbackState";
 
 type RecordRow = { id: number; version?: number; status?: string; [key: string]: unknown };
 type Page = { data: RecordRow[]; current_page: number; last_page: number; total: number };
