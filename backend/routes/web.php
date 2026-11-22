@@ -23,6 +23,7 @@ use App\Http\Controllers\MaintenanceRegistryController;
 use App\Http\Controllers\MaintenanceRequestController;
 use App\Http\Controllers\MaintenanceWorkOrderController;
 use App\Http\Controllers\MaintenancePlanningController;
+use App\Http\Controllers\MaintenancePreventiveController;
 use App\Http\Controllers\PurchaseRequestController;
 use App\Http\Controllers\DashboardLayoutController;
 use App\Http\Controllers\DataCanonicalSchemaController;
@@ -61,6 +62,10 @@ Route::prefix('api')->group(function () {
         Route::post('maintenance/requests', [MaintenanceRequestController::class, 'store']);
         Route::post('maintenance/requests/{id}/qualify', [MaintenanceRequestController::class, 'qualify'])->whereNumber('id');
         // Team and technician directory, protected by the tenant middleware.
+        Route::get('maintenance/preventive/plans', [MaintenancePreventiveController::class, 'index']);
+        Route::post('maintenance/preventive/plans', [MaintenancePreventiveController::class, 'store']);
+        Route::get('maintenance/preventive/occurrences', [MaintenancePreventiveController::class, 'occurrences']);
+        Route::post('maintenance/preventive/run', [MaintenancePreventiveController::class, 'run']);
         Route::get('maintenance/teams', [MaintenancePlanningController::class, 'teams']);
         Route::post('maintenance/teams', [MaintenancePlanningController::class, 'createTeam']);
         Route::get('maintenance/technicians', [MaintenancePlanningController::class, 'technicians']);
