@@ -118,6 +118,7 @@ return new class extends Migration {
             $t->foreignId('created_by')->constrained('users')->restrictOnDelete();
             $t->timestamps();
             $t->unique(['company_id','operation_key']);
+            $t->unique(['company_id','id']);
             $t->foreign(['company_id','work_order_id'])->references(['company_id','id'])->on('maintenance_work_orders')->restrictOnDelete();
             $t->index(['company_id','product_id']);
         });
@@ -136,7 +137,6 @@ return new class extends Migration {
             $t->unique(['company_id','operation_key']);
             $t->foreign(['company_id','reservation_id'])->references(['company_id','id'])->on('maintenance_spare_reservations')->restrictOnDelete();
         });
-        Schema::table('maintenance_spare_reservations', fn(Blueprint $t) => $t->unique(['company_id','id']));
         DB::statement('ALTER TABLE maintenance_spare_consumptions ADD CONSTRAINT m07_spare_consumption_positive CHECK (quantity > 0 AND total_cents >= 0)');
 
         Schema::create('maintenance_contracts', function (Blueprint $t) {
