@@ -33,6 +33,28 @@ return new class extends Migration {
             Schema::table('order_items', function (Blueprint $t) {
                 $t->foreignId('company_id')->nullable(false)->change();
             });
+            // Legacy SQL importers historically omit company_id on individual
+            // order lines. Derive it from the referenced parent order in a
+            // narrowly-scoped trigger, without trusting client input or
+            // inserting an unsafe fixed tenant default.
+            if (DB::getDriverName() === 'pgsql') {
+                DB::statement(<<<'SQL'
+CREATE FUNCTION public.sales_m03_legacy_order_item_company()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = pg_catalog
+AS $body$
+BEGIN
+    IF NEW.company_id IS NULL THEN
+        SELECT company_id INTO NEW.company_id FROM public.orders WHERE id = NEW.order_id;
+    END IF;
+    RETURN NEW;
+END
+$body$
+SQL);
+                DB::statement('CREATE TRIGGER sales_m03_legacy_order_item_company_trg BEFORE INSERT ON public.order_items FOR EACH ROW EXECUTE FUNCTION public.sales_m03_legacy_order_item_company()');
+            }
+
         }
         Schema::table('quotes', function (Blueprint $t) {
             $t->unsignedInteger('revision_no')->default(0);
