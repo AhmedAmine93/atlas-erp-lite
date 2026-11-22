@@ -7,6 +7,7 @@ use App\Http\Controllers\CrmWorkspaceController;
 use App\Http\Controllers\CrmCustomerImportController;
 use App\Http\Controllers\CrmExportController;
 use App\Http\Controllers\CrmCustomerQualityController;
+use App\Http\Controllers\CrmSegmentAudienceController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PilotageController;
 use App\Http\Controllers\GlobalSearchController;
@@ -161,6 +162,7 @@ Route::prefix('api')->group(function () {
         Route::post('crm/activities/{id}/reschedule', [CrmWorkspaceController::class,'reschedule'])->whereNumber('id');
         Route::post('crm/prospects/{id}/convert', [CrmWorkspaceController::class,'convert'])->whereNumber('id');
         Route::post('crm/customers/{id}/archive', [CrmWorkspaceController::class,'archiveCustomer'])->whereNumber('id');
+        Route::get('crm/segments/{id}/marketing-audience', [CrmSegmentAudienceController::class,'index'])->whereNumber('id');
         Route::get('crm/segments/{id}/members', [CrmWorkspaceController::class,'segmentMembers'])->whereNumber('id');
         Route::put('crm/segments/{id}/members', [CrmWorkspaceController::class,'setSegmentMember'])->whereNumber('id');
         Route::get('{kind}', [ContactController::class, 'index'])->whereIn('kind', ['customers', 'suppliers']);
