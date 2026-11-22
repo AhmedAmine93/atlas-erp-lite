@@ -32,6 +32,9 @@ const linkViewsByRole: Record<User["role"]["name"], View[]> = {
   reader: ["customers", "orders", "products", "invoices"],
   support_n2: ["support-incidents"],
   support_n3: ["support-incidents"],
+  quality_manager: ["quality-controls", "nonconformities", "quality-audits", "compliance-docs"],
+  quality_auditor: ["quality-audits", "compliance-docs"],
+  quality_operator: ["quality-controls", "nonconformities", "corrective-actions"],
 };
 
 /** An authenticated, tenant-aware launchpad. No new API or simulated KPI. */

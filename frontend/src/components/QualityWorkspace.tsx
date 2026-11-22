@@ -365,7 +365,7 @@ export default function QualityWorkspace({ view, user }: { view: Module; user: U
                 <li key={String(v.id??i)}>
                   <strong>{String(v.reference??v.title??v.action??v.id)}</strong>
                   {" — "}{String(v.status??v.result??v.severity??"")}
-                  {v.evidence_ref&&" · preuve "+String(v.evidence_ref)}
+                  {v.evidence_ref ? " · preuve "+String(v.evidence_ref) : null}
                 </li>)}</ul>
             </div>)}
         </div>
