@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Services\TenantContext;
-use App\Services\TenantRoles;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -162,7 +161,7 @@ class OperationsController extends Controller
             $term = '%'.str_replace(['%', '_'], ['\\%', '\\_'], $filters['search']).'%';
             $query->where(function ($q) use ($searchColumns, $resource, $term) {
                 foreach ($searchColumns[$resource] as $field) {
-                    $q->orWhere($field, 'ilike', $term);
+                    $q->orWhereRaw('LOWER('.$field.') LIKE LOWER(?)', [$term]);
                 }
             });
         }
@@ -277,9 +276,21 @@ class OperationsController extends Controller
             }
             if (in_array($resource, ['jobs', 'deployments', 'alerts'], true)) $data['created_by'] = auth()->id();
             if (in_array($resource, ['logs', 'backups'], true)) $data['recorded_by'] = auth()->id();
-            $id = DB::table($table)->insertGetId([
+            $record = [
                 ...$data, 'company_id' => $tenant, 'created_at' => now(), 'updated_at' => now(),
-            ]);
+            ];
+            if ($key) {
+                // Unique(company_id, idempotency_key) serializes concurrent replays.
+                // An existing row can only be reused with the exact same payload.
+                $inserted = DB::table($table)->insertOrIgnore($record);
+                $stored = DB::table($table)->where('company_id', $tenant)
+                    ->where('idempotency_key', $key)->first();
+                abort_unless($stored && hash_equals((string) $stored->payload_hash, $hash), 409,
+                    'Clé de rejeu associée à un autre contenu.');
+                if ($inserted) $this->event($resource, $stored->id, 'created');
+                return response()->json($stored, $inserted ? 201 : 200);
+            }
+            $id = DB::table($table)->insertGetId($record);
             $this->event($resource, $id, 'created');
             return response()->json(DB::table($table)->where('company_id', $tenant)->where('id', $id)->first(), 201);
         }, 3);
