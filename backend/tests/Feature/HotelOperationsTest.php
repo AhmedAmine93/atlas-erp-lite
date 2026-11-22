@@ -76,6 +76,35 @@ final class HotelOperationsTest extends TestCase
         $this->getJson($this->base.'/folios')->assertForbidden();
     }
 
+    public function test_folio_transfer_preserves_double_entry_balance_and_blocks_over_transfer(): void
+    {
+        $source = $this->postJson($this->base.'/folios', [
+            'booking_id' => $this->bookingId, 'folio_number' => 'SOURCE',
+        ])->assertCreated()->json('id');
+        $target = $this->postJson($this->base.'/folios', [
+            'booking_id' => $this->bookingId, 'folio_number' => 'TARGET',
+        ])->assertCreated()->json('id');
+        $entry = $this->postJson($this->base.'/folios/'.$source.'/entries', [
+            'business_date' => '2026-01-11', 'kind' => 'charge',
+            'source_type' => 'manual', 'amount_cents' => 2000, 'note' => 'Service fictif',
+            'request_id' => '00000000-0000-4000-8000-000000000041',
+        ])->assertCreated()->json('id');
+        $transfer = [
+            'destination_folio_id' => $target, 'source_entry_id' => $entry,
+            'amount_cents' => 1200, 'business_date' => '2026-01-11',
+            'reason' => 'Partage demandé', 'request_id' => '00000000-0000-4000-8000-000000000042',
+        ];
+        $url = $this->base.'/folios/'.$source.'/transfer';
+        $this->postJson($url,$transfer)->assertCreated();
+        $this->postJson($url,$transfer)->assertOk()->assertJsonPath('replayed',true);
+        $this->getJson($this->base.'/folios/'.$source)->assertJsonPath('balance_cents',800);
+        $this->getJson($this->base.'/folios/'.$target)->assertJsonPath('balance_cents',1200);
+        $this->postJson($url,array_replace($transfer, [
+            'amount_cents' => 1000, 'request_id' => '00000000-0000-4000-8000-000000000043',
+        ]))->assertConflict();
+        $this->assertSame(3, DB::table('hotel_folio_entries')->count());
+    }
+
     public function test_channel_imports_are_versioned_replay_safe_and_never_write_bookings(): void
     {
         $this->postJson($this->base.'/channel/rules', [
