@@ -43,6 +43,7 @@ import { canEditWorkspaceView, canOpenWorkspaceView, parseWorkspacePath, workspa
 import OrganizationWorkspace from "@/components/OrganizationWorkspace";
 import DomainWorkspace, { domainViews } from "@/components/DomainWorkspace";
 import HotelHousekeepingWorkspace from "@/components/HotelHousekeepingWorkspace";
+import HotelAvailabilityWorkspace from "@/components/HotelAvailabilityWorkspace";
 import SupportIncidents from "@/components/SupportIncidents";
 import Login from "@/components/auth/Login";
 import WorkspaceSidebar from "@/components/layout/WorkspaceSidebar";
@@ -560,6 +561,8 @@ export default function Workspace() {
             </>
           ) : view === "support-incidents" ? (
             <SupportIncidents canDiagnose={["admin", "support_n3"].includes(user.role.name)} />
+          ) : view === "hotel-availability" ? (
+            <HotelAvailabilityWorkspace key={"hotel-availability-"+user.active_company_id} activeCompanyId={user.active_company_id ?? null} />
           ) : view === "hotel-housekeeping" ? (
             <HotelHousekeepingWorkspace key={"hotel-housekeeping-"+user.active_company_id} activeCompanyId={user.active_company_id ?? null} />
           ) : domainViews.has(view) ? (
