@@ -52,6 +52,7 @@ return new class extends Migration {
             $t->id(); $t->foreignId('company_id')->constrained()->restrictOnDelete();
             $t->foreignId('purchase_request_id')->constrained('purchase_requests')->restrictOnDelete();
             $t->string('description', 255); $t->unsignedInteger('quantity');
+            $t->boolean('active')->default(true);
             $t->unsignedBigInteger('unit_price_cents'); $t->unsignedInteger('vat_bps')->default(0);
             $t->timestamps(); $t->index(['company_id','purchase_request_id']);
         });
