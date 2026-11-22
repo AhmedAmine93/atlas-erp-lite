@@ -249,6 +249,64 @@ final class HotelOperationsController extends Controller
         },3);
     }
 
+    /**
+     * Corrections never rewrite an issued historical entry: a new inverse
+     * entry references it on a currently open business day.
+     */
+    public function correctEntry(Request $request, int $hotel, int $folio, int $entry)
+    {
+        $property = $this->property($hotel);
+        $data = $request->validate([
+            'business_date' => 'required|date_format:Y-m-d',
+            'amount_cents' => 'required|integer|between:1,100000000000',
+            'reason' => 'required|string|min:5|max:300',
+            'request_id' => 'required|uuid',
+        ]);
+        return DB::transaction(function () use ($property,$folio,$entry,$data,$request) {
+            $key = ['company_id' => $property->company_id, 'hotel_id' => $hotel];
+            $folioRow = DB::table('hotel_folios')->where($key)
+                ->where('id',$folio)->lockForUpdate()->first();
+            abort_unless($folioRow, 404);
+            $existing = DB::table('hotel_folio_entries')->where($key)
+                ->where('request_id',$data['request_id'])->first();
+            if ($existing) {
+                abort_unless($existing->folio_id === $folio
+                    && $existing->source_type === 'adjustment'
+                    && $existing->related_entry_id === $entry
+                    && $existing->amount_cents == (int)$data['amount_cents']
+                    && $existing->business_date === $data['business_date']
+                    && $existing->note === $data['reason'], 409,
+                    'Clé de correction réutilisée avec un autre contenu.');
+                return response()->json($existing);
+            }
+            abort_unless($folioRow->status === 'open',409,'Folio fermé.');
+            $this->assertOpenDay($property,$data['business_date']);
+            $original = DB::table('hotel_folio_entries')->where($key)
+                ->where('folio_id',$folio)->where('id',$entry)->lockForUpdate()->first();
+            abort_unless($original && in_array($original->kind,['charge','credit','payment'],true),
+                409,'Écriture originale non corrigeable.');
+            abort_if($data['business_date'] < $original->business_date,409,
+                'La correction ne peut précéder la journée d’origine.');
+            $corrected = DB::table('hotel_folio_entries')->where($key)
+                ->where('folio_id',$folio)->where('related_entry_id',$entry)
+                ->where('source_type','adjustment')->sum('amount_cents');
+            abort_if($corrected + (int)$data['amount_cents'] > $original->amount_cents,
+                409,'Le cumul des corrections dépasse le montant initial.');
+            $kind = $original->kind === 'charge' ? 'credit' : 'charge';
+            $id = DB::table('hotel_folio_entries')->insertGetId($key + [
+                'folio_id'=>$folio, 'business_date'=>$data['business_date'],
+                'kind'=>$kind, 'source_type'=>'adjustment',
+                'source_reference'=>'entry:'.$entry, 'related_entry_id'=>$entry,
+                'amount_cents'=>(int)$data['amount_cents'], 'note'=>$data['reason'],
+                'request_id'=>$data['request_id'],'created_by'=>$request->user()->id,
+            ]);
+            Audit::record('hotel.folio.entry.corrected',$property,[
+                'entry_id'=>$entry,'correction_id'=>$id,'original_date'=>$original->business_date,
+            ]);
+            return response()->json(['id'=>$id,'kind'=>$kind,'original_entry_id'=>$entry],201);
+        },3);
+    }
+
     public function referenceRules(int $hotel)
     {
         $property = $this->property($hotel);
