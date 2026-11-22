@@ -60,6 +60,7 @@ class PilotageMenuTest extends TestCase
         foreach (['direction','sales','finance','logistics','alerts'] as $section) {
             $this->getJson('/api/pilotage/'.$section)->assertForbidden();
         }
+        $this->authenticate($admin,$company);
         $this->getJson('/api/pilotage/unknown')->assertNotFound();
     }
 
