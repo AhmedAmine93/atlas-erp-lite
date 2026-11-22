@@ -157,7 +157,7 @@ return new class extends Migration {
             ['supplier_invoices','supplier_id','suppliers'],
             ['supplier_credit_notes','supplier_invoice_id','supplier_invoices'],
         ];
-        $parents = ['suppliers','purchase_requests','supplier_quotes','purchase_orders',
+        $parents = ['products','suppliers','purchase_requests','supplier_quotes','purchase_orders',
                     'purchase_order_lines','purchase_receipts','supplier_invoices'];
         foreach ($parents as $parent) {
             DB::statement('CREATE UNIQUE INDEX IF NOT EXISTS m04_'.$parent.'_tenant_identity ON '.$parent.' (company_id,id)');
