@@ -136,6 +136,7 @@ Route::prefix('api')->group(function () {
         Route::delete('products/{id}', [ProductController::class, 'destroy'])->whereNumber('id');
         Route::post('products/{id}/stock', [ProductController::class, 'adjust'])->whereNumber('id');
         // M02 CRM: explicit allowlisted resources, always behind auth + tenant middleware.
+        Route::get('crm/summary', [CrmWorkspaceController::class,'summary']);
         Route::post('crm/customers/import', [CrmCustomerImportController::class,'store']);
         Route::get('crm/{resource}', [CrmWorkspaceController::class,'index'])->whereIn('resource',['prospects','contacts','opportunities','activities','segments']);
         Route::post('crm/{resource}', [CrmWorkspaceController::class,'store'])->whereIn('resource',['prospects','contacts','opportunities','activities','segments']);
