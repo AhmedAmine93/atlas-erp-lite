@@ -26,6 +26,7 @@ jobs:
           node --check jet-industrial/scripts/bootstrap.mjs
           node --check jet-industrial/scripts/proxy.mjs
           node --test jet-industrial/tests/gateway.test.mjs
+          node --experimental-transform-types --test jet-industrial/tests/api-context.test.mjs
       - name: Generate official Oracle JET 21 application
         run: node jet-industrial/scripts/bootstrap.mjs
       - name: Build actual Oracle JET VDOM app
