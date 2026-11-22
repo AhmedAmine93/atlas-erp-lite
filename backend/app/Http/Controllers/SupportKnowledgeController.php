@@ -48,7 +48,8 @@ class SupportKnowledgeController extends Controller
         $this->visible($query, $request);
         // Draft / retired articles require contributor privileges.
         if (! in_array($this->role($request), ['admin','support_n3','support_manager'], true)) {
-            $query->where('status', 'published');
+            $query->where(fn ($q) => $q->where('status', 'published')
+                ->orWhere('owner_id', $request->user()->id));
         }
         if (! empty($data['search'])) {
             $query->whereRaw('LOWER(title) LIKE ?', ['%'.mb_strtolower($data['search']).'%']);
@@ -62,7 +63,7 @@ class SupportKnowledgeController extends Controller
         Gate::authorize('itsmRead');
         $article = $this->visible(SupportKnowledgeArticle::query(), $request)->findOrFail($id);
         if (! in_array($this->role($request), ['admin','support_n3','support_manager'], true)) {
-            abort_unless($article->status === 'published', 404);
+            abort_unless($article->status === 'published' || $article->owner_id === $request->user()->id, 404);
         }
         return $article;
     }
