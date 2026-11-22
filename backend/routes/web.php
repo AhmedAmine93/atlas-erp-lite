@@ -17,6 +17,7 @@ use App\Http\Controllers\DataCsvIngestionController;
 use App\Http\Controllers\DataIngestionBatchController;
 use App\Http\Controllers\DataSourceCatalogController;
 use App\Http\Controllers\HotelMinibarPmsController;
+use App\Http\Controllers\HotelMinibarReconciliationController;
 use App\Http\Controllers\HotelMinibarReportController;
 use App\Http\Controllers\HotelMinibarLedgerController;
 use App\Http\Controllers\HotelMinibarCatalogController;
@@ -86,6 +87,8 @@ Route::prefix('api')->group(function () {
         Route::post('maintenance/work-orders/{id}/start', [MaintenanceWorkOrderController::class, 'start'])->whereNumber('id');
         Route::post('maintenance/work-orders/{id}/complete', [MaintenanceWorkOrderController::class, 'complete'])->whereNumber('id');
         Route::prefix('hotels/{hotel}/minibar')->where(['hotel' => '[0-9]+'])->group(function () {
+            Route::get('reconciliation',[HotelMinibarReconciliationController::class,'show']);
+            Route::get('reconciliation/export',[HotelMinibarReconciliationController::class,'export']);
             Route::get('pms/mapping',[HotelMinibarPmsController::class,'mapping']);
             Route::post('pms/imports',[HotelMinibarPmsController::class,'store']);
             Route::get('report', [HotelMinibarReportController::class,'daily']);
