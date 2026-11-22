@@ -95,7 +95,7 @@ BEGIN
     OR p_key !~ '^[A-Za-z0-9_-]{8,64}$' THEN
    RAISE EXCEPTION 'Invalid industrial meter request' USING ERRCODE='22023';
  END IF;
- IF p_company <> NULLIF(current_setting('atlas.tenant_id',true),'')::bigint THEN
+ IF p_company IS DISTINCT FROM NULLIF(current_setting('atlas.tenant_id',true),'')::bigint THEN
    RAISE EXCEPTION 'Tenant mismatch' USING ERRCODE='42501';
  END IF;
  unit_name := CASE p_code WHEN 'HOURS' THEN 'h' WHEN 'CYCLES' THEN 'cycles'
@@ -146,7 +146,7 @@ BEGIN
     OR p_key !~ '^[A-Za-z0-9_-]{8,64}$'
     OR p_observations IS NULL OR char_length(trim(p_observations)) NOT BETWEEN 10 AND 2000
  THEN RAISE EXCEPTION 'Invalid inspection' USING ERRCODE='22023'; END IF;
- IF p_company <> NULLIF(current_setting('atlas.tenant_id',true),'')::bigint THEN
+ IF p_company IS DISTINCT FROM NULLIF(current_setting('atlas.tenant_id',true),'')::bigint THEN
     RAISE EXCEPTION 'Tenant mismatch' USING ERRCODE='42501';
  END IF;
  PERFORM 1 FROM public.maintenance_assets WHERE company_id=p_company AND id=p_asset FOR UPDATE;
