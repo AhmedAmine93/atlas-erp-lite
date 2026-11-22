@@ -105,6 +105,41 @@ final class HotelOperationsTest extends TestCase
         $this->assertSame(3, DB::table('hotel_folio_entries')->count());
     }
 
+    public function test_post_close_correction_is_traceable_and_does_not_rewrite_original(): void
+    {
+        $folio = $this->postJson($this->base.'/folios', [
+            'booking_id'=>$this->bookingId,'folio_number'=>'CORRECT-TEST',
+        ])->assertCreated()->json('id');
+        $entry = $this->postJson($this->base.'/folios/'.$folio.'/entries', [
+            'business_date'=>'2026-01-11','kind'=>'charge','source_type'=>'manual',
+            'amount_cents'=>1000,'note'=>'Charge originale',
+            'request_id'=>'00000000-0000-4000-8000-000000000051',
+        ])->assertCreated()->json('id');
+        $this->postJson($this->base.'/calendar/versions', [
+            'effective_on'=>'2026-01-01','timezone'=>'Europe/Paris',
+            'cutoff_time'=>'04:00',
+        ])->assertCreated();
+        $this->postJson($this->base.'/night-audits', [
+            'business_date'=>'2026-01-11',
+            'request_id'=>'00000000-0000-4000-8000-000000000052',
+        ])->assertCreated();
+        $url=$this->base.'/folios/'.$folio.'/entries/'.$entry.'/correct';
+        $this->postJson($url, [
+            'business_date'=>'2026-01-11','amount_cents'=>500,
+            'reason'=>'Erreur de saisie',
+            'request_id'=>'00000000-0000-4000-8000-000000000053',
+        ])->assertConflict();
+        $payload = [
+            'business_date'=>'2026-01-12','amount_cents'=>500,
+            'reason'=>'Erreur de saisie',
+            'request_id'=>'00000000-0000-4000-8000-000000000053',
+        ];
+        $this->postJson($url,$payload)->assertCreated()->assertJsonPath('kind','credit');
+        $this->postJson($url,$payload)->assertOk();
+        $this->getJson($this->base.'/folios/'.$folio)->assertJsonPath('balance_cents',500);
+        $this->assertSame(1000,(int)DB::table('hotel_folio_entries')->where('id',$entry)->value('amount_cents'));
+    }
+
     public function test_channel_imports_are_versioned_replay_safe_and_never_write_bookings(): void
     {
         $this->postJson($this->base.'/channel/rules', [
