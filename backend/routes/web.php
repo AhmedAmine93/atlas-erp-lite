@@ -13,6 +13,7 @@ use App\Http\Controllers\SalesController;
 use App\Http\Controllers\TenantContextController;
 use App\Http\Controllers\SupportIncidentController;
 use App\Http\Controllers\SupportDiagnosticController;
+use App\Http\Controllers\OperationsController;
 use App\Http\Controllers\DataCsvIngestionController;
 use App\Http\Controllers\DataIngestionBatchController;
 use App\Http\Controllers\DataSourceCatalogController;
@@ -45,6 +46,16 @@ Route::prefix('api')->group(function () {
     Route::get('csrf', fn () => response()->json(['token' => csrf_token()]));
     Route::post('login', [AuthController::class, 'login'])->middleware('throttle:login');
     Route::middleware(['auth:sanctum', 'throttle:api', 'tenant'])->group(function () {
+        // M18: explicit resource allowlist and tenant-aware permission gates.
+        Route::get('v1/ops/overview', [OperationsController::class, 'overview']);
+        Route::get('v1/ops/{resource}', [OperationsController::class, 'index'])
+            ->whereIn('resource', ['services', 'observations', 'logs', 'jobs', 'backups', 'deployments', 'alerts']);
+        Route::post('v1/ops/{resource}', [OperationsController::class, 'store'])
+            ->whereIn('resource', ['services', 'observations', 'logs', 'jobs', 'backups', 'deployments', 'alerts']);
+        Route::get('v1/ops/{resource}/{id}', [OperationsController::class, 'show'])
+            ->whereIn('resource', ['services', 'observations', 'logs', 'jobs', 'backups', 'deployments', 'alerts'])->whereNumber('id');
+        Route::post('v1/ops/{resource}/{id}/transition', [OperationsController::class, 'transition'])
+            ->whereIn('resource', ['jobs', 'backups', 'deployments', 'alerts'])->whereNumber('id');
         Route::get('me', fn (Request $r) => app(TenantRoles::class)->profile(
             $r->user(), (int) $r->attributes->get('atlas_company_id')
         ));
