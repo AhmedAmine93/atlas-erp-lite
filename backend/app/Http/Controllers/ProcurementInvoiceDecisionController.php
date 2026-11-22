@@ -97,6 +97,13 @@ final class ProcurementInvoiceDecisionController extends Controller
                 ->exists(),409,'Paiement déjà autorisé.');
             abort_if((int)$invoice->created_by===(int)$request->user()->id,
                 403,'Une autre personne doit autoriser le bon à payer.');
+            $supplier=DB::table('suppliers')->where('company_id',$this->tenant())
+                ->where('id',$invoice->supplier_id)->lockForUpdate()->firstOrFail();
+            abort_unless($supplier->procurement_status==='active',409,'Fournisseur bloqué ou archivé.');
+            abort_if(DB::table('supplier_bank_changes')
+                ->where('company_id',$this->tenant())->where('supplier_id',$supplier->id)
+                ->where('status','pending')->exists(),409,
+                'Changement bancaire en attente de validation indépendante.');
             // Fail closed if the receipt balance changed after the last match.
             $eligible=$this->eligibleAmount($order);
             $matchedTotal=(int)DB::table('supplier_invoices')->where('company_id',$this->tenant())
