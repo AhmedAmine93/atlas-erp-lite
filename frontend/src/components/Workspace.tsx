@@ -46,6 +46,7 @@ import HotelHousekeepingWorkspace from "@/components/HotelHousekeepingWorkspace"
 import HotelMinibarWorkspace from "@/components/HotelMinibarWorkspace";
 import HotelAvailabilityWorkspace from "@/components/HotelAvailabilityWorkspace";
 import SupportIncidents from "@/components/SupportIncidents";
+import AiWorkspace from "@/components/AiWorkspace";
 import Login from "@/components/auth/Login";
 import WorkspaceSidebar from "@/components/layout/WorkspaceSidebar";
 import WorkspaceWelcome from "@/components/layout/WorkspaceWelcome";
@@ -560,6 +561,8 @@ export default function Workspace() {
               <WorkspaceWelcome user={user} onNavigate={go} />
               <DashboardView refresh={refresh} go={go} user={user} />
             </>
+          ) : ["ai-assistant", "ai-search", "ai-anomalies", "ai-forecasts", "ai-suggestions"].includes(view) ? (
+            <AiWorkspace key={view+"-"+user.active_company_id} view={view} activeCompanyId={user.active_company_id ?? null} />
           ) : view === "support-incidents" ? (
             <SupportIncidents canDiagnose={["admin", "support_n3"].includes(user.role.name)} />
           ) : view === "hotel-minibar" ? (
