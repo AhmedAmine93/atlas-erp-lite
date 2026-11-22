@@ -42,6 +42,7 @@ import { nav, navigationSections, type View } from "@/lib/navigation";
 import { canEditWorkspaceView, canOpenWorkspaceView, parseWorkspacePath, workspaceHref, type WorkspaceRoute } from "@/lib/workspaceRoutes";
 import OrganizationWorkspace from "@/components/OrganizationWorkspace";
 import DomainWorkspace, { domainViews } from "@/components/DomainWorkspace";
+import PilotageWorkspace from "@/components/PilotageWorkspace";
 import HotelHousekeepingWorkspace from "@/components/HotelHousekeepingWorkspace";
 import HotelMinibarWorkspace from "@/components/HotelMinibarWorkspace";
 import HotelAvailabilityWorkspace from "@/components/HotelAvailabilityWorkspace";
@@ -504,6 +505,11 @@ export default function Workspace() {
                         "audit-logs": "La trace des opérations sensibles.",
                         "admin-companies": "Gestion du référentiel des entreprises et établissements.",
                         "support-incidents": "Diagnostic, SLA, escalades N2/N3 et historique.",
+                        "direction-dashboard": "Consolidation de la société et comparaison historique.",
+                        "sales-dashboard": "Activité commerciale issue des pièces métier.",
+                        "finance-dashboard": "Situation de facturation et encours réels.",
+                        "logistics-dashboard": "Stocks courants et risques de rupture.",
+                        "alerts-dashboard": "Règles, alertes et prises en charge.",
                       } as Record<string, string>
                     )[view]}
               </p>
@@ -560,6 +566,8 @@ export default function Workspace() {
               <WorkspaceWelcome user={user} onNavigate={go} />
               <DashboardView refresh={refresh} go={go} user={user} />
             </>
+          ) : ["direction-dashboard", "sales-dashboard", "finance-dashboard", "logistics-dashboard", "alerts-dashboard"].includes(view) ? (
+            <PilotageWorkspace key={view + "-" + user.active_company_id} view={view} user={user} />
           ) : view === "support-incidents" ? (
             <SupportIncidents canDiagnose={["admin", "support_n3"].includes(user.role.name)} />
           ) : view === "hotel-minibar" ? (

@@ -42,11 +42,11 @@ export const navigationSections: NavigationSection[] = [
     icon: LayoutDashboard,
     items: [
       { id: "dashboard", label: "Vue d’ensemble", ready: true },
-      { id: "direction-dashboard", label: "Tableau de bord direction" },
-      { id: "sales-dashboard", label: "Pilotage commercial" },
-      { id: "finance-dashboard", label: "Pilotage financier" },
-      { id: "logistics-dashboard", label: "Pilotage logistique" },
-      { id: "alerts-dashboard", label: "Alertes et objectifs" },
+      { id: "direction-dashboard", label: "Tableau de bord direction", ready: true },
+      { id: "sales-dashboard", label: "Pilotage commercial", ready: true },
+      { id: "finance-dashboard", label: "Pilotage financier", ready: true },
+      { id: "logistics-dashboard", label: "Pilotage logistique", ready: true },
+      { id: "alerts-dashboard", label: "Alertes et objectifs", ready: true },
     ],
   },
   {
