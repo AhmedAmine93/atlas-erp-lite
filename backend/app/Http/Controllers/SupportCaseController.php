@@ -318,6 +318,53 @@ class SupportCaseController extends Controller
         });
     }
 
+    public function assignees(Request $request)
+    {
+        Gate::authorize('itsmRead');
+        $company = app(TenantContext::class)->requireId();
+        return DB::table('company_user')
+            ->join('users', 'users.id', '=', 'company_user.user_id')
+            ->join('roles', 'roles.id', '=', 'company_user.role_id')
+            ->where('company_user.company_id', $company)
+            ->whereIn('roles.name', [
+                'admin', 'support_n1', 'support_n2', 'support_n3', 'support_manager', 'support_cab',
+            ])
+            ->orderBy('users.name')
+            ->get(['users.id', 'users.name', 'roles.name as role']);
+    }
+
+    /**
+     * Bulk ticket closure is all-or-nothing. No pending validation is
+     * implicitly approved; stale versions abort the entire transaction.
+     */
+    public function bulkClose(Request $request)
+    {
+        Gate::authorize('itsmManage');
+        $data = $request->validate([
+            'tickets' => 'required|array|min:1|max:100',
+            'tickets.*.id' => 'required|integer|min:1|distinct',
+            'tickets.*.version' => 'required|integer|min:1',
+        ]);
+        $tickets = collect($data['tickets'])->sortBy('id')->values()->all();
+        return $this->once($request, 'case.bulk_close.ticket', ['tickets' => $tickets], function () use ($request, $tickets) {
+            $result = [];
+            foreach ($tickets as $ticket) {
+                $item = SupportCase::where('kind', 'ticket')
+                    ->lockForUpdate()->findOrFail($ticket['id']);
+                abort_unless($item->version === (int) $ticket['version'], 409, 'Version obsolète dans la sélection.');
+                abort_unless($item->status === 'resolved' && filled($item->result_evidence), 409,
+                    'Un ticket ne possède pas la validation requise pour la clôture.');
+                $item->status = 'closed';
+                $item->closed_at = now();
+                $item->version++;
+                $item->save();
+                $this->record($item, 'bulk_closed', $request, 'resolved');
+                $result[] = ['id' => $item->id, 'version' => $item->version];
+            }
+            return ['closed' => $result, 'count' => count($result)];
+        });
+    }
+
     /**
      * M11.01 central inbox: combine existing F07 incidents and all ITSM cases.
      * Both sources are explicitly company filtered even on SQLite, and RLS
