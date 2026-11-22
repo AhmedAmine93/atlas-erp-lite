@@ -170,5 +170,13 @@ final class AiWorkspaceTest extends TestCase
         $this->postJson('/api/ai/v1/suggestions/'.$id.'/execute')->assertStatus(503);
         $this->assertDatabaseCount('maintenance_work_orders',0);
         $this->assertDatabaseHas('ai_events',['suggestion_id'=>$id,'event_type'=>'suggestion.approved']);
+        // Only the explicitly enabled server-side tool may execute this approved revision.
+        config(['atlas.ai_execution_enabled'=>true]);
+        $this->postJson('/api/ai/v1/suggestions/'.$id.'/execute')->assertOk()
+            ->assertJsonPath('status','executed');
+        $this->postJson('/api/ai/v1/suggestions/'.$id.'/execute')->assertOk()
+            ->assertJsonPath('status','executed');
+        $this->assertDatabaseCount('maintenance_work_orders',1);
+        $this->assertDatabaseHas('ai_events',['suggestion_id'=>$id,'event_type'=>'suggestion.executed']);
     }
 }
