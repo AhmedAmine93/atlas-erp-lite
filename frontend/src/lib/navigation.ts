@@ -155,12 +155,12 @@ export const navigationSections: NavigationSection[] = [
     label: "Ressources humaines",
     icon: Users,
     items: [
-      { id: "hr-employees", label: "Collaborateurs" },
-      { id: "hr-teams", label: "Équipes" },
-      { id: "hr-schedules", label: "Planning" },
-      { id: "hr-leaves", label: "Congés et absences" },
-      { id: "hr-timesheets", label: "Temps passé" },
-      { id: "hr-skills", label: "Compétences et formations" },
+      { id: "hr-employees", label: "Collaborateurs", ready: true },
+      { id: "hr-teams", label: "Équipes", ready: true },
+      { id: "hr-schedules", label: "Planning", ready: true },
+      { id: "hr-leaves", label: "Congés et absences", ready: true },
+      { id: "hr-timesheets", label: "Temps passé", ready: true },
+      { id: "hr-skills", label: "Compétences et formations", ready: true },
     ],
   },
   {
