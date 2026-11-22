@@ -1,15 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
-import { api } from "@/lib/api";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { api, all, fetchTenantBlob } from "@/lib/api";
 
 
 type Entry = Record<string, unknown> & { id: number; status?: string; order_id?: number; quote_id?: number; delivery_id?: number; revision_no?: number };
 type Page<T> = { data: T[]; current_page: number; last_page: number; total: number };
-type Field = { name: string; label: string; type?: "number" | "date" | "textarea" | "select"; options?: string[]; required?: boolean; lookup?: "products" | "customers" | "quotes" | "orders" | "deliveries" };
+type Field = { name: string; label: string; type?: "number" | "date" | "textarea" | "select"; options?: string[]; required?: boolean; lookup?: "products" | "customers" | "quotes" | "orders" | "deliveries" | "contracts" | "delegates" };
 type FormAction = { label: string; endpoint: string; fields: Field[]; record?: Entry };
 type Module = "quotes" | "orders" | "deliveries" | "sales-contracts" | "sales-returns" | "pricing";
 const f = (name:string,label:string,type?:Field["type"],required=true,options?:string[],lookup?:Field["lookup"]):Field => ({name,label,type,required,options,lookup});
+const contractFields:Field[]=[
+  f("price_lines","Prix convenus, un article par ligne (ID produit = centimes)","textarea",false),
+  f("receipt_required","Facturation après réception","select",false,["true","false"])
+];
 const today = () => new Date().toISOString().slice(0,10);
 const DAYS = 24 * 60 * 60 * 1000;
 const dateAfter = (n:number) => new Date(Date.now()+n*DAYS).toISOString().slice(0,10);
@@ -33,9 +37,9 @@ const endpoint:Record<Module,string> = {
   quotes:"sales-v5/revisions",orders:"orders",deliveries:"sales-v5/deliveries",
   "sales-contracts":"sales-v5/contracts","sales-returns":"sales-v5/returns",pricing:"sales-v5/pricing"
 };
-function format(name:string,value:unknown):string {
+function format(name:string,value:unknown,currency="EUR"):string {
   if(value===null||value===undefined||value==="") return "—";
-  if(name.endsWith("_cents")) return new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR"}).format(Number(value)/100);
+  if(name.endsWith("_cents")) return new Intl.NumberFormat("fr-FR",{style:"currency",currency}).format(Number(value)/100);
   if(name==="discount_bps") return (Number(value)/100).toLocaleString("fr-FR")+" %";
   if(name.endsWith("_at")) return new Date(String(value)).toLocaleString("fr-FR");
   return String(value);
@@ -43,8 +47,8 @@ function format(name:string,value:unknown):string {
 export const salesCommerceViews = new Set<Module>(["quotes","orders","deliveries","sales-contracts","sales-returns","pricing"]);
 const getUniqueId = () => crypto.randomUUID().replaceAll("-","");
 
-export default function SalesCommerceWorkspace({view,activeCompanyId,canWrite,canApprove=false,embedded=false}:{
-  view:Module; activeCompanyId:number|null; canWrite:boolean; canApprove?:boolean; embedded?:boolean
+export default function SalesCommerceWorkspace({view,activeCompanyId,canWrite,canApprove=false,embedded=false,revision=0,onChange}:{
+  view:Module; activeCompanyId:number|null; canWrite:boolean; canApprove?:boolean; embedded?:boolean; revision?:number; onChange?:()=>void
 }) {
   const [items,setItems] = useState<Entry[]>([]);
   const [approvals,setApprovals] = useState<Entry[]>([]);
@@ -64,39 +68,51 @@ export default function SalesCommerceWorkspace({view,activeCompanyId,canWrite,ca
   const [notice,setNotice] = useState("");
   const [refresh,setRefresh] = useState(0);
   const readPath = endpoint[view];
-  const load = useCallback(async () => {
+  const retry=useRef({signature:"",key:""});
+  useEffect(()=>{
+    let live=true;
+    async function load() {
     setLoading(true);setError("");
     try {
       const params=new URLSearchParams({page:String(page)});
-      if(view!=="orders"&&status)params.set("status",status);
-      if(view!=="orders"&&search.trim())params.set("search",search.trim());
+      if(status)params.set("status",status);
+      if(search.trim())params.set("search",search.trim());
       const data=await api<Page<Entry>>(readPath+"?"+params.toString());
+      if(!live)return;
       setItems(data.data);setPages({current_page:data.current_page,last_page:data.last_page,total:data.total});
-    } catch(e) {setError((e as Error).message);}
-    finally {setLoading(false);}
-  },[page,status,search,refresh,readPath,view,activeCompanyId]);
-  useEffect(()=>{void load();},[load]);
+    } catch(e) {if(live)setError((e as Error).message);}
+    finally {if(live)setLoading(false);}
+    }
+    void load();return ()=>{live=false};
+  },[page,status,search,refresh,readPath,revision,activeCompanyId]);
   useEffect(()=>{
-    let alive=true;
-    Promise.all(["products","customers","quotes","orders","sales-v5/deliveries"].map(async p=>{
-      const d=await api<Page<Entry>>(p+"?page=1");return [p.replace("sales-v5/",""),d.data] as const;
-    })).then(r=>{if(alive)setLookups(Object.fromEntries(r));}).catch(()=>{});
-    return()=>{alive=false;};
-  },[activeCompanyId,refresh]);
+    let live=true;
+    if(!form)return;
+    const keys=Array.from(new Set(form.fields.flatMap(field=>field.lookup?[field.lookup]:[])));
+    Promise.all(keys.map(async key=>{
+      if(key==="delegates")return [key,await api<Entry[]>("sales-v5/delegates")] as const;
+      const path=["deliveries","contracts"].includes(key)?"sales-v5/"+key:key;
+      return [key,await all<Entry>(path)] as const;
+    })).then(r=>{if(live)setLookups(Object.fromEntries(r));}).catch(e=>{if(live)setError(e.message)});
+    return()=>{live=false;};
+  },[activeCompanyId,form,refresh,revision]);
   useEffect(()=>{
     if(view!=="quotes"){setApprovals([]);return;}
     let live=true;
-    api<Page<Entry>>("sales-v5/approvals?page=1").then(r=>{if(live)setApprovals(r.data);})
+    all<Entry>("sales-v5/approvals").then(r=>{if(live)setApprovals(r);})
       .catch(()=>{if(live)setApprovals([])});
     return()=>{live=false;};
   },[view,activeCompanyId,refresh]);
   const labelFor=(key:string,row:Entry):string=> {
     if(key==="products")return String(row.reference??row.id)+" · "+String(row.name??"");
+    if(key==="contracts")return String(row.number)+" · "+String(row.title);
+    if(key==="delegates")return String(row.name)+" · "+format("discount_bps",row.sales_discount_limit_bps);
     if(key==="customers")return String(row.name??row.id);
     if(key==="orders"||key==="quotes"||key==="deliveries")return String(row.number??row.id);
     return String(row.id);
   };
   const open=(action:FormAction,defaults:Record<string,string>={},source:Entry|null=null)=>{
+    retry.current={signature:"",key:""};setDetails(null);setLookups({});
     setError("");setNotice("");setValues(defaults);setForm(action);setFocus(source);
     setLines([{id:"",quantity:"1"}]);
   };
@@ -109,34 +125,38 @@ export default function SalesCommerceWorkspace({view,activeCompanyId,canWrite,ca
     if(view==="orders") {
       if(row.fulfillment_mode!=="reservation_v2")return [];
       return [
-        ...(row.status==="draft"?[{label:"Réserver le stock",endpoint:`sales-v5/orders/${row.id}/reserve`,fields:[]}]:[]),
-        ...(["reserved","partially_shipped"].includes(row.status??"")?[
+        ...(row.status==="draft"?[{label:"Confirmer la commande",endpoint:"sales-v5/orders/"+row.id+"/confirm",fields:[]}]:[]),
+        ...(row.status==="reserved"?[{label:"Préparer la commande",endpoint:"sales-v5/orders/"+row.id+"/prepare",fields:[]}]:[]),
+        ...(row.status==="shipped"?[{label:"Solder la commande",endpoint:"sales-v5/orders/"+row.id+"/close",fields:[]}]:[]),
+        ...(row.status==="confirmed"?[{label:"Réserver le stock",endpoint:`sales-v5/orders/${row.id}/reserve`,fields:[]}]:[]),
+        ...(["prepared","partially_shipped"].includes(row.status??"")?[
           {label:"Expédier un reliquat",endpoint:`sales-v5/orders/${row.id}/ship`,
             fields:[f("recipient","Destinataire"),f("carrier","Transporteur","textarea",false)]}]:[]),
-        ...(["draft","reserved","partially_shipped"].includes(row.status??"")?[
+        ...(["draft","confirmed","reserved","prepared","partially_shipped"].includes(row.status??"")?[
           {label:"Annuler les quantités restantes",endpoint:`sales-v5/orders/${row.id}/cancel`,fields:[]}]:[])
       ];
     }
-    if(view==="deliveries")return row.status==="issued"?[
+    if(view==="deliveries")return ["issued","lost"].includes(row.status??"")?[
+      ...(row.status==="issued"?[{label:"Déclarer le colis perdu",endpoint:"sales-v5/deliveries/"+row.id+"/lost",fields:[f("reason","Motif de la perte","textarea")]}]:[]),
       {label:"Confirmer la réception",endpoint:`sales-v5/deliveries/${row.id}/acknowledge`,fields:[f("proof_reference","Référence de preuve de remise")]}
     ]:[];
     if(view==="sales-contracts")return [
       ...(row.status==="draft"?[{label:"Publier le contrat",endpoint:`sales-v5/contracts/${row.id}/publish`,fields:[]}]:[]),
       ...(row.status==="active"?[
         {label:"Publier un avenant",endpoint:`sales-v5/contracts/${row.id}/amend`,
-          fields:[f("effective_on","Date d'effet","date"),f("expires_on","Expiration","date"),f("terms","Nouvelles clauses","textarea")]},
+          fields:[f("effective_on","Date d'effet","date"),f("expires_on","Expiration","date"),f("terms","Nouvelles clauses","textarea"),...contractFields]},
         {label:"Résilier",endpoint:`sales-v5/contracts/${row.id}/terminate`,fields:[]}
       ]:[])
     ];
     if(view==="sales-returns")return [
-      ...(row.status==="quarantine"?[
+      ...(canApprove&&row.status==="quarantine"?[
         {label:"Contrôle qualité",endpoint:`sales-v5/returns/${row.id}/inspect`,
           fields:[f("decision","Décision","select",true,["sellable","defective"]),
             f("credit_eligible","Éligible à l'avoir","select",true,["true","false"])]}
       ]:[]),
-      ...(row.status==="inspected"?[{label:"Émettre l'avoir",endpoint:`sales-v5/returns/${row.id}/credit`,fields:[]}]:[])
+      ...(canApprove&&row.status==="inspected"?[{label:"Émettre l'avoir",endpoint:`sales-v5/returns/${row.id}/credit`,fields:[]}]:[])
     ];
-    if(view==="pricing")return row.status==="draft"?[
+    if(view==="pricing")return canApprove&&row.status==="draft"?[
       {label:"Publier la grille",endpoint:`sales-v5/pricing/${row.id}/publish`,fields:[]}
     ]:[];
     return [];
@@ -145,6 +165,8 @@ export default function SalesCommerceWorkspace({view,activeCompanyId,canWrite,ca
     if(view==="quotes")return {label:"Nouvelle révision",endpoint:"sales-v5/quotes/:quote_id/revisions",fields:[
       f("quote_id","Devis d'origine","select",true,undefined,"quotes"),
       f("discount_bps","Remise en points de base (100 = 1 %)","number"),
+      f("contract_id","Contrat applicable","select",false,undefined,"contracts"),
+      f("establishment_id","Établissement (ID facultatif)","number",false),
       f("valid_until","Valable jusqu'au","date")]};
     if(view==="sales-contracts")return {label:"Nouveau contrat",endpoint:"sales-v5/contracts",fields:[
       f("customer_id","Client","select",true,undefined,"customers"),
@@ -152,7 +174,7 @@ export default function SalesCommerceWorkspace({view,activeCompanyId,canWrite,ca
       f("title","Titre"),f("currency","Devise","select",true,["EUR","USD","GBP"]),
       f("effective_on","Date d'effet","date"),f("expires_on","Expiration","date"),
       f("renewal_rule","Renouvellement",undefined,false),
-      f("terms","Clauses","textarea",false)]};
+      f("terms","Clauses","textarea",false),...contractFields]};
     if(view==="pricing")return {label:"Nouvelle grille de prix",endpoint:"sales-v5/pricing",fields:[
       f("product_id","Produit","select",true,undefined,"products"),
       f("establishment_id","Établissement (ID facultatif)","number",false),
@@ -184,12 +206,24 @@ export default function SalesCommerceWorkspace({view,activeCompanyId,canWrite,ca
       const payload:Record<string,unknown>={};
       for(const field of form.fields){
         const raw=(values[field.name]??"").trim();
-        if(!raw){if(field.required)throw Error("Champ obligatoire : "+field.label);continue;}
+        if(!raw){if(field.name==="site_id")payload.site_id=null;if(field.required)throw Error("Champ obligatoire : "+field.label);continue;}
         payload[field.name]=field.type==="number"||field.lookup?Number(raw):
           raw==="true"?true:raw==="false"?false:raw;
       }
-      const path=form.endpoint.replace(":quote_id",String(payload.quote_id??""));
+      const path=form.endpoint.replace(":quote_id",String(payload.quote_id??"")).replace(":member_id",String(payload.member_id??""));
+      if(path.includes("/orders/") && focus?.document_version!==undefined)payload.document_version=focus.document_version;
+      const quote=lookups.quotes?.find(x=>x.id===payload.quote_id);
+      if(quote)payload.document_version=quote.document_version;
       delete payload.quote_id;
+      delete payload.member_id;
+      if(typeof payload.price_lines==="string"){
+        payload.prices=payload.price_lines.split(/\r?\n/).filter(x=>x.trim()).map(line=>{
+          const match=/^\s*(\d+)\s*=\s*(\d+)\s*$/.exec(line);
+          if(!match)throw Error("Chaque prix doit respecter le format ID produit = centimes.");
+          return {product_id:Number(match[1]),price_cents:Number(match[2])};
+        });
+        delete payload.price_lines;
+      }
       if(form.endpoint.includes("/ship")||form.endpoint==="sales-v5/returns") {
         const selected=lines.filter(x=>x.id&&Number(x.quantity)>0).map(x=>(
           form.endpoint.includes("/ship")?{order_item_id:Number(x.id),quantity:Number(x.quantity)}:
@@ -199,7 +233,11 @@ export default function SalesCommerceWorkspace({view,activeCompanyId,canWrite,ca
         if(new Set(selected.map(x=>Object.values(x)[0])).size!==selected.length)throw Error("Lignes dupliquées.");
         payload.lines=selected;
       }
-      await api(path,{method:"POST",headers:{"Idempotency-Key":getUniqueId()},body:JSON.stringify(payload)});
+      const body=JSON.stringify(payload);
+      const signature=path+"|"+body;
+      if(retry.current.signature!==signature)retry.current={signature,key:getUniqueId()};
+      await api(path,{method:"POST",headers:{"Idempotency-Key":retry.current.key},body});
+      onChange?.();
       setForm(null);setFocus(null);setDetails(null);setRefresh(n=>n+1);
       setNotice("Opération métier enregistrée.");
     }catch(e){setError((e as Error).message);}
@@ -229,8 +267,19 @@ export default function SalesCommerceWorkspace({view,activeCompanyId,canWrite,ca
   return <section className="atlas-domain" aria-label={names[view]}>
     <div className="atlas-domain-toolbar">
       <div><h2>{embedded?"Cycle commercial V5 · "+names[view]:names[view]}</h2>
-        <p>{view==="orders"?"Les commandes historiques restent sous le mode legacy_debit. Seules les commandes issues d'une révision V5 utilisent la réservation.":"Workflow commercial isolé par entreprise, journalisé et contrôlé côté API."}</p>
+        {view==="orders"&&<p>Les commandes en réservation débitent le stock à l’expédition. Les commandes historiques conservent leur mode initial.</p>}
       </div>
+      {view==="pricing"&&canApprove&&<button type="button" className="button secondary" onClick={()=>begin({label:"Délégation commerciale",endpoint:"sales-v5/delegates/:member_id",fields:[
+        f("member_id","Collaborateur","select",true,undefined,"delegates"),f("discount_limit_bps","Remise maximale en points de base","number"),
+        f("site_id","Site autorisé (vide pour toute l’entreprise)","number",false)]})}>Délégations</button>}
+      <button className="button secondary" type="button" disabled={busy} onClick={async()=>{
+        setBusy(true);setError("");try {
+          const resource=view==="orders"?"orders":readPath.split("/")[1];
+          const blob=await fetchTenantBlob("sales-v5/"+resource+"/export?"+new URLSearchParams({search,status}),"text/csv");
+          const url=URL.createObjectURL(blob);const link=document.createElement("a");
+          link.href=url;link.download="ventes-"+resource+".csv";link.click();setTimeout(()=>URL.revokeObjectURL(url),2000);
+        }catch(e){setError((e as Error).message)}finally{setBusy(false)}
+      }}>Exporter en CSV</button>
       {newAction&&canWrite&&<button className="button primary" type="button" onClick={()=>begin(newAction)}>{newAction.label}</button>}
     </div>
     {notice&&<p className="notice" role="status">{notice}</p>}
@@ -267,12 +316,12 @@ export default function SalesCommerceWorkspace({view,activeCompanyId,canWrite,ca
       <div className="atlas-domain-list-heading"><span>{pages.total} enregistrement(s)</span>
         <label>Filtrer <input type="search" aria-label="Rechercher dans le module Ventes" value={search}
           onChange={e=>{setPage(1);setSearch(e.target.value)}}/></label>
-        {view!=="orders"&&<label>Statut <select value={status} onChange={e=>{setPage(1);setStatus(e.target.value)}}>
-          <option value="">Tous</option>{["draft","sent","accepted","converted","pending","approved","rejected","reserved","issued","received","active","terminated","quarantine","inspected","credited","published"].map(s=><option key={s} value={s}>{s}</option>)}
+        {<label>Statut <select value={status} onChange={e=>{setPage(1);setStatus(e.target.value)}}>
+          <option value="">Tous</option>{["draft","sent","accepted","converted","pending","approved","rejected","confirmed","reserved","prepared","partially_shipped","shipped","closed","cancelled","validated","lost","issued","received","active","terminated","quarantine","inspected","credited","published"].map(s=><option key={s} value={s}>{s}</option>)}
         </select></label>}
       </div>
       <div className="table-scroll"><table><thead><tr>{columns[view].map(k=><th key={k}>{k.replaceAll("_"," ")}</th>)}<th>Actions</th></tr></thead>
-        <tbody>{items.map(row=><tr key={row.id}>{columns[view].map(k=><td key={k}>{format(k,row[k])}</td>)}
+        <tbody>{items.map(row=><tr key={row.id}>{columns[view].map(k=><td key={k}>{format(k,row[k],String(row.currency??"EUR"))}</td>)}
           <td><div className="atlas-domain-actions">
             <button type="button" className="button secondary" onClick={()=>void loadDetails(row)}>Détail</button>
             {canWrite&&actions(row).map(action=><button type="button" className="button secondary" key={action.label} disabled={busy}
@@ -307,9 +356,10 @@ export default function SalesCommerceWorkspace({view,activeCompanyId,canWrite,ca
       <h3>Historique et détail #{focus.id}</h3>
       <button type="button" className="button secondary" onClick={()=>{setFocus(null);setDetails(null)}}>Fermer</button></div>
       <dl>{Object.entries(details).filter(([key,value])=>!["snapshot","items","lines","versions"].includes(key)&&typeof value!=="object")
-        .map(([key,value])=><div key={key}><dt>{key.replaceAll("_"," ")}</dt><dd>{format(key,value)}</dd></div>)}</dl>
+        .map(([key,value])=><div key={key}><dt>{key.replaceAll("_"," ")}</dt><dd>{format(key,value,String(details.currency??"EUR"))}</dd></div>)}</dl>
+      {details.credit!=null&&<p>Avoir {String((details.credit as Entry).number)} · {format("total_cents",(details.credit as Entry).total_cents)}</p>}
       {["lines","items","versions"].map(key=>Array.isArray(details[key])?<div key={key}><h4>{key}</h4>
-        <div className="table-scroll"><table><tbody>{(details[key] as Entry[]).map(x=><tr key={x.id}>{Object.entries(x).filter(([,value])=>typeof value!=="object")
+        <div className="table-scroll"><table><tbody>{(details[key] as Entry[]).map(x=><tr key={x.id??String(x.product_id)}>{Object.entries(x).filter(([,value])=>typeof value!=="object")
           .map(([k,v])=><td key={k}><strong>{k}</strong> {format(k,v)}</td>)}</tr>)}</tbody></table></div>
       </div>:null)}
     </div>}

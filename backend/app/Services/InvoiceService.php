@@ -19,6 +19,16 @@ class InvoiceService
                 : $order->status === 'validated';
             abort_unless($eligible, 409, 'La commande doit être intégralement expédiée ou validée (mode historique).');
             abort_if($order->invoice()->exists(), 409, 'Cette commande possède déjà une facture.');
+            if ($order->fulfillment_mode === 'reservation_v2') {
+                $deliveries=DB::table('sales_deliveries')->where('company_id',$order->company_id)->where('order_id',$order->id);
+                $frozen=DB::table('sales_quote_revisions')->where('company_id',$order->company_id)->where('quote_id',$order->quote_id)
+                    ->where('status','converted')->value('snapshot');
+                $terms=$frozen ? json_decode($frozen,true,512,JSON_THROW_ON_ERROR) : [];
+                if ((clone $deliveries)->where('status','lost')->exists()
+                    || (($terms['contract']['receipt_required'] ?? false) && $deliveries->where('status','!=','received')->exists())) {
+                    abort(409,'La livraison doit être régularisée avant facturation.');
+                }
+            }
             $invoice = Invoice::create(array_merge($order->only(['subtotal_cents', 'tax_cents', 'total_cents']), ['order_id' => $orderId,
                 'snapshot' => ['customer' => $order->customer->only(['name', 'email', 'phone', 'address']), 'order_number' => $order->number,
                     'items' => $order->items->toArray(), 'seller' => config('atlas.seller')]]));

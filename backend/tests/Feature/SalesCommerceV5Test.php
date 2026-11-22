@@ -88,11 +88,17 @@ class SalesCommerceV5Test extends TestCase
         $order=$this->postJson("/api/sales-v5/revisions/{$revision}/convert",[],$this->requestKey())
             ->assertCreated()->json();
         $id=$order['id'];$item=$order['items'][0]['id'];
+        $this->postJson("/api/orders/{$id}/validate")->assertStatus(409);
+        $this->postJson("/api/sales-v5/orders/{$id}/reserve",[],$this->requestKey())->assertStatus(409);
+        $this->postJson("/api/sales-v5/orders/{$id}/confirm",['document_version'=>0],$this->requestKey())->assertCreated();
+        $this->postJson("/api/sales-v5/orders/{$id}/reserve",['document_version'=>0],$this->requestKey())->assertStatus(409);
         $this->postJson("/api/sales-v5/orders/{$id}/reserve",[],$this->requestKey())
             ->assertCreated()->assertJsonPath('status','reserved');
         $this->assertDatabaseHas('products',['id'=>$product->id,'stock'=>7]);
         $payload=['recipient'=>'Client V5','carrier'=>'Transport fictif',
             'lines'=>[['order_item_id'=>$item,'quantity'=>3]]];
+        $this->postJson("/api/sales-v5/orders/{$id}/ship",$payload,$this->requestKey())->assertStatus(409);
+        $this->postJson("/api/sales-v5/orders/{$id}/prepare",[],$this->requestKey())->assertCreated();
         $key=$this->requestKey();
         $this->postJson("/api/sales-v5/orders/{$id}/ship",$payload,$key)->assertCreated();
         $this->postJson("/api/sales-v5/orders/{$id}/ship",$payload,$key)->assertOk();
@@ -116,7 +122,9 @@ class SalesCommerceV5Test extends TestCase
         $approver=$this->member('admin','sales-quality-m03@example.test');
         [, $revision,$product]=$this->acceptedRevision($maker,$approver,$company);
         $order=$this->postJson("/api/sales-v5/revisions/{$revision}/convert",[],$this->requestKey())->assertCreated()->json();
+        $this->postJson('/api/sales-v5/orders/'.$order['id'].'/confirm',[],$this->requestKey())->assertCreated();
         $this->postJson('/api/sales-v5/orders/'.$order['id'].'/reserve',[],$this->requestKey())->assertCreated();
+        $this->postJson('/api/sales-v5/orders/'.$order['id'].'/prepare',[],$this->requestKey())->assertCreated();
         $delivery=$this->postJson('/api/sales-v5/orders/'.$order['id'].'/ship',[
             'recipient'=>'Client qualité','lines'=>[['order_item_id'=>$order['items'][0]['id'],'quantity'=>5]]
         ],$this->requestKey())->assertCreated()->json();
@@ -176,5 +184,60 @@ class SalesCommerceV5Test extends TestCase
         $b=$this->postJson('/api/sales-v5/pricing',array_merge($payload,['title'=>'Tarif concurrent']),$this->requestKey())->assertCreated()->json('id');
         $this->postJson("/api/sales-v5/pricing/{$a}/publish",[],$this->requestKey())->assertCreated();
         $this->postJson("/api/sales-v5/pricing/{$b}/publish",[],$this->requestKey())->assertStatus(409);
+    }
+
+    public function test_delegated_discount_contract_price_promotion_and_frozen_amounts(): void
+    {
+        $company=Company::where('code','ATLAS_DEMO')->firstOrFail();
+        $admin=$this->member('admin','supervisor@example.test');
+        $seller=$this->member('commercial','delegate@example.test');
+        $this->login($admin,$company);
+        [$customer,$product]=$this->fixture();
+        $start=now()->toDateString(); $end=now()->addMonth()->toDateString();
+        $this->postJson("/api/sales-v5/delegates/{$seller->id}",['discount_limit_bps'=>1000,'site_id'=>null],$this->requestKey())->assertCreated();
+        $contract=$this->postJson('/api/sales-v5/contracts',['title'=>'Accord fictif','currency'=>'EUR','customer_id'=>$customer->id,
+            'effective_on'=>$start,'expires_on'=>$end,'prices'=>[['product_id'=>$product->id,'price_cents'=>5000]]],$this->requestKey())->assertCreated()->json('id');
+        $this->postJson("/api/sales-v5/contracts/{$contract}/publish",[],$this->requestKey())->assertCreated();
+        $rule=$this->postJson('/api/sales-v5/pricing',['product_id'=>$product->id,'title'=>'Promo fictive','currency'=>'EUR',
+            'priority'=>1,'price_cents'=>6000,'discount_bps'=>1000,'vat_bps'=>2000,'starts_on'=>$start,'ends_on'=>$end],$this->requestKey())->assertCreated()->json('id');
+        $this->postJson("/api/sales-v5/pricing/{$rule}/publish",[],$this->requestKey())->assertCreated();
+        $this->login($seller,$company);
+        $quote=$this->postJson('/api/quotes',['customer_id'=>$customer->id,'items'=>[['product_id'=>$product->id,'quantity'=>2]]])
+            ->assertCreated()->assertJsonPath('subtotal_cents',10800)->json('id');
+        $rev=$this->postJson("/api/sales-v5/quotes/{$quote}/revisions",['discount_bps'=>0,'contract_id'=>$contract,'valid_until'=>$end],
+            $this->requestKey())->assertCreated()->assertJsonPath('subtotal_cents',9000)->assertJsonPath('total_cents',10800)->json('id');
+        $this->postJson("/api/sales-v5/revisions/{$rev}/send",[],$this->requestKey())->assertCreated();
+        $this->postJson("/api/sales-v5/contracts/{$contract}/amend",['effective_on'=>now()->addDay()->toDateString(),
+            'expires_on'=>$end,'terms'=>'Prix futurs','prices'=>[['product_id'=>$product->id,'price_cents'=>7000]]],$this->requestKey())->assertCreated();
+        $this->postJson("/api/sales-v5/revisions/{$rev}/accept",[],$this->requestKey())->assertCreated();
+        $this->postJson("/api/sales-v5/revisions/{$rev}/convert",[],$this->requestKey())->assertCreated()->assertJsonPath('total_cents',10800);
+        $quote=$this->postJson('/api/quotes',['customer_id'=>$customer->id,'items'=>[['product_id'=>$product->id,'quantity'=>2]]])->json('id');
+        $rev=$this->postJson("/api/sales-v5/quotes/{$quote}/revisions",['discount_bps'=>1000,'contract_id'=>$contract,'valid_until'=>$end],
+            $this->requestKey())->assertCreated()->assertJsonPath('subtotal_cents',8100)->json('id');
+        $this->postJson("/api/sales-v5/revisions/{$rev}/send",[],$this->requestKey())->assertCreated();
+    }
+
+    public function test_restricted_site_covers_orders_pricing_export_and_idempotent_replays(): void
+    {
+        $company=Company::where('code','ATLAS_DEMO')->firstOrFail();
+        $admin=$this->member('admin','regional@example.test');
+        $seller=$this->member('commercial','local@example.test');
+        $this->login($admin,$company);
+        [$customer,$product]=$this->fixture();
+        $site=fn($code)=>\Illuminate\Support\Facades\DB::table('establishments')->insertGetId(['company_id'=>$company->id,'name'=>$code,'code'=>$code]);
+        $a=$site('M03A'); $b=$site('M03B');
+        $this->postJson("/api/sales-v5/delegates/{$seller->id}",['discount_limit_bps'=>0,'site_id'=>$a],$this->requestKey())->assertCreated();
+        $data=['establishment_id'=>$b,'customer_id'=>$customer->id,'items'=>[['product_id'=>$product->id,'quantity'=>1]]];
+        $order=$this->postJson('/api/orders',$data)->assertCreated()->json('id');
+        $key=$this->requestKey();
+        $this->postJson('/api/sales-v5/pricing',['establishment_id'=>$b,'product_id'=>$product->id,'title'=>'Secret-site-B','currency'=>'EUR',
+            'priority'=>1,'price_cents'=>100,'discount_bps'=>0,'vat_bps'=>2000,'starts_on'=>now()->toDateString(),'ends_on'=>now()->addDay()->toDateString()],$key)->assertCreated();
+        $this->login($seller,$company);
+        $this->getJson("/api/orders/{$order}")->assertNotFound();
+        $this->postJson('/api/orders',$data)->assertForbidden();
+        $this->getJson('/api/sales-v5/pricing')->assertOk()->assertJsonCount(0,'data');
+        $export=$this->get('/api/sales-v5/pricing/export')->assertOk()->streamedContent();
+        $this->assertStringNotContainsString('Secret-site-B',$export);
+        $this->getJson('/api/sales-v5/delegates')->assertForbidden();
     }
 }

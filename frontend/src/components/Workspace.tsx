@@ -603,7 +603,7 @@ export default function Workspace() {
               busy={busy}
             />
           )}
-          {["quotes","orders"].includes(view) && <SalesCommerceWorkspace key={"sales-v5-"+view+"-"+user.active_company_id} view={view as "quotes"|"orders"} activeCompanyId={user.active_company_id ?? null} canWrite={can(view)} canApprove={user.role.name === "admin"} embedded />}
+          {["quotes","orders"].includes(view) && <SalesCommerceWorkspace key={"sales-v5-"+view+"-"+user.active_company_id} view={view as "quotes"|"orders"} activeCompanyId={user.active_company_id ?? null} canWrite={can(view)} canApprove={user.role.name === "admin"} revision={refresh} onChange={()=>setRefresh(n=>n+1)} embedded />}
           <footer className="page-footer">
             <span>ATLAS ONE</span>
             <span>Un peu moins de gestion. Un peu plus de perspective.</span>
@@ -1470,6 +1470,7 @@ function EditorForm({
           if (!data.password) delete data.password;
         }
         if (sale) {
+          if(kind==="orders")data.fulfillment_mode="reservation_v2";
           data.customer_id = Number(data.customer_id);
           data.items = lines.map((l) => ({
             product_id: Number(l.product_id),
@@ -1977,7 +1978,7 @@ function Detail({
             Télécharger le PDF
           </button>
         )}
-        {can && kind === "quotes" && row.status === "draft" && (
+        {can && kind === "quotes" && row.status === "draft" && !row.revision_no && (
           <button
             className="button primary"
             disabled={busy}
@@ -1987,7 +1988,7 @@ function Detail({
             <ArrowRight size={16} />
           </button>
         )}
-        {can && kind === "orders" && row.status === "draft" && (
+        {can && kind === "orders" && row.status === "draft" && row.fulfillment_mode !== "reservation_v2" && (
           <button
             className="button primary"
             disabled={busy}
@@ -1997,7 +1998,7 @@ function Detail({
             <Check size={16} />
           </button>
         )}
-        {can && kind === "orders" && row.status === "validated" && (
+        {can && kind === "orders" && ["validated","shipped"].includes(row.status) && (
           <button
             className="button primary"
             disabled={busy}

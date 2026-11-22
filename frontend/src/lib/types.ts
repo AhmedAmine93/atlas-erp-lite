@@ -42,6 +42,8 @@ export type Line = {
   total_cents: number;
 };
 export type Sale = {
+  revision_no?: number;
+  fulfillment_mode?: string;
   id: number;
   number: string;
   customer_id: number;

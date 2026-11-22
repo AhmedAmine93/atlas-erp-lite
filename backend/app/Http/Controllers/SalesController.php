@@ -39,7 +39,7 @@ class SalesController extends Controller
     public function store(Request $r, string $kind, SalesService $service)
     {
         Gate::authorize('sales');
-        $data = $r->validate(['customer_id' => 'required|integer|exists:customers,id', 'notes' => 'nullable|string|max:2000',
+        $data = $r->validate(['customer_id' => 'required|integer|exists:customers,id', 'establishment_id'=>'nullable|integer|min:1', 'fulfillment_mode'=>'sometimes|in:reservation_v2', 'notes' => 'nullable|string|max:2000',
             'items' => 'required|array|min:1|max:100', 'items.*.product_id' => 'required|integer|distinct|exists:products,id', 'items.*.quantity' => 'required|integer|min:1|max:10000']);
 
         Customer::findOrFail((int) $data['customer_id']);

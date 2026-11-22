@@ -38,16 +38,19 @@ test("M03 : devis révisé, commande réservée, livraison, retour et avoir", as
   await post(`sales-v5/revisions/${rev.id}/accept`,{});
   const order=await post(`sales-v5/revisions/${rev.id}/convert`,{});
   expect(order.fulfillment_mode).toBe("reservation_v2");
+  await post("sales-v5/orders/"+order.id+"/confirm",{});
   const reservation=await post(`sales-v5/orders/${order.id}/reserve`,{});
   expect(reservation.status).toBe("reserved");
   const before=(await (await page.request.get(`/api/products?search=M03-${nonce}-A`)).json()).data[0];
   expect(before.stock).toBe(7);
+  await post("sales-v5/orders/"+order.id+"/prepare",{});
   const delivery=await post(`sales-v5/orders/${order.id}/ship`,{
     recipient:"Client M03",carrier:"Transport de test",
     lines:order.items.map((x:{id:number})=>({order_item_id:x.id,quantity:1}))
   });
   const after=(await (await page.request.get(`/api/products?search=M03-${nonce}-A`)).json()).data[0];
   expect(after.stock).toBe(6);
+  await post("sales-v5/deliveries/"+delivery.id+"/lost",{reason:"Colis égaré en transit"});
   const issued=await post(`sales-v5/deliveries/${delivery.id}/acknowledge`,{
     proof_reference:"POD-"+nonce
   });
@@ -57,6 +60,7 @@ test("M03 : devis révisé, commande réservée, livraison, retour et avoir", as
     headers:{"X-CSRF-TOKEN":csrf},data:{status:"issued"}
   });
   expect(issuedInvoice.ok()).toBeTruthy();
+  await post("sales-v5/orders/"+order.id+"/close",{});
   const deliveryDetails=await (await page.request.get(`/api/sales-v5/deliveries/${delivery.id}`)).json();
   const ret=await post("sales-v5/returns",{
     delivery_id:delivery.id,reason:"Contrôle non conforme à réception",
@@ -79,6 +83,7 @@ test("M03 : contrats, tarifs et droits de navigation", async ({ page }) => {
   await page.getByLabel("Adresse e-mail",{exact:true}).fill("admin@atlas.example");
   await page.getByLabel("Mot de passe",{exact:true}).fill(process.env.DEMO_PASSWORD!);
   await page.getByRole("button",{name:"Se connecter",exact:true}).click();
+  await expect(page.getByRole("button",{name:"Devis",exact:true})).toBeVisible();
   const csrf=(await (await page.request.get("/api/csrf")).json()).token;
   let i=0;
   async function post(path:string,data:Record<string,unknown>) {

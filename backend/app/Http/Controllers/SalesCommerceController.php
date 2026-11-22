@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\{Customer,Invoice,Order,Product,Quote};
-use App\Services\{Audit,DocumentNumber,Money,StockService,TenantContext};
+use App\Services\{Audit,DocumentNumber,Money,SalesAccess,SalesPricing,StockService,TenantContext};
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\{DB,Gate};
 use Illuminate\Validation\ValidationException;
@@ -24,7 +24,7 @@ class SalesCommerceController extends Controller
     private function company(): int { return app(TenantContext::class)->requireId(); }
     private function rows(string $table) { return DB::table($table)->where('company_id', $this->company()); }
     private function one(string $table, int $id) { return $this->rows($table)->where('id',$id)->first() ?? abort(404); }
-    private function lock(string $table, int $id) { return $this->rows($table)->where('id',$id)->lockForUpdate()->first() ?? abort(404); }
+    private function lock(string $table, int $id) { return SalesAccess::visible($table,$this->rows($table))->where('id',$id)->lockForUpdate()->first() ?? abort(404); }
     private function error(string $message): never { abort(409, $message); }
     private function inserted(string $table, array $data): object
     {
@@ -58,15 +58,18 @@ class SalesCommerceController extends Controller
             if (DB::getDriverName()==='pgsql') {
                 DB::select('SELECT pg_advisory_xact_lock(hashtextextended(?,0))',['m03:'.$company.':'.$operation.':'.$key]);
             }
-            $prior=$this->rows('sales_idempotency_records')->where('operation',$operation)->where('request_key',$key)->lockForUpdate()->first();
+            $prior=$this->rows('sales_idempotency_records')->where('operation',$operation)->where('request_key',$key)->first();
             if ($prior) {
+                if ((int)$prior->actor_id !== (int)$r->user()->id || $prior->scope_site_id !== SalesAccess::site()) {
+                    $this->error('Cette clé appartient à un autre contexte. Vérifiez la pièce existante.');
+                }
                 if (!hash_equals($prior->payload_hash,$digest)) $this->error('Clé de requête réutilisée avec un contenu différent.');
                 return response()->json(json_decode($prior->result,true),200);
             }
             $result=$callback();
             $response=is_array($result)?$result:(array)$result;
             $this->inserted('sales_idempotency_records',['operation'=>$operation,'request_key'=>$key,
-                'payload_hash'=>$digest,'result'=>json_encode($response,JSON_THROW_ON_ERROR)]);
+                'actor_id'=>$r->user()->id,'scope_site_id'=>SalesAccess::site(),'payload_hash'=>$digest,'result'=>json_encode($response,JSON_THROW_ON_ERROR)]);
             return response()->json($response,201);
         },3);
     }
@@ -75,17 +78,72 @@ class SalesCommerceController extends Controller
     {
         $this->authorized('salesRead');
         if (!array_key_exists($kind,self::LISTS)) abort(404);
-        $data=$request->validate(['status'=>'nullable|string|max:30','search'=>'nullable|string|max:100','page'=>'nullable|integer|min:1']);
-        $table=self::LISTS[$kind]; $query=$this->rows($table);
-        if (!empty($data['status']) && in_array($kind,['revisions','approvals','deliveries','contracts','returns','pricing'],true)) $query->where('status',$data['status']);
-        if (!empty($data['search']) && in_array($kind,['deliveries','contracts','returns'],true)) $query->where('number','like','%'.$data['search'].'%');
-        return $query->orderByDesc('id')->paginate(20);
+        return $this->listing($request,$kind)->orderByDesc('id')->paginate(20);
+    }
+
+    private function listing(Request $request,string $kind)
+    {
+        $table=$kind==='orders'?'orders':(self::LISTS[$kind] ?? abort(404));
+        $v=$request->validate(['status'=>'nullable|string|max:30','search'=>'nullable|string|max:100','page'=>'nullable|integer|min:1']);
+        $query=SalesAccess::visible($table,$this->rows($table));
+        if (!empty($v['status']) && !in_array($kind,['reservations','credits'],true)) $query->where('status',$v['status']);
+        if (($term=trim($v['search'] ?? '')) !== '') {
+            $columns=match ($kind) {
+                'orders','credits'=>['number'], 'contracts'=>['number','title'], 'pricing'=>['title'],
+                'deliveries'=>['number','recipient','carrier'], 'returns'=>['number','reason'], default=>[],
+            };
+            $query->where(function ($q) use ($columns,$kind,$term) {
+                $q->whereRaw('1 = 0');
+                foreach ($columns as $column) $q->orWhere($column,'like','%'.$term.'%');
+                if (ctype_digit($term) && strlen($term)<19) $q->orWhere('id',(int)$term);
+                if ($kind==='revisions') $q->orWhereIn('quote_id',$this->rows('quotes')->where('number','like','%'.$term.'%')->select('id'));
+            });
+        }
+        return $query;
+    }
+
+    public function export(Request $request,string $kind)
+    {
+        $this->authorized('salesRead');
+        $columns=match ($kind) {
+            'revisions'=>['id','quote_id','revision_no','status','valid_until','discount_bps','subtotal_cents','tax_cents','total_cents'],
+            'orders'=>['number','status','fulfillment_mode','total_cents'],
+            'deliveries'=>['number','order_id','recipient','carrier','status','issued_at'],
+            'contracts'=>['number','title','customer_id','currency','effective_on','expires_on','status'],
+            'returns'=>['number','delivery_id','reason','status'],
+            'pricing'=>['title','product_id','currency','price_cents','discount_bps','starts_on','ends_on','status'],
+            default=>abort(404),
+        };
+        // Finish the query while the middleware transaction and its tenant RLS context are active.
+        $file = tmpfile();
+        fwrite($file,"\xEF\xBB\xBF");
+        fputcsv($file,$columns,';','"','');
+        foreach ($this->listing($request,$kind)->select($columns)->addSelect('id')->lazyById(500) as $row) {
+            $values=[];
+            foreach ($columns as $column) {
+                $value=(string)($row->$column ?? '');
+                $values[]=preg_match('/^[\x00-\x20]*[=+\-@]/u',$value) ? "'".$value : $value;
+            }
+            fputcsv($file,$values,';','"','');
+        }
+        rewind($file);
+        Audit::record('sales.export',null,['kind'=>$kind,'filters'=>$request->only(['status','search'])]);
+        return response()->streamDownload(static function () use ($file) {
+            fpassthru($file);
+            fclose($file);
+        },"ventes-{$kind}.csv",['Content-Type'=>'text/csv; charset=UTF-8','Cache-Control'=>'no-store']);
     }
 
     public function detail(string $kind,int $id)
     {
         $this->authorized('salesRead');
-        $table=self::LISTS[$kind]??abort(404); $record=$this->one($table,$id);
+        $table=self::LISTS[$kind]??abort(404); $record=SalesAccess::visible($table,$this->rows($table))->where('id',$id)->first() ?? abort(404);
+        if ($kind==='revisions') {
+            $snapshot=json_decode($record->snapshot,true,512,JSON_THROW_ON_ERROR);
+            $record->items=$snapshot['items'];
+            $record->pricing_policy=$snapshot['pricing_policy'] ?? 'historical';
+        }
+        if ($kind==='returns') $record->credit=$this->rows('sales_credit_notes')->where('return_id',$id)->first();
         if ($kind==='deliveries') $record->lines=$this->rows('sales_delivery_lines')->where('delivery_id',$id)->get();
         if ($kind==='returns') $record->lines=$this->rows('sales_return_lines')->where('return_id',$id)->get();
         if ($kind==='contracts') $record->versions=$this->rows('sales_contract_versions')->where('contract_id',$id)->orderBy('version_no')->get();
@@ -95,26 +153,35 @@ class SalesCommerceController extends Controller
     public function reviseQuote(Request $r,int $quote)
     {
         $this->authorized('sales');
-        $v=$r->validate(['discount_bps'=>'required|integer|min:0|max:10000','valid_until'=>'required|date|after_or_equal:today']);
+        $v=$r->validate(['discount_bps'=>'required|integer|min:0|max:10000','valid_until'=>'required|date|after_or_equal:today',
+            'contract_id'=>'nullable|integer|min:1','document_version'=>'nullable|integer|min:0','establishment_id'=>'nullable|integer|min:1']);
         return $this->idempotent($r,'quote-revise-'.$quote,function () use ($r,$quote,$v) {
             $q=Quote::lockForUpdate()->findOrFail($quote);
             if (!in_array($q->status,['draft','sent','accepted','expired'],true)) $this->error('Devis non révisable.');
             $number=(int)$q->revision_no+1;
-            $lines=[];$s=0;$tax=0;
+            $this->version($r,$q);
+            $site = SalesAccess::resolveSite($q->sales_establishment_id ?? ($v['establishment_id'] ?? null));
+            if (isset($v['establishment_id']) && $site !== (int)$v['establishment_id']) abort(409,'Le site du devis est déjà fixé.');
+            $pricing=app(SalesPricing::class);
+            $contract=isset($v['contract_id']) ? $pricing->contract($v['contract_id'],$q->customer_id,$site) : null;
+            $lines=[]; $basis=[]; $s=0; $tax=0;
+            $products=Product::whereIn('id',$q->items->pluck('product_id'))->orderBy('id')->lockForUpdate()->get()->keyBy('id');
             foreach ($q->items as $item) {
-                $unit=intdiv($item->price_cents*(10000-$v['discount_bps'])+5000,10000);
-                $amount=Money::line($unit,$item->quantity,$item->vat_bps);
-                $lines[]=array_merge($item->only(['product_id','reference','name','quantity','vat_bps']),['price_cents'=>$unit],$amount);
-                $s+=$amount['subtotal_cents'];$tax+=$amount['tax_cents'];
+                $priced=$pricing->line($products->get($item->product_id) ?? abort(404),$item->quantity,$v['discount_bps'],$site,$contract);
+                $line=$priced['item'];
+                $lines[]=$line;
+                $basis[]=$priced['basis'];
+                $s+=$line['subtotal_cents']; $tax+=$line['tax_cents'];
             }
             $revision=$this->inserted('sales_quote_revisions',[
                 'quote_id'=>$q->id,'revision_no'=>$number,'status'=>'draft',
                 'discount_bps'=>$v['discount_bps'],'valid_until'=>$v['valid_until'],
-                'snapshot'=>json_encode(['items'=>$lines,'customer_id'=>$q->customer_id],JSON_THROW_ON_ERROR),
+                'snapshot'=>json_encode(['items'=>$lines,'customer_id'=>$q->customer_id,
+                    'pricing_policy'=>'EUR-unit-half-up-line-vat-v1','pricing_basis'=>$basis,'contract'=>$contract,'site_id'=>$site],JSON_THROW_ON_ERROR),
                 'subtotal_cents'=>$s,'tax_cents'=>$tax,'total_cents'=>$s+$tax,'created_by'=>$r->user()->id
             ]);
-            $q->update(['revision_no'=>$number,'document_version'=>((int)$q->document_version)+1,'status'=>'draft']);
-            if ($v['discount_bps']>0) {
+            $q->update(['sales_establishment_id'=>$site,'revision_no'=>$number,'document_version'=>((int)$q->document_version)+1,'status'=>'draft']);
+            if ($v['discount_bps']>(int)SalesAccess::membership()->sales_discount_limit_bps) {
                 $this->inserted('sales_discount_approvals',['revision_id'=>$revision->id,'discount_bps'=>$v['discount_bps'],
                     'requested_by'=>$r->user()->id,'status'=>'pending']);
             }
@@ -151,7 +218,7 @@ class SalesCommerceController extends Controller
             if ($rev->status!==$from) $this->error('Transition interdite.');
             if ($action==='send' && $rev->discount_bps>0) {
                 $approval=$this->rows('sales_discount_approvals')->where('revision_id',$revision)->first();
-                if (!$approval || $approval->status!=='approved') $this->error('Approbation de remise requise.');
+                if ($approval && $approval->status!=='approved') $this->error('Approbation de remise requise.');
             }
             $record=$this->updateRow('sales_quote_revisions',$revision,['status'=>$to,$action==='send'?'sent_at':'accepted_at'=>now()]);
             $quote->update(['status'=>$to,'document_version'=>((int)$quote->document_version)+1,
@@ -171,8 +238,12 @@ class SalesCommerceController extends Controller
             if ($rev->valid_until<now()->toDateString()) $this->error('Révision expirée.');
             if (Order::where('quote_id',$q->id)->exists()) $this->error('Devis déjà converti.');
             $snapshot=json_decode($rev->snapshot,true,512,JSON_THROW_ON_ERROR);
+            if ($contract=$snapshot['contract'] ?? null) {
+                app(SalesPricing::class)->contract($contract['id'],$q->customer_id,$q->sales_establishment_id);
+                if ($contract['expires_on']<now()->toDateString()) $this->error('Les conditions acceptées ont expiré.');
+            }
             $order=Order::create(['number'=>DocumentNumber::next('CMD'),'customer_id'=>$q->customer_id,
-                'quote_id'=>$q->id,'created_by'=>$r->user()->id,'notes'=>$q->notes,
+                'quote_id'=>$q->id,'sales_establishment_id'=>$q->sales_establishment_id,'created_by'=>$r->user()->id,'notes'=>$q->notes,
                 'fulfillment_mode'=>'reservation_v2','status'=>'draft','subtotal_cents'=>$rev->subtotal_cents,
                 'tax_cents'=>$rev->tax_cents,'total_cents'=>$rev->total_cents]);
             $order->items()->createMany($snapshot['items']);
@@ -183,19 +254,49 @@ class SalesCommerceController extends Controller
         });
     }
 
+    private function version(Request $r,object $doc): void
+    {
+        $input=$r->validate(['document_version'=>'sometimes|integer|min:0']);
+        if (isset($input['document_version']) && (int)$input['document_version'] !== (int)$doc->document_version) {
+            $this->error('Cette pièce a changé. Rechargez-la avant de continuer.');
+        }
+    }
+
+    public function orderTransition(Request $r,int $order,string $action)
+    {
+        $this->authorized('sales');
+        [$from,$to]=match ($action) {
+            'confirm'=>['draft','confirmed'], 'prepare'=>['reserved','prepared'], 'close'=>['shipped','closed'],
+            default=>abort(404),
+        };
+        return $this->idempotent($r,"order-{$action}-{$order}",function () use ($r,$order,$action,$from,$to) {
+            $doc=Order::lockForUpdate()->findOrFail($order);
+            $this->version($r,$doc);
+            if ($doc->fulfillment_mode!=='reservation_v2' || $doc->status!==$from) $this->error('Transition de commande interdite.');
+            if ($action==='close' && (!$doc->invoice()->whereIn('status',['issued','paid'])->exists()
+                || $this->rows('sales_deliveries')->where('order_id',$order)->where('status','!=','received')->exists())) {
+                $this->error('La clôture exige les réceptions et une facture émise.');
+            }
+            $doc->update(['status'=>$to,'document_version'=>$doc->document_version+1]);
+            $this->audit('order.'.$to,'orders',$order);
+            return $doc->toArray();
+        });
+    }
+
     public function reserveOrder(Request $r,int $order)
     {
         $this->authorized('sales');
-        return $this->idempotent($r,'reserve-order-'.$order,function () use ($order) {
+        return $this->idempotent($r,'reserve-order-'.$order,function () use ($r,$order) {
             $doc=Order::lockForUpdate()->findOrFail($order);
-            if ($doc->fulfillment_mode!=='reservation_v2'||$doc->status!=='draft') $this->error('Commande non réservable via ce parcours.');
+            if ($doc->fulfillment_mode!=='reservation_v2'||$doc->status!=='confirmed') $this->error('Commande non réservable via ce parcours.');
+            $this->version($r,$doc);
             $items=$doc->items->sortBy('product_id')->values();
             $products=Product::whereIn('id',$items->pluck('product_id'))->orderBy('id')->lockForUpdate()->get()->keyBy('id');
-            foreach ($items as $item) {
-                $p=$products[$item->product_id]??abort(404);
+            foreach ($items->groupBy('product_id') as $productId=>$group) {
+                $p=$products[$productId]??abort(404);
                 $reserved=(int)$this->rows('sales_reservations')->where('product_id',$p->id)
                     ->selectRaw('COALESCE(SUM(quantity_reserved - quantity_shipped - quantity_released),0) AS qty')->value('qty');
-                if ($p->stock-$reserved<$item->quantity) $this->error('Stock disponible insuffisant : '.$p->reference);
+                if ($p->stock-$reserved<$group->sum('quantity')) $this->error('Stock disponible insuffisant : '.$p->reference);
             }
             foreach ($items as $item) $this->inserted('sales_reservations',[
                 'order_id'=>$order,'order_item_id'=>$item->id,'product_id'=>$item->product_id,
@@ -218,7 +319,8 @@ class SalesCommerceController extends Controller
         ]);
         return $this->idempotent($r,'ship-order-'.$order,function () use ($r,$order,$v) {
             $doc=Order::lockForUpdate()->findOrFail($order);
-            if ($doc->fulfillment_mode!=='reservation_v2'||!in_array($doc->status,['reserved','partially_shipped'],true)) $this->error('Commande non expédiable.');
+            if ($doc->fulfillment_mode!=='reservation_v2'||!in_array($doc->status,['prepared','partially_shipped'],true)) $this->error('Préparez la commande avant expédition.');
+            $this->version($r,$doc);
             $ids=array_column($v['lines'],'order_item_id');
             $reservations=$this->rows('sales_reservations')->where('order_id',$order)->whereIn('order_item_id',$ids)->orderBy('product_id')->lockForUpdate()->get()->keyBy('order_item_id');
             if ($reservations->count()!==count($ids)) $this->error('Ligne hors commande.');
@@ -253,13 +355,27 @@ class SalesCommerceController extends Controller
         });
     }
 
+    public function reportLost(Request $r,int $id)
+    {
+        $this->authorized('sales');
+        $v=$r->validate(['reason'=>'required|string|min:5|max:2000']);
+        return $this->idempotent($r,'delivery-lost-'.$id,function () use ($id,$r,$v) {
+            $delivery=$this->lock('sales_deliveries',$id);
+            if ($delivery->status!=='issued') $this->error('Seul un colis en transit peut être déclaré perdu.');
+            $result=$this->updateRow('sales_deliveries',$id,['status'=>'lost','reported_lost_at'=>now(),
+                'reported_lost_by'=>$r->user()->id,'exception_reason'=>$v['reason']]);
+            $this->audit('delivery.lost','sales_deliveries',$id);
+            return $result;
+        });
+    }
+
     public function acknowledge(Request $r,int $id)
     {
         $this->authorized('sales');
         $v=$r->validate(['proof_reference'=>'required|string|max:2000']);
         return $this->idempotent($r,'delivery-received-'.$id,function () use ($r,$id,$v) {
             $d=$this->lock('sales_deliveries',$id);
-            if ($d->status!=='issued') $this->error('Bon non réceptionnable.');
+            if (!in_array($d->status,['issued','lost'],true)) $this->error('Bon non réceptionnable.');
             $record=$this->updateRow('sales_deliveries',$id,['status'=>'received',
                 'received_by'=>$r->user()->id,'received_at'=>now(),'proof_reference'=>$v['proof_reference']]);
             $this->audit('delivery.received','sales_deliveries',$id);
@@ -270,9 +386,10 @@ class SalesCommerceController extends Controller
     public function cancelOrder(Request $r,int $id)
     {
         $this->authorized('sales');
-        return $this->idempotent($r,'cancel-order-'.$id,function () use ($id) {
+        return $this->idempotent($r,'cancel-order-'.$id,function () use ($r,$id) {
             $doc=Order::lockForUpdate()->findOrFail($id);
-            if ($doc->fulfillment_mode!=='reservation_v2'||!in_array($doc->status,['draft','reserved','partially_shipped'],true)) $this->error('Commande non annulable.');
+            if ($doc->fulfillment_mode!=='reservation_v2'||!in_array($doc->status,['draft','confirmed','reserved','prepared','partially_shipped'],true)) $this->error('Commande non annulable.');
+            $this->version($r,$doc);
             foreach ($this->rows('sales_reservations')->where('order_id',$id)->lockForUpdate()->get() as $res) {
                 $left=$res->quantity_reserved-$res->quantity_shipped-$res->quantity_released;
                 if ($left>0) $this->updateRow('sales_reservations',$res->id,['quantity_released'=>$res->quantity_released+$left]);
@@ -283,6 +400,42 @@ class SalesCommerceController extends Controller
         });
     }
 
+    public function delegates()
+    {
+        $this->authorized('admin');
+        if (SalesAccess::site()) abort(403);
+        return $this->rows('company_user')->join('users','users.id','=','company_user.user_id')
+            ->orderBy('users.name')->get(['users.id','users.name','company_user.sales_discount_limit_bps','company_user.sales_establishment_id']);
+    }
+
+    public function setDelegation(Request $r,int $id)
+    {
+        $this->authorized('admin');
+        $v=$r->validate(['discount_limit_bps'=>'required|integer|min:0|max:10000','site_id'=>'present|nullable|integer|min:1']);
+        if (SalesAccess::site()) abort(403,'La gestion des délégations exige un périmètre entreprise.');
+        if ($id === (int)$r->user()->id) abort(403,'Une autre personne doit modifier votre délégation.');
+        $member=$this->rows('company_user')->where('user_id',$id);
+        return $this->idempotent($r,'sales-delegation-'.$id,function () use ($id,$member,$v) {
+            abort_unless($member->lockForUpdate()->first(),404);
+            $site=SalesAccess::resolveSite($v['site_id']);
+            $member->update(['sales_establishment_id'=>$site,'sales_discount_limit_bps'=>$v['discount_limit_bps']]);
+            $this->audit('delegation.changed','company_user',$id,$v);
+            return ['user_id'=>$id,'site_id'=>$site,'discount_limit_bps'=>(int)$v['discount_limit_bps']];
+        });
+    }
+
+    private function contractPrices(Request $r): array
+    {
+        $fields=$r->validate(['receipt_required'=>'sometimes|boolean','prices'=>'sometimes|array|max:100',
+            'prices.*.product_id'=>'required|integer|distinct','prices.*.price_cents'=>'required|integer|min:0|max:1000000000']);
+        if (isset($fields['prices'])) {
+            $ids=array_column($fields['prices'],'product_id');
+            abort_unless(Product::whereIn('id',$ids)->count()===count($ids),404);
+            $fields['prices']=json_encode($fields['prices'],JSON_THROW_ON_ERROR);
+        }
+        return $fields;
+    }
+
     public function createContract(Request $r)
     {
         $this->authorized('sales');
@@ -290,8 +443,9 @@ class SalesCommerceController extends Controller
             'currency'=>'required|in:EUR,USD,GBP','effective_on'=>'required|date',
             'expires_on'=>'required|date|after_or_equal:effective_on','terms'=>'nullable|string|max:8000',
             'renewal_rule'=>'nullable|string|max:100']);
+        $v=array_merge($v,$this->contractPrices($r));
         Customer::findOrFail($v['customer_id']);
-        if (!empty($v['establishment_id']) && !$this->rows('establishments')->where('id',$v['establishment_id'])->exists()) abort(404);
+        $v['establishment_id']=SalesAccess::resolveSite($v['establishment_id'] ?? null);
         return $this->idempotent($r,'create-contract',function () use ($r,$v) {
             $record=$this->inserted('sales_contracts',array_merge($v,['number'=>'CTR-'.strtoupper(bin2hex(random_bytes(7))),
                 'status'=>'draft','created_by'=>$r->user()->id]));
@@ -306,8 +460,10 @@ class SalesCommerceController extends Controller
         if (!in_array($action,['publish','amend','terminate'],true)) abort(404);
         $v=$action==='amend'?$r->validate(['effective_on'=>'required|date|after_or_equal:today',
             'expires_on'=>'required|date|after_or_equal:effective_on','terms'=>'required|string|max:8000']):[];
+        if ($action==='amend') $v=array_merge($v,$this->contractPrices($r));
         return $this->idempotent($r,'contract-'.$action.'-'.$id,function () use ($r,$id,$action,$v) {
             $contract=$this->lock('sales_contracts',$id);
+            if (SalesAccess::site() && $contract->establishment_id===null) abort(403);
             if ($action==='publish' && $contract->status!=='draft') $this->error('Contrat déjà publié.');
             if ($action==='amend' && $contract->status!=='active') $this->error('Contrat inactif.');
             if ($action==='terminate' && $contract->status!=='active') $this->error('Contrat non résiliable.');
@@ -334,7 +490,7 @@ class SalesCommerceController extends Controller
             'priority'=>'required|integer|min:0|max:100000',
             'starts_on'=>'required|date','ends_on'=>'required|date|after_or_equal:starts_on']);
         Product::findOrFail($v['product_id']);
-        if (!empty($v['establishment_id']) && !$this->rows('establishments')->where('id',$v['establishment_id'])->exists()) abort(404);
+        $v['establishment_id']=SalesAccess::resolveSite($v['establishment_id'] ?? null);
         return $this->idempotent($r,'create-pricing',function () use ($r,$v) {
             $record=$this->inserted('sales_price_rules',array_merge($v,['status'=>'draft','created_by'=>$r->user()->id]));
             $this->audit('pricing.created','sales_price_rules',$record->id);
@@ -347,6 +503,7 @@ class SalesCommerceController extends Controller
         $this->authorized('admin');
         return $this->idempotent($r,'pricing-publish-'.$id,function () use ($r,$id) {
             $rule=$this->lock('sales_price_rules',$id);
+            if (SalesAccess::site() && $rule->establishment_id===null) abort(403);
             if ($rule->status!=='draft') $this->error('Grille déjà publiée.');
             // Lock every relevant price-row by tenant/product to avoid concurrent publication.
             Product::whereKey($rule->product_id)->lockForUpdate()->firstOrFail();

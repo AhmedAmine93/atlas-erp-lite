@@ -154,6 +154,13 @@ Route::prefix('api')->group(function () {
         Route::put('{kind}/{id}', [ContactController::class, 'save'])->whereIn('kind', ['customers', 'suppliers'])->whereNumber('id');
         Route::delete('{kind}/{id}', [ContactController::class, 'destroy'])->whereIn('kind', ['customers', 'suppliers'])->whereNumber('id');
         // M03 V5 commerce: static namespace before legacy dynamic sales routes.
+        Route::get('sales-v5/{kind}/export', [SalesCommerceController::class, 'export'])
+            ->whereIn('kind',['orders','revisions','deliveries','contracts','returns','pricing']);
+        Route::get('sales-v5/delegates', [SalesCommerceController::class, 'delegates']);
+        Route::post('sales-v5/delegates/{id}', [SalesCommerceController::class, 'setDelegation'])->whereNumber('id');
+        Route::post('sales-v5/orders/{order}/{action}', [SalesCommerceController::class, 'orderTransition'])
+            ->whereNumber('order')->whereIn('action',['confirm','prepare','close']);
+        Route::post('sales-v5/deliveries/{id}/lost', [SalesCommerceController::class, 'reportLost'])->whereNumber('id');
         Route::get('sales-v5/{kind}', [SalesCommerceController::class, 'index'])
             ->whereIn('kind', ['revisions','approvals','reservations','deliveries','contracts','returns','credits','pricing']);
         Route::get('sales-v5/{kind}/{id}', [SalesCommerceController::class, 'detail'])
