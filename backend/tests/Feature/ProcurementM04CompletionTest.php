@@ -130,7 +130,15 @@ class ProcurementM04CompletionTest extends TestCase
             ->assertJsonPath('dispute_cents',0)->assertJsonPath('status','matched');
         $this->postJson("/api/purchasing/invoices/$invoiceId/authorize-payment")
             ->assertForbidden();
+        $bankChange=$this->postJson("/api/purchasing/suppliers/$supplier2/bank-changes",[
+            'iban'=>'FR7630006000011234567890189'
+        ])->assertCreated()->json('id');
         $this->as($buyer,$tenant);
+        $this->postJson("/api/purchasing/invoices/$invoiceId/authorize-payment")
+            ->assertStatus(409);
+        $this->postJson("/api/purchasing/bank-changes/$bankChange/decision",[
+            'decision'=>'approved'
+        ])->assertOk();
         $this->postJson("/api/purchasing/invoices/$invoiceId/authorize-payment")
             ->assertCreated()->assertJsonPath('authorized_amount_cents',16000)
             ->assertJsonPath('status','ready_for_payment');
