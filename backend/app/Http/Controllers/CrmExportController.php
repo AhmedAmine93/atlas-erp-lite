@@ -17,10 +17,10 @@ final class CrmExportController extends Controller
 {
     private const COLUMNS = [
         'customers'=>['id','name','email','phone','address','archived_at'],
-        'prospects'=>['id','name','email','phone','source','status','marketing_consent','opt_out','created_at'],
+        'prospects'=>['id','name','email','phone','source','status','opt_out','created_at'],
         'contacts'=>['id','customer_id','first_name','last_name','email','phone','job_title','consent','active'],
         'opportunities'=>['id','customer_id','prospect_id','title','stage','amount_cents','currency','probability_bps','expected_close_at'],
-        'activities'=>['id','customer_id','prospect_id','contact_id','opportunity_id','title','type','purpose','status','due_at','completed_at'],
+        'activities'=>['id','customer_id','prospect_id','contact_id','opportunity_id','title','type','status','due_at','completed_at'],
         'segments'=>['id','code','name','mode','archived_at'],
     ];
     private const TABLES = [
