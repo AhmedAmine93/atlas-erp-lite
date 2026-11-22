@@ -15,7 +15,7 @@ class TenantContextController extends Controller
         $data = $request->validate([
             'company_id' => [
                 'required', 'integer',
-                Rule::exists('company_user', 'company_id')->where('user_id', $request->user()->id),
+                Rule::exists('company_user', 'company_id')->where('user_id', $request->user()->id)->whereNull('suspended_at'),
             ],
         ]);
         $oldCompanyId = (int) $request->session()->get('active_company_id');

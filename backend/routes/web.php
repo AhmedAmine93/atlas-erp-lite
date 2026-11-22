@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\AdministrationSecurityController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\DashboardController;
@@ -171,11 +172,27 @@ Route::prefix('api')->group(function () {
         Route::get('establishments', [OrganizationController::class, 'establishments']);
         Route::post('establishments', [OrganizationController::class, 'saveEstablishment']);
         Route::put('establishments/{id}', [OrganizationController::class, 'saveEstablishment'])->whereNumber('id');
+        // M17 Administration: company context and Gate checks are mandatory.
+        Route::get('admin/roles', [AdministrationSecurityController::class, 'roleCatalog']);
+        Route::get('admin/memberships', [AdministrationSecurityController::class, 'memberships']);
+        Route::post('admin/memberships/{userId}/suspend', [AdministrationSecurityController::class, 'suspend'])->whereNumber('userId');
+        Route::post('admin/memberships/{userId}/reactivate', [AdministrationSecurityController::class, 'reactivate'])->whereNumber('userId');
+        Route::get('admin/settings', [AdministrationSecurityController::class, 'settings']);
+        Route::post('admin/settings', [AdministrationSecurityController::class, 'publishSetting']);
+        Route::get('admin/series', [AdministrationSecurityController::class, 'series']);
+        Route::post('admin/series', [AdministrationSecurityController::class, 'createSeries']);
+        Route::post('admin/series/{seriesId}/allocate', [AdministrationSecurityController::class, 'allocate'])->whereNumber('seriesId');
+        Route::get('admin/allocations', [AdministrationSecurityController::class, 'allocations']);
+        Route::get('admin/sessions', [AdministrationSecurityController::class, 'sessions']);
+        Route::delete('admin/sessions/{sessionId}', [AdministrationSecurityController::class, 'revokeSession']);
+        Route::get('admin/invitations', [AdministrationSecurityController::class, 'invitations']);
+        Route::post('admin/invitations', [AdministrationSecurityController::class, 'createInvitation']);
         Route::get('users', [AdminController::class, 'users']);
         Route::get('roles', [AdminController::class, 'roles']);
         Route::post('users', [AdminController::class, 'save']);
         Route::put('users/{id}', [AdminController::class, 'save'])->whereNumber('id');
         Route::delete('users/{id}', [AdminController::class, 'destroy'])->whereNumber('id');
         Route::get('audit-logs',[AdminController::class, 'audit']);
+        Route::get('audit-logs/export',[AdminController::class, 'auditExport']);
     });
 });

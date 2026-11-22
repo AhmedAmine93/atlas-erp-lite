@@ -261,11 +261,11 @@ export const navigationSections: NavigationSection[] = [
     items: [
       { id: "users", label: "Utilisateurs", ready: true },
       { id: "audit-logs", label: "Journal d’activité", ready: true },
-      { id: "admin-roles", label: "Rôles et permissions" },
+      { id: "admin-roles", label: "Rôles et permissions", ready: true },
       { id: "admin-companies", label: "Entreprises et établissements", ready: true },
-      { id: "admin-settings", label: "Paramètres de l’entreprise" },
-      { id: "admin-documents", label: "Numérotation des documents" },
-      { id: "admin-security", label: "Sécurité et sessions" },
+      { id: "admin-settings", label: "Paramètres de l’entreprise", ready: true },
+      { id: "admin-documents", label: "Numérotation des documents", ready: true },
+      { id: "admin-security", label: "Sécurité et sessions", ready: true },
     ],
   },
   {

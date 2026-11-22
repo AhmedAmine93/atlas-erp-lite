@@ -19,13 +19,13 @@ class ResolveTenant
         $requested = $request->session()->get('active_company_id');
         if ($requested !== null) {
             abort_unless(
-                $user->companies()->whereKey((int) $requested)->exists(),
+                $user->companies()->whereKey((int) $requested)->wherePivotNull('suspended_at')->exists(),
                 403,
                 'Vous n’avez pas accès à cette entreprise.',
             );
             $companyId = (int) $requested;
         } else {
-            $companyId = $user->companies()->orderBy('companies.id')->value('companies.id');
+            $companyId = $user->companies()->wherePivotNull('suspended_at')->orderBy('companies.id')->value('companies.id');
             abort_unless($companyId, 403, 'Aucune entreprise autorisée.');
             $request->session()->put('active_company_id', (int) $companyId);
         }

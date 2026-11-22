@@ -19,7 +19,7 @@ class AuthController extends Controller
             throw ValidationException::withMessages(['email' => 'Identifiants incorrects.']);
         }
         $request->session()->regenerate();
-        $firstCompany = $request->user()->companies()->orderBy('companies.id')->value('companies.id');
+        $firstCompany = $request->user()->companies()->wherePivotNull('suspended_at')->orderBy('companies.id')->value('companies.id');
         if (! $firstCompany) {
             Auth::logout();
             throw ValidationException::withMessages(['email' => 'Aucune entreprise autorisée pour ce compte.']);

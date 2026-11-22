@@ -41,6 +41,9 @@ import { api, send, all, fetchTenantBlob, setVerifiedCompanyContext, resetTenant
 import { nav, navigationSections, type View } from "@/lib/navigation";
 import { canEditWorkspaceView, canOpenWorkspaceView, parseWorkspacePath, workspaceHref, type WorkspaceRoute } from "@/lib/workspaceRoutes";
 import OrganizationWorkspace from "@/components/OrganizationWorkspace";
+import AdministrationWorkspace, { adminViews } from "@/components/AdministrationWorkspace";
+import AdminMembersWorkspace from "@/components/AdminMembersWorkspace";
+import AdminAuditWorkspace from "@/components/AdminAuditWorkspace";
 import DomainWorkspace, { domainViews } from "@/components/DomainWorkspace";
 import PilotageWorkspace from "@/components/PilotageWorkspace";
 import HotelHousekeepingWorkspace from "@/components/HotelHousekeepingWorkspace";
@@ -521,6 +524,11 @@ export default function Workspace() {
                 "audit-logs",
                 "invoices",
                 "admin-companies",
+                "admin-roles",
+                "admin-settings",
+                "admin-documents",
+                "admin-security",
+                "users",
                 "support-incidents",
               ].includes(view) && !domainViews.has(view) && (
                 <button
@@ -580,6 +588,12 @@ export default function Workspace() {
             <HotelHousekeepingWorkspace key={"hotel-housekeeping-"+user.active_company_id} activeCompanyId={user.active_company_id ?? null} />
           ) : domainViews.has(view) ? (
             <DomainWorkspace key={view+"-"+user.active_company_id} view={view} activeCompanyId={user.active_company_id ?? null} />
+          ) : view === "audit-logs" ? (
+            <AdminAuditWorkspace key={"audit-"+user.active_company_id} activeCompanyId={user.active_company_id ?? null}/>
+          ) : view === "users" ? (
+            <AdminMembersWorkspace key={"users-"+user.active_company_id} activeCompanyId={user.active_company_id ?? null}/>
+          ) : adminViews.includes(view) ? (
+            <AdministrationWorkspace key={view+"-"+user.active_company_id} view={view} activeCompanyId={user.active_company_id ?? null} />
           ) : view === "admin-companies" ? (
             <OrganizationWorkspace
               activeCompanyId={user.active_company_id ?? null}
