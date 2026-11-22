@@ -277,6 +277,7 @@ final class ProcurementController extends Controller
             'reference'=>'required|string|max:80','supplier_quote_id'=>'required|integer|min:1',
             'lines'=>'required|array|min:1|max:100','lines.*.product_id'=>'nullable|integer|min:1',
             'lines.*.description'=>'required|string|max:255',
+            'lines.*.line_type'=>'sometimes|in:goods,service',
             'lines.*.quantity'=>'required|integer|min:1|max:1000000',
             'lines.*.unit_price_cents'=>'required|integer|min:0|max:100000000',
             'lines.*.vat_bps'=>'sometimes|integer|min:0|max:10000',
@@ -289,7 +290,11 @@ final class ProcurementController extends Controller
             $this->ensureSupplier($quote->supplier_id);
             abort_if(DB::table('purchase_orders')->where('company_id',$this->company())
                 ->where('purchase_request_id',$purchase->id)->exists(),409,'Commande déjà créée pour cette demande.');
-            foreach ($data['lines'] as $line) if (!empty($line['product_id'])) $this->row('products',$line['product_id']);
+            foreach ($data['lines'] as $line) {
+                abort_if(($line['line_type']??'goods')==='service' && !empty($line['product_id']),
+                    422,'Une prestation ne peut référencer un produit stockable.');
+                if(!empty($line['product_id'])) $this->row('products',$line['product_id']);
+            }
             $total=$this->orderTotal($data['lines']);
             abort_unless($total===(int)$quote->total_cents,422,'Lignes et offre attribuée ne concordent pas.');
             $id=DB::table('purchase_orders')->insertGetId([
@@ -302,6 +307,7 @@ final class ProcurementController extends Controller
             foreach ($data['lines'] as $line) DB::table('purchase_order_lines')->insert([
                 'company_id'=>$this->company(),'purchase_order_id'=>$id,
                 'product_id'=>$line['product_id']??null,'description'=>$line['description'],
+                'line_type'=>$line['line_type']??'goods',
                 'quantity'=>$line['quantity'],'received_quantity'=>0,
                 'unit_price_cents'=>$line['unit_price_cents'],'vat_bps'=>$line['vat_bps']??0,
                 'created_at'=>now(),'updated_at'=>now(),
@@ -377,6 +383,7 @@ final class ProcurementController extends Controller
                     422,'Quantités reçues, acceptées et rejetées incohérentes.');
                 $parent=$this->row('purchase_order_lines',$line['purchase_order_line_id'],true);
                 abort_unless((int)$parent->purchase_order_id===(int)$order->id,422,'Ligne étrangère à la commande.');
+                abort_unless($parent->line_type==='goods',422,'Une prestation nécessite une attestation de service fait.');
                 abort_if($parent->received_quantity+$line['received_quantity']>$parent->quantity,409,'Dépassement de quantité commandée.');
             }
             $id=DB::table('purchase_receipts')->insertGetId([
