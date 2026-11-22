@@ -26,11 +26,11 @@ test("P06: refreshed dashboard and modular navigation preserve real routes", asy
   // M01 direction is now an authorized real route; untouched future modules
   // (such as CRM Prospects) remain hidden and non-navigable.
   await expect(page.getByRole("button", { name: "Tableau de bord direction" })).toBeEnabled();
-  await expect(page.getByRole("button", { name: "Prospects", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Pipelines ETL", exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "Voir les modules prévus" }).click();
-  await expect(page.getByRole("button", { name: "Prospects", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Pipelines ETL", exact: true })).toBeDisabled();
   await page.getByRole("button", { name: "Masquer les modules prévus" }).click();
-  await expect(page.getByRole("button", { name: "Prospects", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Pipelines ETL", exact: true })).toHaveCount(0);
 
   // Quick actions use the original routes and permissions, never mock API data.
   await page.getByRole("region", { name: "Accès rapides" })
