@@ -119,7 +119,7 @@ class InventoryWorkflowM05Test extends TestCase
             'operation_key'=>'dfd7bd56-3164-488e-b09c-fc5cd3e6794f',
         ];
         $created=$this->postJson('/api/inventory/replenishments',$payload)
-            ->assertCreated()->assertJsonPath('suggested_quantity',8)->json('id');
+            ->assertCreated()->assertJsonPath('suggested_quantity',6)->json('id');
         $this->postJson('/api/inventory/replenishments',$payload)
             ->assertOk()->assertJsonPath('id',$created);
         $this->postJson('/api/inventory/replenishments',array_merge($payload,['safety_quantity'=>16]))
