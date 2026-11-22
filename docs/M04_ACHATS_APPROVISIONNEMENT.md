@@ -1,70 +1,66 @@
-# ATLAS ONE M04 — Achats & Approvisionnement
+# ATLAS ONE — M04 Achats & Approvisionnement
 
-Branche : \`feature/m04-achats-approvisionnement\` — PR #83 vers \`dev\`.
+**Statut :** implémentation complète des parcours principaux, recette globale non validée.  
+**Branche :** `feature/m04-achats-approvisionnement` · **PR métier :** #83 vers `dev` (brouillon).  
+**Sources de vérité :** `M04_achats-approvisionnement.md` V5.1, `M04_REGLES_METIER_achats-approvisionnement.md` V5.2.
 
-## Sources métier
+## Six sous-menus
 
-- Pack V5.1 : \`M04_achats-approvisionnement.md\` (M04.01 à M04.06).
-- Pack V5.2 : \`M04_REGLES_METIER_achats-approvisionnement.md\`.
-- Règles transverses : authentification, séparation par entreprise, preuve de validation, audit, idempotence.
+| Menu | Navigation | API / processus |
+| --- | --- | --- |
+| M04.01 Fournisseurs | `suppliers` | Registre, identité fiscale, blocage/archive, IBAN chiffré et validation indépendante |
+| M04.02 Demandes d'achat | `purchase-requests` | Lignes historisées, révisions, approbation à quatre yeux, délégations configurables par devise et plafond |
+| M04.03 Consultations | `supplier-quotes` | Offres avec coûts annexes, comparaison TTC et délai, expiration, attribution/re-arbitrage et historique |
+| M04.04 Commandes | `purchase-orders` | Prix figé depuis l'offre, lignes biens/services, envoi/confirmation, avenants approuvés et journal d'engagements |
+| M04.05 Réceptions | `purchase-receipts` | Réception partielle, acceptation/rejet qualité, stock accepté uniquement, prestations signées et rejeu idempotent |
+| M04.06 Factures fournisseurs | `supplier-invoices` | Détection doublons, rapprochement 3 pièces, litiges, avoirs, re-rapprochement et bon à payer à quatre yeux |
 
-## Correspondance écrans / API
+## Sécurité et intégrité
 
-| Écran | API | Parcours |
-|---|---|---|
-| \`suppliers\` | \`/api/suppliers\`, \`/api/purchasing/suppliers\` | Création, archive, blocage, IBAN en demande + décision indépendante |
-| \`purchase-requests\` | \`/api/purchasing/requests\` + \`/{id}/lines\`, \`/{id}/history\` | Brouillon, soumission, refus, validation à quatre yeux, révision |
-| \`supplier-quotes\` | \`/api/purchasing/quotes\`, \`/{id}/award\` | Offre documentée et attribution motivée |
-| \`purchase-orders\` | \`/api/purchasing/orders\`, \`/{id}/lines\`, \`/{id}/transition\` | Création depuis offre attribuée, envoi, confirmation, annulation du reliquat |
-| \`purchase-receipts\` | \`/api/purchasing/receipts\`, \`/{id}/lines\` | Réception partielle, acceptation et rejet, stock des acceptés uniquement |
-| \`supplier-invoices\` | \`/api/purchasing/invoices\`, \`/{id}/credits\` | Numéro normalisé, rapprochement 3 voies et avoirs |
+Les routes sont sous `auth:sanctum`, limitation de débit et middleware de tenant actif.
+Les nouvelles routes sont réservées aux administrateurs du tenant. Les plafonds d'approbation s'appliquent dès qu'une délégation est configurée pour la devise ; sans délégation, la compatibilité historique autorise la procédure admin à quatre yeux. L'auteur ne peut ni approuver sa propre demande, ni s'accorder un plafond.
 
-## Invariants techniques
+La base conserve des relations composites `(company_id,id)`, des contraintes PostgreSQL CHECK et des politiques RLS pour `atlas_app_runtime`. Les montants sont exprimés en centimes, sans calcul monétaire en flottants. Les transitions complexes utilisent les transactions et verrous de ligne. Les IBAN sont vérifiés modulo 97 et chiffrés en stockage. Une modification bancaire en attente bloque l'autorisation de paiement.
 
-- Les API sont dans le groupe \`auth:sanctum + tenant + throttle\`; rôle admin de la société active requis pour les nouvelles opérations.
-- Le champ \`company_id\` est toujours dérivé de la session, jamais d'un POST.
-- Relations tenant composites \`(company_id, id)\` imposées sous PostgreSQL.
-- Tables nouvelles protégées par PostgreSQL RLS pour \`atlas_app_runtime\`. Ce compte ne possède pas de DDL; les historiques sensibles n'autorisent pas DELETE.
-- Les montants sont exprimés en centimes entiers; quantités positives et CHECK SQL pour réceptions.
-- Opérations transactionnelles avec \`SELECT ... FOR UPDATE\`; références uniques par société.
-- Une réception rejouée avec la même référence et le même payload renvoie la réception existante; un payload différent est refusé.
-- Un IBAN est chiffré en base; seule la fin masquée est retournée à la vue. La personne ayant demandé le changement ne peut pas l'approuver.
-- Le rapprochement facture calcule un montant couvert par les quantités acceptées, puis un reste litigieux; aucune API d'émission de paiement automatique.
+Le bon à payer signifie **autorisation interne** ; aucun appel de virement bancaire n'est effectué. Les exports CSV sont bornés, limités au tenant, audités et neutralisent les préfixes de formules de tableur.
 
-## Scénario de recette fictif
+## Recette fictive
 
-1. Deux administrateurs habilités de la même entreprise existent.
-2. L'utilisateur A crée puis soumet une demande. Il ne peut pas s'approuver.
-3. L'utilisateur B approuve, reçoit une offre de 10 unités à 20 EUR, et motive l'attribution.
-4. Une commande de 200 EUR est envoyée; 8 unités sont acceptées, 2 restent non réceptionnées.
-5. Une facture fournisseur de 200 EUR est enregistrée : 160 EUR rapprochés, 40 EUR litigieux, statut \`disputed\`.
-6. Une réception identique rejouée ne crée ni un second bon ni un mouvement supplémentaire.
-7. Un autre tenant et un rôle lecteur sont refusés sur les endpoints de mutation et les données étrangères.
-8. Le changement bancaire exige un second utilisateur.
+1. Un demandeur crée une demande de 1 001 EUR. Le tenant configure un plafond de 1 000 EUR pour un approbateur et 2 000 EUR pour un second.
+2. L'auto-approbation et l'approbation au-dessus du plafond doivent être refusées. Un valideur distinct disposant de 2 000 EUR peut approuver.
+3. L'acheteur compare plusieurs offres puis attribue une offre valable. Un nouvel arbitrage avant commande est conservé dans l'historique.
+4. Une commande de 10 articles à 20 EUR est envoyée. Une réception accepte huit articles. Une facture de 200 EUR ne rapproche que 160 EUR ; les 40 EUR restants sont litigieux.
+5. Le rejeu du même bon de réception ne crée pas de seconde écriture. Des réceptions complémentaires ou une attestation de service fait permettent un nouveau rapprochement.
+6. Un bon à payer n'est autorisable qu'après contrôles, en l'absence de modification bancaire en attente. Une autre personne que l'enregistreur de la facture prend la décision.
 
-Les tests d'automatisation reprennent ces invariants dans \`ProcurementM04Test.php\` et \`purchasing-m04.spec.ts\`.
+## Tests et vérification
 
-## Vérifications avant fusion
+Tests présents :
+- `backend/tests/Feature/ProcurementM04Test.php`
+- `backend/tests/Feature/ProcurementM04CompletionTest.php`
+- `backend/tests/Feature/PurchaseLifecycleTest.php`
+- `backend/tests/Feature/PurchaseRevisionTest.php`
+- `frontend/tests/purchasing-m04.spec.ts`
 
-Depuis une copie propre du dépôt :
+Dernière CI réellement exécutée avant les derniers correctifs : 115 tests backend réussis ; 15/16 tests navigateur réussis. L'unique échec navigateur identifié portait sur un sélecteur de champ dans le test fournisseur ; le test a été modifié. **Les changements ultérieurs n'ont pas encore été validés par une CI au SHA final.** Le test navigateur ne prouve pas encore le parcours E2E complet des six sous-menus.
 
-\`\`\`bash
+```bash
 cd backend
 php artisan migrate --force
-php artisan test --filter=ProcurementM04Test
+php artisan test --filter=ProcurementM04
 php artisan test --filter=Purchase
 php artisan test
 cd ../frontend
 npm ci
 npm run typecheck
 npm run build
-DEMO_PASSWORD='<mot de passe du compte de démonstration>' npm run test:e2e -- purchasing-m04.spec.ts
-\`\`\`
+DEMO_PASSWORD='<mot-de-passe-test>' npm run test:e2e -- purchasing-m04.spec.ts
+```
 
-Exécuter le scénario sur PostgreSQL et sur une instance de staging isolée, puis faire relire les migrations, les permissions runtime, les journaux de preuve et le plan de restauration.
+Exécuter sur PostgreSQL et staging, puis joindre les journaux, les captures et le résultat de la procédure de restauration à la PR #83.
 
-## Limitations et décisions métier restantes
+## Décisions et limites nécessitant une recette métier
 
-Les propositions V5.1/V5.2 demandent des paramètres métiers qui ne sont pas établis dans les archives : seuils de délégation, tolérances d'écarts, cycle de service fait, calcul budgétaire, calendrier, comptabilité multi-devises et profils acheteur/valideur/comptable indépendants. Le code refuse le changement implicite de devise, le dépassement des quantités et le paiement automatique, mais ne constitue PAS une validation de ces processus.
+Les documents V5.1/V5.2 incluent des propositions **P** à arbitrer : contrôle de fractionnement, tolérances de réception et de rapprochement, hiérarchie exacte de délégation, établissement/site, clôture des litiges et notifications. Le suivi des engagements existe mais **aucune vérification d'enveloppe comptable externe** n'est intégrée. Les devises différentes ne sont pas converties automatiquement sans taux validés. Pas de signature électronique qualifiée, de connecteur bancaire actif ni de synchronisation comptable tierce.
 
-L'annulation de reliquat ne calcule pas encore une libération budgétaire comptable, l'offre attribuée n'a pas de workflow de ré-arbitrage, les avenants de commande et la signature du service fait restent à concevoir. Les paiements externes, ERP tiers et connecteurs bancaires ne sont pas intégrés. Ne pas considérer les pages navigables ou la PR ouverte comme une recette complète du domaine.
+Les écrans sont implémentés et activés dans la branche ; cela ne remplace **ni CI verte au SHA courant, ni validation métier, ni test de restauration**. La PR reste brouillon et ne doit pas être fusionnée automatiquement.
