@@ -149,7 +149,7 @@ final class ProcurementController extends Controller
         $this->authorizePurchasing();
         $this->row('purchase_requests',$id);
         return DB::table('purchase_request_lines')->where('company_id',$this->company())
-            ->where('purchase_request_id',$id)->orderBy('id')->paginate(100);
+            ->where('purchase_request_id',$id)->where('active',true)->orderBy('id')->paginate(100);
     }
 
     public function replaceRequestLines(Request $request, int $id)
@@ -166,10 +166,10 @@ final class ProcurementController extends Controller
             abort_unless(in_array($purchase->status,['draft','submitted','rejected'],true),409,'Demande approuvée verrouillée.');
             abort_unless((int)$purchase->requested_by===(int)$request->user()->id,403,'Seul le demandeur peut réviser.');
             $total=$this->orderTotal($data['lines']);
-            DB::table('purchase_request_lines')->where('company_id',$this->company())->where('purchase_request_id',$id)->delete();
+            DB::table('purchase_request_lines')->where('company_id',$this->company())->where('purchase_request_id',$id)->update(['active'=>false,'updated_at'=>now()]);
             foreach ($data['lines'] as $line) DB::table('purchase_request_lines')->insert([
                 'company_id'=>$this->company(),'purchase_request_id'=>$id,'description'=>$line['description'],
-                'quantity'=>$line['quantity'],'unit_price_cents'=>$line['unit_price_cents'],
+                'quantity'=>$line['quantity'],'active'=>true,'unit_price_cents'=>$line['unit_price_cents'],
                 'vat_bps'=>$line['vat_bps']??0,'created_at'=>now(),'updated_at'=>now(),
             ]);
             $revision=(int)$purchase->revision+1;
