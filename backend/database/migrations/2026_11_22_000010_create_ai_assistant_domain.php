@@ -39,6 +39,9 @@ return new class extends Migration {
             $t->unique(['company_id', 'code']);
             $t->foreign(['company_id', 'model_id'])->references(['company_id', 'id'])->on('ai_models')->restrictOnDelete();
         });
+        Schema::table('establishments', function (Blueprint $t) {
+            $t->unique(['company_id', 'id'], 'ai_establishment_company_unique');
+        });
         Schema::create('ai_documents', function (Blueprint $t) {
             $t->id(); $t->foreignId('company_id')->constrained('companies')->restrictOnDelete();
             $t->unsignedBigInteger('establishment_id')->nullable();
@@ -139,5 +142,8 @@ return new class extends Migration {
             }
             Schema::dropIfExists($table);
         }
+        Schema::table('establishments', function (Blueprint $t) {
+            $t->dropUnique('ai_establishment_company_unique');
+        });
     }
 };
