@@ -91,6 +91,7 @@ return new class extends Migration {
             $t->foreignId('purchase_order_id')->constrained('purchase_orders')->restrictOnDelete();
             $t->foreignId('product_id')->nullable()->constrained('products')->restrictOnDelete();
             $t->string('description', 255); $t->unsignedInteger('quantity');
+            $t->string('line_type',16)->default('goods');
             $t->unsignedInteger('received_quantity')->default(0);
             $t->unsignedBigInteger('unit_price_cents'); $t->unsignedInteger('vat_bps')->default(0);
             $t->timestamps(); $t->index(['company_id','purchase_order_id']);
@@ -168,6 +169,7 @@ return new class extends Migration {
         DB::statement("ALTER TABLE suppliers ADD CONSTRAINT m04_supplier_status_check CHECK (procurement_status IN ('active','blocked','archived'))");
         DB::statement("ALTER TABLE purchase_receipt_lines ADD CONSTRAINT m04_receipt_qty_check CHECK (received_quantity > 0 AND accepted_quantity + rejected_quantity = received_quantity)");
         DB::statement("ALTER TABLE purchase_order_lines ADD CONSTRAINT m04_order_qty_check CHECK (quantity > 0 AND received_quantity <= quantity AND vat_bps <= 10000)");
+        DB::statement("ALTER TABLE purchase_order_lines ADD CONSTRAINT m04_order_line_type_check CHECK(line_type IN ('goods','service'))");
         DB::statement("ALTER TABLE purchase_request_lines ADD CONSTRAINT m04_request_qty_check CHECK (quantity > 0 AND vat_bps <= 10000)");
         DB::statement("ALTER TABLE supplier_invoices ADD CONSTRAINT m04_invoice_amount_check CHECK (matched_cents + dispute_cents = total_cents)");
         DB::statement("CREATE UNIQUE INDEX m04_one_quote_winner ON supplier_quotes (company_id,purchase_request_id) WHERE status='awarded'");
