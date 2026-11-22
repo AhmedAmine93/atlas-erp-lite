@@ -69,7 +69,7 @@ test("M03 : devis révisé, commande réservée, livraison, retour et avoir", as
   const note=await post(`sales-v5/returns/${ret.id}/credit`,{});
   expect(note.total_cents).toBe(6000);
   await page.getByRole("button",{name:"Bons de livraison",exact:true}).click();
-  await expect(page.getByRole("heading",{name:"Bons de livraison"})).toBeVisible();
+  await expect(page.getByRole("heading",{name:"Bons de livraison",level:2})).toBeVisible();
   await page.getByRole("button",{name:"Retours clients",exact:true}).click();
   await expect(page.getByRole("heading",{name:"Retours clients et contrôle qualité"})).toBeVisible();
 });
@@ -109,7 +109,7 @@ test("M03 : contrats, tarifs et droits de navigation", async ({ page }) => {
     starts_on:start,ends_on:end});
   await post(`sales-v5/pricing/${price.id}/publish`,{});
   await page.getByRole("button",{name:"Contrats commerciaux",exact:true}).click();
-  await expect(page.getByRole("heading",{name:"Contrats commerciaux"})).toBeVisible();
+  await expect(page.getByRole("heading",{name:"Contrats commerciaux",level:2})).toBeVisible();
   await page.getByRole("button",{name:"Tarifs et remises",exact:true}).click();
-  await expect(page.getByRole("heading",{name:"Tarifs et remises"})).toBeVisible();
+  await expect(page.getByRole("heading",{name:"Tarifs et remises",level:2})).toBeVisible();
 });
