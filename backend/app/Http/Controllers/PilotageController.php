@@ -165,7 +165,7 @@ final class PilotageController extends Controller
                 'orders_created' => (clone $orders)->count(),
                 'orders_validated' => (clone $orders)->where('status', 'validated')->count(),
                 'invoices_issued' => (clone $issued)->count(),
-                'invoices_ht_cents' => (clone $issued)->sum('subtotal_cents'),
+                'invoices_ht_cents' => (int) (clone $issued)->sum('subtotal_cents'),
             ]);
             $rows = (clone $orders)->select('id','number','status','subtotal_cents','total_cents','created_at')
                 ->latest('id')->limit(50)->get()->toArray();
@@ -174,10 +174,10 @@ final class PilotageController extends Controller
         } elseif ($section === 'finance') {
             $invoices = $this->invoiceQuery($from, $to);
             $cards = $this->cards([
-                'issued_ht_cents' => (clone $invoices)->whereIn('status', ['issued','paid'])->sum('subtotal_cents'),
-                'issued_ttc_cents' => (clone $invoices)->whereIn('status', ['issued','paid'])->sum('total_cents'),
-                'unpaid_ttc_cents' => (clone $invoices)->where('status','issued')->sum('total_cents'),
-                'paid_ttc_cents' => (clone $invoices)->where('status','paid')->sum('total_cents'),
+                'issued_ht_cents' => (int) (clone $invoices)->whereIn('status', ['issued','paid'])->sum('subtotal_cents'),
+                'issued_ttc_cents' => (int) (clone $invoices)->whereIn('status', ['issued','paid'])->sum('total_cents'),
+                'unpaid_ttc_cents' => (int) (clone $invoices)->where('status','issued')->sum('total_cents'),
+                'paid_ttc_cents' => (int) (clone $invoices)->where('status','paid')->sum('total_cents'),
                 'cancelled_count' => (clone $invoices)->where('status','cancelled')->count(),
             ]);
             $rows = (clone $invoices)->select('id','number','status','total_cents','issued_at','paid_at')
