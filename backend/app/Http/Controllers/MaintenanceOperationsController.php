@@ -304,16 +304,32 @@ final class MaintenanceOperationsController extends Controller
 
     public function release(Request $request,int $id): JsonResponse
     {
-        $data=$request->validate(['quantity'=>'required|integer|between:1,1000000','reason'=>'required|string|min:8|max:500']);
-        return DB::transaction(function () use ($id,$data) {
+        $data=$this->key($request,[
+            'quantity'=>'required|integer|between:1,1000000',
+            'reason'=>'required|string|min:8|max:500',
+        ]);
+        return DB::transaction(function () use ($request,$id,$data) {
             $reservation=$this->rows('maintenance_spare_reservations')->where('id',$id)->lockForUpdate()->first();
             abort_unless($reservation,404);
+            $previous=$this->rows('maintenance_spare_releases')
+                ->where('operation_key',$data['operation_key'])->first();
+            if ($previous) {
+                abort_unless((int)$previous->reservation_id === $id
+                    && (int)$previous->quantity === (int)$data['quantity']
+                    && $previous->reason === $data['reason'],409,'Clé déjà utilisée avec un contenu différent.');
+                return response()->json($previous);
+            }
             $remaining=$reservation->reserved_quantity-$reservation->consumed_quantity-$reservation->released_quantity;
             abort_if($data['quantity']>$remaining,409,'Libération excessive.');
+            $release=$this->insert('maintenance_spare_releases',[
+                'reservation_id'=>$id,'quantity'=>$data['quantity'],
+                'reason'=>$data['reason'],'operation_key'=>$data['operation_key'],
+                'released_by'=>$request->user()->id,
+            ]);
             $this->rows('maintenance_spare_reservations')->where('id',$id)
                 ->update(['released_quantity'=>$reservation->released_quantity+$data['quantity'],'updated_at'=>now()]);
-            Audit::record('maintenance.spare.released',null,['reservation_id'=>$id,'reason'=>$data['reason']]);
-            return response()->json($this->row('maintenance_spare_reservations',$id));
+            Audit::record('maintenance.spare.released',null,['reservation_id'=>$id,'release_id'=>$release->id]);
+            return response()->json($release,201);
         },3);
     }
 
