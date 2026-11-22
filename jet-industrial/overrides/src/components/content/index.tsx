@@ -2,13 +2,14 @@ import { h } from "preact";
 import { useEffect, useMemo, useState } from "preact/hooks";
 import "ojs/ojbutton";
 import { PlanningWorkspace, TeamWorkspace, ReportWorkspace } from "./planning";
+import { PreventiveWorkspace, type PreventivePlan, type PreventiveOccurrence } from "./preventive";
 import {
   api,fetchPages,post,resetSession,setSession,
   type Site,type Asset,type Intervention,type WorkOrder,type SessionProfile,
   type MaintenanceTeam,type MaintenanceTechnician,type MaintenanceSlot,type MaintenanceReport
 } from "./atlas-api";
 
-type Tab="overview"|"assets"|"requests"|"orders"|"teams"|"planning"|"reports";
+type Tab="overview"|"assets"|"requests"|"orders"|"teams"|"planning"|"reports"|"preventive";
 const priorities=["low","normal","high","critical"] as const;
 const statusLabels:Record<string,string>={
  new:"Nouvelle",qualified:"Qualifiée",open:"Ouvert",in_progress:"En cours",
@@ -31,6 +32,8 @@ export function Content(){
  const [technicians,setTechnicians]=useState<MaintenanceTechnician[]>([]);
  const [slots,setSlots]=useState<MaintenanceSlot[]>([]);
  const [report,setReport]=useState<MaintenanceReport|null>(null);
+ const [plans,setPlans]=useState<PreventivePlan[]>([]);
+ const [occurrences,setOccurrences]=useState<PreventiveOccurrence[]>([]);
  const [busy,setBusy]=useState(false);
  const [loading,setLoading]=useState(true);
  const [error,setError]=useState("");
@@ -57,7 +60,7 @@ export function Content(){
    const p=await api<SessionProfile>("me");
    if(p.role.name!=="admin"){resetSession();throw Error("Ce poste GMAO requiert actuellement le rôle administrateur de la société.");}
    setSession(p);
-   const [s,a,r,o,t,tech,planning,summary]=await Promise.all([
+   const [s,a,r,o,t,tech,planning,summary,plans,nextOccurrences]=await Promise.all([
     fetchPages<Site>("maintenance/sites"),
     fetchPages<Asset>("maintenance/assets"),
     fetchPages<Intervention>("maintenance/requests"),
@@ -65,13 +68,17 @@ export function Content(){
     fetchPages<MaintenanceTeam>("maintenance/teams"),
     fetchPages<MaintenanceTechnician>("maintenance/technicians"),
     fetchPages<MaintenanceSlot>("maintenance/planning"),
-    api<MaintenanceReport>("maintenance/reports/summary")
+    api<MaintenanceReport>("maintenance/reports/summary"),
+    fetchPages<PreventivePlan>("maintenance/preventive/plans"),
+    fetchPages<PreventiveOccurrence>("maintenance/preventive/occurrences")
    ]);
    setProfile(p);setSites(s);setAssets(a);setRequests(r);setOrders(o);
    setTeams(t);setTechnicians(tech);setSlots(planning);setReport(summary);
+   setPlans(plans);setOccurrences(nextOccurrences);
   }catch(e){
    setProfile(null);setSites([]);setAssets([]);setRequests([]);setOrders([]);
    setTeams([]);setTechnicians([]);setSlots([]);setReport(null);
+   setPlans([]);setOccurrences([]);
    setError(localizedError(e));
   }finally{setLoading(false);}
  }
@@ -135,7 +142,8 @@ export function Content(){
     {([
      ["overview","Vue d’ensemble"],["assets","Sites et équipements"],
      ["requests","Demandes d’intervention"],["orders","Bons de travail"],
-     ["teams","Techniciens & équipes"],["planning","Planning technique"],["reports","Rapports GMAO"]
+     ["teams","Techniciens & équipes"],["planning","Planning technique"],
+     ["preventive","Maintenance préventive"],["reports","Rapports GMAO"]
     ] as [Tab,string][]).map(([id,name])=>
      <button type="button" key={id} class={tab===id?"active":""} aria-current={tab===id?"page":undefined}
       onClick={()=>setTab(id)}>{name}</button>
@@ -150,7 +158,8 @@ export function Content(){
      <div><span class="atlas-jet-overline">MAINTENANCE · WORKSPACE</span>
       <h1>{tab==="overview"?"Pilotage industriel":tab==="assets"?"Parc technique":
        tab==="requests"?"Demandes d’intervention":tab==="orders"?"Bons de travail":
-       tab==="teams"?"Équipes et techniciens":tab==="planning"?"Planning technique":"Rapports industriels"}</h1>
+       tab==="teams"?"Équipes et techniciens":tab==="planning"?"Planning technique":
+       tab==="preventive"?"Maintenance préventive":"Rapports industriels"}</h1>
       <p>Opérations réelles via les API métier ATLAS ONE, sans écriture directe dans PostgreSQL.</p></div>
      <div class="atlas-jet-actions">
       {canWrite&&tab==="assets"&&<><oj-button onojAction={()=>setOpenForm("site")}>+ Site</oj-button>
@@ -203,6 +212,7 @@ export function Content(){
      {tab==="teams"&&<TeamWorkspace teams={teams} technicians={technicians} busy={busy} execute={execute}/>}
      {tab==="planning"&&<PlanningWorkspace slots={slots} technicians={technicians} orders={orders} busy={busy} execute={execute}/>}
      {tab==="reports"&&<ReportWorkspace report={report}/>}
+     {tab==="preventive"&&<PreventiveWorkspace plans={plans} occurrences={occurrences} assets={assets} busy={busy} execute={execute}/>}
      {tab==="orders"&&<div class="atlas-jet-card"><h2>Bons de travail (BT)</h2>
        <div class="atlas-jet-scroll"><table><thead><tr><th>BT</th><th>DI</th><th>Équipement</th><th>Priorité</th><th>État</th><th>Action</th></tr></thead>
        <tbody>{orders.map(o=><tr key={o.id}><td>BT-{o.id}</td><td>DI-{o.maintenance_request_id}</td>
