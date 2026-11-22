@@ -219,7 +219,9 @@ final class MaintenanceOperationsController extends Controller
             $order=MaintenanceWorkOrder::query()->lockForUpdate()->findOrFail($id);
             $previous=$this->rows('maintenance_work_order_time_entries')->where('operation_key',$data['operation_key'])->first();
             if ($previous) {
-                abort_unless((int)$previous->work_order_id === $id,409,'Clé utilisée pour un autre BT.');
+                abort_unless((int)$previous->work_order_id === $id
+                    && (int)$previous->minutes === (int)$data['minutes']
+                    && (int)$previous->hourly_rate_cents === (int)$data['hourly_rate_cents'],409,'Clé déjà utilisée avec un contenu différent.');
                 return response()->json($previous);
             }
             abort_unless($order->status === 'in_progress',409,'BT non démarré.');
@@ -249,14 +251,15 @@ final class MaintenanceOperationsController extends Controller
             $previous=$this->rows('maintenance_spare_reservations')->where('operation_key',$data['operation_key'])->first();
             if ($previous) {
                 abort_unless((int)$previous->work_order_id === $id
-                    && (int)$previous->product_id === (int)$data['product_id'],409,'Clé déjà utilisée.');
+                    && (int)$previous->product_id === (int)$data['product_id']
+                    && (int)$previous->reserved_quantity === (int)$data['quantity'],409,'Clé déjà utilisée avec un contenu différent.');
                 return response()->json($previous);
             }
             abort_if($order->status === 'completed',409,'BT clos.');
             $product=Product::query()->lockForUpdate()->findOrFail($data['product_id']);
             $reserved=(int)$this->rows('maintenance_spare_reservations')->where('product_id',$product->id)
                 ->selectRaw('COALESCE(SUM(reserved_quantity-consumed_quantity-released_quantity),0) AS balance')
-                ->value('balance');
+                ->first()->balance;
             abort_if($product->stock - $reserved < $data['quantity'],409,'Stock disponible insuffisant.');
             $item=$this->insert('maintenance_spare_reservations',[
                 'work_order_id'=>$id,'product_id'=>$product->id,'reserved_quantity'=>$data['quantity'],
@@ -275,7 +278,8 @@ final class MaintenanceOperationsController extends Controller
             abort_unless($reservation,404);
             $previous=$this->rows('maintenance_spare_consumptions')->where('operation_key',$data['operation_key'])->first();
             if ($previous) {
-                abort_unless((int)$previous->reservation_id === $id,409,'Clé déjà utilisée.');
+                abort_unless((int)$previous->reservation_id === $id
+                    && (int)$previous->quantity === (int)$data['quantity'],409,'Clé déjà utilisée avec un contenu différent.');
                 return response()->json($previous);
             }
             $order=MaintenanceWorkOrder::query()->lockForUpdate()->findOrFail($reservation->work_order_id);
@@ -384,7 +388,9 @@ final class MaintenanceOperationsController extends Controller
             $wo=MaintenanceWorkOrder::query()->lockForUpdate()->findOrFail($id);
             $previous=$this->rows('maintenance_field_events')->where('operation_key',$data['operation_key'])->first();
             if ($previous) {
-                abort_unless((int)$previous->work_order_id === $id,409,'Clé déjà utilisée.');
+                abort_unless((int)$previous->work_order_id === $id
+                    && $previous->kind === $data['kind']
+                    && (int)$previous->base_version === (int)$data['base_version'],409,'Clé déjà utilisée avec un contenu différent.');
                 return response()->json($previous);
             }
             abort_if((int)$wo->field_version !== (int)$data['base_version'],409,'Version obsolète : synchronisation requise.');
