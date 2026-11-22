@@ -21,6 +21,8 @@ return new class extends Migration {
             $table->timestamp('archived_at')->nullable();
             $table->string('archive_reason', 500)->nullable();
             $table->index(['company_id', 'archived_at'], 'customers_company_archive_idx');
+            // Required by composite tenant FKs; legacy customer ID alone is PK.
+            $table->unique(['company_id','id'], 'customers_tenant_id_unique');
         });
 
         Schema::create('crm_prospects', function (Blueprint $table) {
@@ -176,6 +178,7 @@ return new class extends Migration {
             Schema::dropIfExists($name);
         }
         Schema::table('customers', function (Blueprint $table) {
+            $table->dropUnique('customers_tenant_id_unique');
             $table->dropIndex('customers_company_archive_idx');
             $table->dropColumn(['archived_at','archive_reason']);
         });
