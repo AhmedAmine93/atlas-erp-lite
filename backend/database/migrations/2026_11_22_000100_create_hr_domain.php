@@ -204,8 +204,8 @@ return new class extends Migration {
         $role = DB::selectOne("SELECT (rolsuper OR rolbypassrls OR rolcreatedb OR rolcreaterole OR rolreplication)::int AS elevated FROM pg_roles WHERE rolname = 'atlas_app_runtime'");
         if (! $role || (int)$role->elevated !== 0) throw new RuntimeException('A restricted atlas_app_runtime role is required.');
         foreach (self::TABLES as $name) {
-            DB::statement("GRANT SELECT, INSERT, UPDATE ON TABLE public.\"{$name}\" TO atlas_app_runtime");
-            DB::statement("REVOKE DELETE ON TABLE public.\"{$name}\" FROM atlas_app_runtime");
+            DB::statement("GRANT ".($name === 'hr_events' ? 'SELECT, INSERT' : 'SELECT, INSERT, UPDATE')." ON TABLE public.\"{$name}\" TO atlas_app_runtime");
+            DB::statement("REVOKE DELETE, ".($name === 'hr_events' ? 'UPDATE, ' : '')."TRUNCATE ON TABLE public.\"{$name}\" FROM atlas_app_runtime");
             DB::statement("ALTER TABLE public.\"{$name}\" ENABLE ROW LEVEL SECURITY");
             DB::statement("CREATE POLICY atlas_f20_runtime_tenant_policy ON public.\"{$name}\" FOR ALL TO atlas_app_runtime USING (company_id = NULLIF(current_setting('atlas.tenant_id', true), '')::bigint) WITH CHECK (company_id = NULLIF(current_setting('atlas.tenant_id', true), '')::bigint)");
             $seq = DB::selectOne("SELECT pg_get_serial_sequence(?, 'id') AS sequence_name", ["public.{$name}"]);

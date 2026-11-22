@@ -30,6 +30,7 @@ final class HumanResourcesController extends Controller
         'skills' => 'hr_skills',
         'certifications' => 'hr_employee_skills',
         'events' => 'hr_events',
+        'sites' => 'establishments',
     ];
 
     private function company(): int
@@ -93,6 +94,7 @@ final class HumanResourcesController extends Controller
             'validated_by' => 'prohibited',
             'actor_id' => 'prohibited',
             'user_id' => 'prohibited',
+            'manager_employee_id_override' => 'prohibited',
         ]);
         $key = $validated['request_key'];
         $data = $request->except(['request_key']);
@@ -132,10 +134,7 @@ final class HumanResourcesController extends Controller
         ]);
         $query = DB::table($table)->where('company_id',$this->company());
         foreach (['employee_id','establishment_id','status'] as $column) {
-            if (array_key_exists($column,$filters) && in_array($column, [
-                'employee_id' => ['employee_id'], 'establishment_id' => ['establishment_id'],
-                'status' => ['status'],
-            ][$column], true) && \Illuminate\Support\Facades\Schema::hasColumn($table,$column)) {
+            if (array_key_exists($column,$filters) && \Illuminate\Support\Facades\Schema::hasColumn($table,$column)) {
                 $query->where($column,$filters[$column]);
             }
         }
