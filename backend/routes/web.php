@@ -30,6 +30,7 @@ use App\Http\Controllers\HotelHousekeepingController;
 use App\Http\Controllers\HotelRoomAvailabilityController;
 use App\Http\Controllers\HotelRoomBlockController;
 use App\Http\Controllers\MaintenanceRegistryController;
+use App\Http\Controllers\IndustrialJetController;
 use App\Http\Controllers\MaintenanceRequestController;
 use App\Http\Controllers\MaintenanceWorkOrderController;
 use App\Http\Controllers\MaintenancePlanningController;
@@ -76,6 +77,14 @@ Route::prefix('api')->group(function () {
         Route::post('purchasing/requests/{id}/approve', [PurchaseRequestController::class, 'approve'])->whereNumber('id');
         Route::post('purchasing/requests/{id}/reject', [PurchaseRequestController::class, 'reject'])->whereNumber('id');
         Route::patch('purchasing/requests/{id}/revise', [PurchaseRequestController::class, 'revise'])->whereNumber('id');
+        // Oracle JET industrial Node BFF delegates all writes to authorized Laravel.
+        Route::get('industrial/overview', [IndustrialJetController::class, 'overview']);
+        Route::get('industrial/meters', [IndustrialJetController::class, 'meters']);
+        Route::post('industrial/meters', [IndustrialJetController::class, 'recordMeter']);
+        Route::get('industrial/templates', [IndustrialJetController::class, 'templates']);
+        Route::post('industrial/templates', [IndustrialJetController::class, 'createTemplate']);
+        Route::get('industrial/inspections', [IndustrialJetController::class, 'inspections']);
+        Route::post('industrial/inspections', [IndustrialJetController::class, 'recordInspection']);
         Route::get('maintenance/sites', [MaintenanceRegistryController::class, 'sites']);
         Route::post('maintenance/sites', [MaintenanceRegistryController::class, 'createSite']);
         Route::get('maintenance/assets', [MaintenanceRegistryController::class, 'assets']);
