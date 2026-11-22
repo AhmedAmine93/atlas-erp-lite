@@ -137,7 +137,8 @@ final class MassiveDemoSeeder extends Seeder
             'companies', 'users', 'company_user', 'customers', 'suppliers', 'products',
             'quotes', 'orders', 'invoices', 'stock_movements', 'support_incidents',
             'maintenance_sites', 'maintenance_assets', 'maintenance_requests',
-            'maintenance_work_orders', 'hotel_properties', 'hotel_rooms', 'hotel_bookings',
+            'maintenance_work_orders', 'maintenance_teams', 'maintenance_technicians', 'maintenance_schedules',
+            'hotel_properties', 'hotel_rooms', 'hotel_bookings',
             'purchase_requests', 'data_source_registry', 'data_ingestion_batches',
             'data_ingested_csv_rows',
         ] as $table) {
@@ -255,6 +256,26 @@ final class MassiveDemoSeeder extends Seeder
             ]);
         }
 
+        // P052/P068 synthetic workforce: reusable across test runs and tenants.
+        $teamIds = [];
+        for ($team = 1; $team <= 4; $team++) {
+            $teamIds[] = $this->fixture('maintenance_teams', [
+                'company_id' => $companyId, 'code' => "{$prefix}-TEAM-{$team}",
+            ], [
+                'name' => "Équipe technique fictive {$team}", 'active' => true,
+            ]);
+        }
+        $technicianIds = [];
+        for ($technician = 1; $technician <= 18; $technician++) {
+            $technicianIds[] = $this->fixture('maintenance_technicians', [
+                'company_id' => $companyId,
+                'code' => sprintf('%s-TECH-%03d', $prefix, $technician),
+            ], [
+                'name' => sprintf('Technicien fictif %s %03d', $prefix, $technician),
+                'team_id' => $teamIds[$technician % count($teamIds)], 'active' => true,
+            ]);
+        }
+
         $siteIds = [];
         for ($i = 1; $i <= 9; $i++) {
             $siteIds[] = $this->fixture('maintenance_sites', [
@@ -297,6 +318,25 @@ final class MassiveDemoSeeder extends Seeder
                 'completed_at' => $woStatus === 'completed' ? now()->subDays($i % 10) : null,
                 'created_at' => now(), 'updated_at' => now(),
             ]);
+            // A modest nonoverlapping schedule for the Oracle JET planning demo.
+            if ($woStatus === 'open' && $i <= 96) {
+                $workOrderId = DB::table('maintenance_work_orders')
+                    ->where('company_id', $companyId)
+                    ->where('maintenance_request_id', $diId)
+                    ->value('id');
+                $start = now()->startOfDay()->addDays(2 + intdiv($i, 18))
+                    ->setTime(9 + ($i % 7), 0);
+                DB::table('maintenance_schedules')->insertOrIgnore([
+                    'company_id' => $companyId,
+                    'work_order_id' => $workOrderId,
+                    'technician_id' => $technicianIds[$i % count($technicianIds)],
+                    'starts_at' => $start,
+                    'ends_at' => $start->copy()->addHours(2),
+                    'status' => 'scheduled',
+                    'planned_by' => $adminId,
+                    'created_at' => now(), 'updated_at' => now(),
+                ]);
+            }
         }
 
         $roomIds = [];
