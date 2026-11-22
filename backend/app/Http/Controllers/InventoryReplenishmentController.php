@@ -12,6 +12,14 @@ use Illuminate\Support\Facades\Gate;
 
 final class InventoryReplenishmentController extends Controller
 {
+    /** Minimal tenant-scoped supplier dropdown, without CRM contact details. */
+    public function suppliers(Request $r)
+    {
+        Gate::authorize('movementsRead');
+        $r->validate(['page' => 'sometimes|integer|min:1']);
+        return Supplier::query()->select(['id', 'name', 'company_id'])
+            ->orderBy('name')->paginate(20);
+    }
     public function index(Request $r)
     {
         Gate::authorize('movementsRead');

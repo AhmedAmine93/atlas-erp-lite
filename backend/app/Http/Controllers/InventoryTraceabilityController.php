@@ -33,6 +33,8 @@ final class InventoryTraceabilityController extends Controller
             'expires_on'=>'nullable|date_format:Y-m-d','company_id'=>'prohibited','status'=>'prohibited',
         ]);
         Product::findOrFail($v['product_id']);
+        abort_if(InventoryLot::query()->where('product_id', $v['product_id'])
+            ->where('code', $v['code'])->exists(), 409, 'Code lot déjà utilisé pour ce produit.');
         return DB::transaction(function() use($v) {
             $lot=InventoryLot::create($v+['status'=>'quarantine']);
             Audit::record('inventory.lot.created',$lot);

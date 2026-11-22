@@ -155,6 +155,7 @@ Route::prefix('api')->group(function () {
         Route::post('inventory/counts/{id}/count', [InventoryCountController::class, 'record'])->whereNumber('id');
         Route::post('inventory/counts/{id}/approve', [InventoryCountController::class, 'approve'])->whereNumber('id');
         Route::post('inventory/counts/{id}/cancel', [InventoryCountController::class, 'cancel'])->whereNumber('id');
+        Route::get('inventory/supplier-options', [InventoryReplenishmentController::class, 'suppliers']);
         Route::get('inventory/replenishments', [InventoryReplenishmentController::class, 'index']);
         Route::post('inventory/replenishments', [InventoryReplenishmentController::class, 'propose']);
         Route::post('inventory/replenishments/{id}/decision', [InventoryReplenishmentController::class, 'decide'])->whereNumber('id');

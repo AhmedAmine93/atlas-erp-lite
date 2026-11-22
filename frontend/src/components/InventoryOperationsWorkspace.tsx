@@ -56,7 +56,7 @@ export default function InventoryOperationsWorkspace({view,role,activeCompanyId}
   useEffect(()=>{
     let live=true;setLoading(true);setRows([]);setError("");
     const endpoints:Record<string,string>={
-      products:"products",locations:"inventory/locations",lots:"inventory/lots",suppliers:"suppliers"
+      products:"products",locations:"inventory/locations",lots:"inventory/lots",suppliers:"inventory/supplier-options"
     };
     const needs=[...new Set(definition.fields.map(field=>field.lookup).filter((v):v is NonNullable<Field["lookup"]>=>!!v))];
     Promise.all([
@@ -127,7 +127,10 @@ export default function InventoryOperationsWorkspace({view,role,activeCompanyId}
     if(view==="stock-inventories"){
       if(row.status==="draft"||row.status==="counted")return <button type="button" disabled={busy} onClick={()=>{
         const quantity=promptNumber(row.status==="draft"?"Premier comptage ?":"Recomptage indépendant ?");
-        if(quantity!==null)void action("inventory/counts/"+row.id+"/count",{quantity});
+        if(quantity!==null){
+          const reason = row.status === "counted" ? promptReason("Motif obligatoire du recomptage indépendant ?") : undefined;
+          if(row.status !== "counted" || reason)void action("inventory/counts/"+row.id+"/count",{quantity,...(reason ? {reason} : {})});
+        }
       }}>{row.status==="draft"?"Compter":"Recompter"}</button>;
       if(canApprove&&row.status==="recounted")return <button type="button" disabled={busy} onClick={()=>{
         const reason=promptReason("Motif d'approbation / ajustement ?");
