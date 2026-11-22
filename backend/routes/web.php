@@ -12,6 +12,7 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\InventoryLocationController;
 use App\Http\Controllers\InventoryStockController;
 use App\Http\Controllers\InventoryTransferController;
+use App\Http\Controllers\InventoryDamageReceiptController;
 use App\Http\Controllers\InventoryTraceabilityController;
 use App\Http\Controllers\InventoryCountController;
 use App\Http\Controllers\InventoryReplenishmentController;
@@ -137,6 +138,7 @@ Route::prefix('api')->group(function () {
         Route::get('inventory/transfers', [InventoryTransferController::class, 'index']);
         Route::post('inventory/transfers', [InventoryTransferController::class, 'store']);
         Route::post('inventory/transfers/{id}/ship', [InventoryTransferController::class, 'ship'])->whereNumber('id');
+        Route::post('inventory/transfers/{id}/damaged-receipt', [InventoryDamageReceiptController::class, 'store'])->whereNumber('id');
         Route::post('inventory/transfers/{id}/receive', [InventoryTransferController::class, 'receive'])->whereNumber('id');
         Route::post('inventory/transfers/{id}/loss', [InventoryTransferController::class, 'declareLoss'])->whereNumber('id');
         Route::post('inventory/transfers/{id}/cancel', [InventoryTransferController::class, 'cancel'])->whereNumber('id');
