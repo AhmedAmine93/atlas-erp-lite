@@ -163,7 +163,9 @@ final class ProcurementController extends Controller
             'cost_center'=>'nullable|string|max:80','needed_on'=>'nullable|date']);
         return DB::transaction(function () use ($request,$data,$id) {
             $purchase=$this->row('purchase_requests',$id,true);
-            abort_unless(in_array($purchase->status,['draft','submitted','rejected'],true),409,'Demande approuvée verrouillée.');
+            abort_unless(in_array($purchase->status,['draft','submitted','rejected','approved'],true),409,'Demande non révisable.');
+            abort_if(DB::table('purchase_orders')->where('company_id',$this->company())
+                ->where('purchase_request_id',$id)->exists(),409,'Commande existante : avenant requis.');
             abort_unless((int)$purchase->requested_by===(int)$request->user()->id,403,'Seul le demandeur peut réviser.');
             $total=$this->orderTotal($data['lines']);
             DB::table('purchase_request_lines')->where('company_id',$this->company())->where('purchase_request_id',$id)->update(['active'=>false,'updated_at'=>now()]);
