@@ -114,7 +114,7 @@ export default function FinanceWorkspace({view,activeCompanyId,canWrite}:{view:s
   async function create(event:FormEvent<HTMLFormElement>){
     event.preventDefault();if(saving||!conf)return;setSaving(true);setError("");setNotice("");
     try{
-      const body={...payload,...(hasKey(conf.endpoint)?{request_key:requestKey()}:{})};
+      const body:Record<string,unknown>={...payload,...(hasKey(conf.endpoint)?{request_key:requestKey()}:{})};
       if(section==="finance/entries") {
         body.lines=entryLines.map(line=>({account_id:Number(line.account_id),debit_cents:Number(line.debit_cents||0),credit_cents:Number(line.credit_cents||0)}));
       }
