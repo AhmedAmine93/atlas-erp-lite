@@ -46,6 +46,7 @@ import CrmWorkspace from "@/components/CrmWorkspace";
 import CrmCustomerImport from "@/components/CrmCustomerImport";
 import CrmCustomerQuality from "@/components/CrmCustomerQuality";
 import { CrmCustomerExternalPanel } from "@/components/CrmExternalIdentities";
+import CrmArchivedCustomers from "@/components/CrmArchivedCustomers";
 import PilotageWorkspace from "@/components/PilotageWorkspace";
 import HotelHousekeepingWorkspace from "@/components/HotelHousekeepingWorkspace";
 import HotelMinibarWorkspace from "@/components/HotelMinibarWorkspace";
@@ -601,6 +602,9 @@ export default function Workspace() {
             )}
             {view === "customers" && ["admin","commercial"].includes(user.role.name) && (
               <CrmCustomerExternalPanel />
+            )}
+            {view === "customers" && ["admin","commercial"].includes(user.role.name) && (
+              <CrmArchivedCustomers activeCompanyId={user.active_company_id ?? null} onChanged={() => setRefresh(n => n + 1)} />
             )}
             <ListView
               key={view}
