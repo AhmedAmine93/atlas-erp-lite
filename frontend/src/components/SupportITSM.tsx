@@ -18,6 +18,7 @@ type Case = {
   events?: Array<{ id: number; action: string; from_status?: string; to_status: string; version: number; created_at: string; actor?: { name: string } }>;
   incidents?: Array<{ id: number; reference: string; title: string }>;
 };
+type Assignee = { id: number; name: string; role: string };
 type Inbox = { id: number; kind: string; reference: string; title: string; status: string; priority: string; created_at: string };
 type Catalog = { id: number; code: string; title: string; sensitive: boolean; active: boolean; requires_approval: boolean };
 type SLA = { id: number; severity: string; version: number; response_minutes: number; resolution_minutes: number; calendar: string; published: boolean; effective_from: string };
@@ -69,6 +70,9 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
 function Cases({ kind, role }: { kind: CaseKind; role: Role["name"] }) {
   const [rows, setRows] = useState<Case[]>([]);
   const [queue, setQueue] = useState<Inbox[]>([]);
+  const [assignees, setAssignees] = useState<Assignee[]>([]);
+  const [assignedTo, setAssignedTo] = useState("");
+  const [bulkIds, setBulkIds] = useState<number[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -109,6 +113,9 @@ function Cases({ kind, role }: { kind: CaseKind; role: Role["name"] }) {
   }, [kind, page, search, status]);
   useEffect(() => { let active = true; refresh().catch(e => { if (active) setError(errorText(e)); }); return () => { active = false; }; }, [refresh]);
   useEffect(() => {
+    api<Assignee[]>("support/assignees").then(setAssignees).catch(e => setError(errorText(e)));
+  }, []);
+  useEffect(() => {
     if (kind === "service") {
       api<Page<Catalog>>("support/catalog").then(r => setCatalog(r.data.filter(c => c.active))).catch(e => setError(errorText(e)));
     }
@@ -133,7 +140,7 @@ function Cases({ kind, role }: { kind: CaseKind; role: Role["name"] }) {
       setSelected(item); setRootCause(item.root_cause || ""); setWorkaround(item.workaround || "");
       setPermanentFix(item.permanent_fix || ""); setEvidence(item.result_evidence || "");
       setPipeline(item.pipeline_url || ""); setVerification(item.verification || "");
-      setReason(""); setIncidentId("");
+      setReason(""); setIncidentId(""); setAssignedTo(item.assignee ? String(assignees.find(a => a.name === item.assignee?.name)?.id || "") : "");
     } catch (e) { setError(errorText(e)); }
   }
   async function mutate<T>(fn: () => Promise<T>, result?: (r: T) => void) {
@@ -144,19 +151,19 @@ function Cases({ kind, role }: { kind: CaseKind; role: Role["name"] }) {
   }
   async function create(e: FormEvent) {
     e.preventDefault();
-    const payload: Record<string, unknown> = { title, description, priority };
+    const payload: Record<string, unknown> = { title, description, priority, ...(assignedTo ? { assigned_to: Number(assignedTo) } : {}) };
     if (kind === "service") payload.catalog_id = Number(catalogId);
     if (kind === "change") {
       Object.assign(payload, { risk_level: risk, window_start: new Date(windowStart).toISOString(),
         window_end: new Date(windowEnd).toISOString(), rollback_plan: rollback });
     }
     await mutate(() => write<Case>("support/cases/" + kind, "POST", payload), () => {
-      setTitle(""); setDescription(""); setRollback(""); setWindowStart(""); setWindowEnd("");
+      setTitle(""); setDescription(""); setRollback(""); setWindowStart(""); setWindowEnd(""); setAssignedTo("");
     });
   }
   async function update() {
     if (!selected) return;
-    const payload: Record<string, unknown> = { version: selected.version };
+    const payload: Record<string, unknown> = { version: selected.version, assigned_to: assignedTo ? Number(assignedTo) : null };
     if (kind === "problem") Object.assign(payload, { root_cause: rootCause, workaround, permanent_fix: permanentFix });
     if (kind === "service" || kind === "ticket") payload.result_evidence = evidence;
     if (kind === "change") Object.assign(payload, { pipeline_url: pipeline || null, verification });
@@ -192,6 +199,12 @@ function Cases({ kind, role }: { kind: CaseKind; role: Role["name"] }) {
             {["P1","P2","P3","P4"].map(x => <option key={x} value={x}>{x}</option>)}
           </select>
         </label>
+        <label>Attribuer à
+          <select value={assignedTo} onChange={e => setAssignedTo(e.target.value)}>
+            <option value="">Non attribué</option>
+            {assignees.map(a => <option key={a.id} value={a.id}>{a.name} ({a.role})</option>)}
+          </select>
+        </label>
         {kind === "service" && <label>Prestation du catalogue
           <select required value={catalogId} onChange={e => setCatalogId(e.target.value)}>
             <option value="">Choisir une prestation</option>
@@ -223,14 +236,23 @@ function Cases({ kind, role }: { kind: CaseKind; role: Role["name"] }) {
       </div>
       <p>{total} dossier(s)</p>
       <div style={{ overflowX: "auto" }}>
-        <table><thead><tr><th>Référence</th><th>Titre</th><th>Priorité</th><th>État</th><th>Version</th><th>Action</th></tr></thead>
+        <table><thead><tr>{kind === "ticket" && <th>Sélection</th>}<th>Référence</th><th>Titre</th><th>Priorité</th><th>État</th><th>Version</th><th>Action</th></tr></thead>
           <tbody>{rows.map(item => <tr key={item.id}>
+            {kind === "ticket" && <td><input type="checkbox" aria-label={"Sélectionner "+item.reference}
+              checked={bulkIds.includes(item.id)} onChange={e => setBulkIds(ids =>
+                e.target.checked ? [...ids, item.id] : ids.filter(id => id !== item.id))} /></td>}
             <td>{item.reference}</td><td>{item.title}</td><td>{item.priority}</td>
             <td>{labels[item.status] || item.status}</td><td>{item.version}</td>
             <td><button className="button" onClick={() => void details(item.id)}>Détail</button></td>
           </tr>)}</tbody>
         </table>
       </div>
+      {kind === "ticket" && <button className="button" disabled={!bulkIds.length || busy} onClick={() => void mutate(
+        () => write("support/cases/ticket/bulk-close", "POST", {
+          tickets: rows.filter(r => bulkIds.includes(r.id)).map(r => ({ id: r.id, version: r.version })),
+        }),
+        () => setBulkIds([])
+      )}>Clôturer les tickets sélectionnés (validation obligatoire)</button>}
       <button className="button" disabled={page === 1} onClick={() => setPage(p => p-1)}>Précédent</button>
       <span> Page {page} </span>
       <button className="button" disabled={page*20 >= total} onClick={() => setPage(p => p+1)}>Suivant</button>
@@ -243,6 +265,12 @@ function Cases({ kind, role }: { kind: CaseKind; role: Role["name"] }) {
         <Field title="Contournement (ne vaut pas correction)" value={workaround} onChange={setWorkaround} multiline />
         <Field title="Correction permanente" value={permanentFix} onChange={setPermanentFix} multiline />
       </div>}
+      <label>Attribuer à
+        <select value={assignedTo} onChange={e => setAssignedTo(e.target.value)}>
+          <option value="">Non attribué</option>
+          {assignees.map(a => <option key={a.id} value={a.id}>{a.name} ({a.role})</option>)}
+        </select>
+      </label>
       {(kind === "ticket" || kind === "service") && <Field title="Preuve de résultat et validation" value={evidence} onChange={setEvidence} multiline />}
       {kind === "change" && <>
         <p>Risque : {selected.risk_level} · début : {selected.window_start} · fin : {selected.window_end}</p>
