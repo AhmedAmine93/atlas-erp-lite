@@ -293,11 +293,11 @@ export default function SalesCommerceWorkspace({view,activeCompanyId,canWrite,ca
             <div className="atlas-domain-actions">
               <button type="button" className="button secondary" onClick={()=>begin({
                 label:"Approuver la remise",endpoint:`sales-v5/approvals/${a.id}/decide`,
-                fields:[f("reason","Justification","textarea")]
+                fields:[f("decision","Décision","select",true,["approved","rejected"]),f("reason","Justification","textarea")]
               }) || setValues(x=>({...x,decision:"approved"}))}>Approuver</button>
               <button type="button" className="button secondary" onClick={()=>begin({
                 label:"Refuser la remise",endpoint:`sales-v5/approvals/${a.id}/decide`,
-                fields:[f("reason","Justification du refus","textarea")]
+                fields:[f("decision","Décision","select",true,["approved","rejected"]),f("reason","Justification du refus","textarea")]
               }) || setValues(x=>({...x,decision:"rejected"}))}>Refuser</button>
             </div>:"—"}</td></tr>)}
       </tbody></table></div>
