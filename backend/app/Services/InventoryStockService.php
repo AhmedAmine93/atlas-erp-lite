@@ -45,6 +45,9 @@ final class InventoryStockService
         $q = InventoryLocation::query()->with('warehouse');
         if ($forWrite) $q->lockForUpdate();
         $location = $q->findOrFail($id);
+        if ($location->condition_code === 'regulated') {
+            \Illuminate\Support\Facades\Gate::authorize('admin');
+        }
         if ($forWrite) {
             abort_unless($location->active && $location->warehouse?->active, 409,
                 'Cet emplacement ou son dépôt est inactif.');

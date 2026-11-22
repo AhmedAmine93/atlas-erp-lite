@@ -18,7 +18,13 @@ final class InventoryTransferController extends Controller
     {
         Gate::authorize('movementsRead');
         $r->validate(['page' => 'sometimes|integer|min:1']);
-        return InventoryTransfer::query()->latest('id')->paginate(20);
+        return InventoryTransfer::query()
+            ->when(!Gate::allows('admin'), function ($q) {
+                $visible = \App\Models\InventoryLocation::query()
+                    ->where('condition_code', '!=', 'regulated')->select('id');
+                $q->whereIn('source_location_id', clone $visible)
+                    ->whereIn('target_location_id', $visible);
+            })->latest('id')->paginate(20);
     }
 
     public function store(Request $r, InventoryStockService $stock)

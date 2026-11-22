@@ -88,6 +88,7 @@ final class InventoryLocationController extends Controller
             InventoryWarehouse::query()->findOrFail($values['warehouse_id']);
         }
         return InventoryLocation::query()
+            ->when(!Gate::allows('admin'), fn ($q) => $q->where('condition_code', '!=', 'regulated'))
             ->with('warehouse:id,company_id,code,name')
             ->when($values['warehouse_id'] ?? null, fn ($q, $id) => $q->where('warehouse_id', $id))
             ->when(array_key_exists('active', $values), fn ($q) => $q->where('active', $values['active']))

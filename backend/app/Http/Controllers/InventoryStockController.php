@@ -25,6 +25,7 @@ final class InventoryStockController extends Controller
         if (isset($values['location_id'])) $service->location($values['location_id']);
 
         return InventoryBalance::query()
+            ->when(!Gate::allows('admin'), fn ($q) => $q->whereIn('location_id', \App\Models\InventoryLocation::query()->where('condition_code', '!=', 'regulated')->select('id')))
             ->when($values['product_id'] ?? null, fn ($q, $v) => $q->where('product_id', $v))
             ->when($values['location_id'] ?? null, fn ($q, $v) => $q->where('location_id', $v))
             ->orderBy('product_id')->orderBy('location_id')->paginate(20);
@@ -41,6 +42,7 @@ final class InventoryStockController extends Controller
         if (isset($values['product_id'])) Product::query()->findOrFail($values['product_id']);
         if (isset($values['location_id'])) app(InventoryStockService::class)->location($values['location_id']);
         return InventoryLedger::query()
+            ->when(!Gate::allows('admin'), fn ($q) => $q->whereIn('location_id', \App\Models\InventoryLocation::query()->where('condition_code', '!=', 'regulated')->select('id')))
             ->when($values['product_id'] ?? null, fn ($q, $v) => $q->where('product_id', $v))
             ->when($values['location_id'] ?? null, fn ($q, $v) => $q->where('location_id', $v))
             ->orderByDesc('id')->paginate(20);

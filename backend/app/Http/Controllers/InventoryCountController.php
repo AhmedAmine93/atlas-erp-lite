@@ -18,7 +18,9 @@ final class InventoryCountController extends Controller
         Gate::authorize('movementsRead');
         $r->validate(['page'=>'sometimes|integer|min:1']);
         $reader = app(\App\Services\TenantRoles::class)->role($r->user())?->name === 'reader';
-        return InventoryCount::query()->when($reader, fn ($q) => $q->where('status', 'approved'))
+        return InventoryCount::query()
+            ->when(!Gate::allows('admin'), fn ($q) => $q->whereIn('location_id', \App\Models\InventoryLocation::query()->where('condition_code', '!=', 'regulated')->select('id')))
+            ->when($reader, fn ($q) => $q->where('status', 'approved'))
             ->latest('id')->paginate(20)->through(function ($item) {
                 if ($item->status !== 'approved') {
                     $item->makeHidden(['snapshot_quantity', 'first_count', 'second_count']);

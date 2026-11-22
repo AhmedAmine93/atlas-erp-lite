@@ -64,7 +64,9 @@ final class InventoryTraceabilityController extends Controller
         Gate::authorize('movementsRead');
         $v=$r->validate(['product_id'=>'sometimes|integer|min:1','page'=>'sometimes|integer|min:1']);
         if(isset($v['product_id'])) Product::findOrFail($v['product_id']);
-        return InventorySerial::query()->when($v['product_id'] ?? null,fn($q,$id)=>$q->where('product_id',$id))
+        return InventorySerial::query()
+            ->when(!Gate::allows('admin'), fn ($q) => $q->whereIn('location_id', \App\Models\InventoryLocation::query()->where('condition_code', '!=', 'regulated')->select('id')))
+            ->when($v['product_id'] ?? null,fn($q,$id)=>$q->where('product_id',$id))
             ->orderByDesc('id')->paginate(20);
     }
 
