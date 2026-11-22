@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Company;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Product;
@@ -16,6 +17,11 @@ use Illuminate\Validation\ValidationException;
 require __DIR__.'/../vendor/autoload.php';
 $app = require __DIR__.'/../bootstrap/app.php';
 $app->make(Kernel::class)->bootstrap();
+// Laravel's console exception renderer can otherwise turn an aborted standalone script green.
+set_exception_handler(static function (Throwable $e): void {
+    fwrite(STDERR,$e::class.': '.$e->getMessage().PHP_EOL);
+    exit(1);
+});
 
 if (config('database.default') !== 'pgsql' || ! str_ends_with(config('database.connections.pgsql.database'), '_test')) {
     fwrite(STDERR, "Use a disposable PostgreSQL database ending in _test.\n");
@@ -44,6 +50,8 @@ if (($argv[1] ?? '') === 'worker') {
 }
 Artisan::call('migrate:fresh', ['--force' => true]);
 $user = User::create(['name' => 'Concurrent test', 'email' => 'concurrency@test.example', 'password' => 'Concurrency2026!', 'role_id' => Role::where('name', 'admin')->value('id')]);
+$tenant=Company::where('code','ATLAS_DEMO')->firstOrFail();
+$user->companies()->attach($tenant->id,['role_id'=>$user->role_id]);
 Auth::login($user);
 $customer = Customer::create(['name' => 'Concurrent customer', 'email' => 'concurrent@test.example']);
 $product = Product::create(['reference' => 'CONCURRENT', 'name' => 'Last unit', 'category' => 'Test', 'price_cents' => 100, 'vat_bps' => 2000, 'stock' => 1]);
