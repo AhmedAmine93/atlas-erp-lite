@@ -15,7 +15,7 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        foreach (['crm', 'stock', 'sales', 'admin', 'support', 'supportDiagnostics', 'crmRead', 'productsRead', 'movementsRead', 'salesRead', 'invoicesRead', 'dashboardRead'] as $ability) {
+        foreach (['crm', 'stock', 'sales', 'admin', 'support', 'supportDiagnostics', 'crmRead', 'productsRead', 'movementsRead', 'salesRead', 'invoicesRead', 'dashboardRead', 'opsRead', 'opsWrite'] as $ability) {
             Gate::define($ability, [ErpPolicy::class, $ability]);
         }
         RateLimiter::for('login', fn (Request $r) => Limit::perMinute(5)->by(strtolower((string) $r->input('email')).'|'.$r->ip()));
