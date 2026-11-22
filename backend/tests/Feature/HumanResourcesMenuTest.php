@@ -134,6 +134,7 @@ final class HumanResourcesMenuTest extends TestCase
         ]);
         $this->action('schedules',$scheduled,'published')->assertStatus(409);
 
+        $this->login($a,'admin','timesheet-author');
         $entry=$this->create('timesheets',[
             'employee_id'=>$employee,'work_on'=>'2027-02-08',
             'duration_minutes'=>300,'project_ref'=>'PRJ-1',
@@ -148,6 +149,7 @@ final class HumanResourcesMenuTest extends TestCase
             'request_key'=>$this->key(),
         ])->assertStatus(409);
         $this->action('timesheets',$entry,'submitted')->assertCreated();
+        $this->login($a,'hr','timesheet-reviewer');
         $this->action('timesheets',$entry,'approved',2)->assertCreated();
         $this->action('timesheets',$entry,'transferred',3)->assertCreated();
         $this->action('timesheets',$entry,'submitted',4)->assertStatus(409);

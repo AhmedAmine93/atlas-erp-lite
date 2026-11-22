@@ -30,7 +30,7 @@ const sections:Record<string,{title:string;intro:string;tabs:string[]}>={
 };
 const refs:Record<string,string>={employees:"hr/employees",teams:"hr/teams",skills:"hr/skills",establishments:"hr/sites"};
 const pretty=(value:unknown)=>value===null||value===undefined||value===""?"—":typeof value==="boolean"?(value?"Oui":"Non"):String(value);
-const statusName=(s:string)=>({draft:"Brouillon",submitted:"Soumis",approved:"Approuvé",rejected:"Refusé",cancelled:"Annulé",published:"Publié",transferred:"Transféré",returned:"Retourné",pending:"À valider",revoked:"Révoqué",active:"Actif",inactive:"Inactif"}[s]??s);
+const statusName=(s:string)=>({draft:"Brouillon",submitted:"Soumis",approved:"Approuvé",rejected:"Refusé",cancelled:"Annulé",published:"Publié",transferred:"Transféré",returned:"Retourné",pending:"À valider",revoked:"Révoqué",active:"Actif",inactive:"Inactif"} as Record<string,string>)[s]??s;
 function freshKey(){return crypto.randomUUID().replaceAll("-","");}
 
 export default function HumanResourcesWorkspace({view,activeCompanyId}:{view:string;activeCompanyId:number|null}){
