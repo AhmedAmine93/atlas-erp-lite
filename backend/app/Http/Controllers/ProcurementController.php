@@ -86,12 +86,27 @@ final class ProcurementController extends Controller
         }, 3);
     }
 
+    /** ISO 13616/7064 IBAN check, without persisting or logging its plaintext. */
+    private function validIban(string $iban): bool
+    {
+        if (!preg_match('/^[A-Z]{2}[0-9]{2}[A-Z0-9]{11,30}$/', $iban)) return false;
+        $rotated = substr($iban,4).substr($iban,0,4);
+        $remainder = 0;
+        foreach (str_split($rotated) as $char) {
+            $digits = ctype_alpha($char) ? (string)(ord($char)-55) : $char;
+            foreach (str_split($digits) as $digit) {
+                $remainder = ($remainder*10+(int)$digit)%97;
+            }
+        }
+        return $remainder===1;
+    }
+
     public function bankChange(Request $request, int $supplierId)
     {
         $this->authorizePurchasing();
         $data = $request->validate(['iban'=>'required|string|min:15|max:34']);
         $iban = strtoupper(preg_replace('/\s+/', '', $data['iban']));
-        abort_unless(preg_match('/^[A-Z]{2}[0-9]{2}[A-Z0-9]{11,30}$/', $iban), 422, 'IBAN mal formé.');
+        abort_unless($this->validIban($iban), 422, 'IBAN invalide : vérification de la clé de contrôle échouée.');
         return DB::transaction(function () use ($request, $supplierId, $iban) {
             $this->ensureSupplier($supplierId);
             $existing = DB::table('supplier_bank_changes')->where('company_id',$this->company())
