@@ -150,7 +150,8 @@ return new class extends Migration {
 
         if (DB::getDriverName() === 'pgsql') {
             foreach (self::TABLES as $name) {
-                DB::statement("GRANT SELECT, INSERT, UPDATE ON TABLE public.\"{$name}\" TO atlas_app_runtime");
+                $rights = $name === 'crm_import_batches' ? 'SELECT, INSERT' : 'SELECT, INSERT, UPDATE';
+                DB::statement("GRANT {$rights} ON TABLE public.\\"{$name}\\" TO atlas_app_runtime");
                 DB::statement("REVOKE DELETE ON TABLE public.\"{$name}\" FROM atlas_app_runtime");
                 DB::statement("ALTER TABLE public.\"{$name}\" ENABLE ROW LEVEL SECURITY");
                 DB::statement("CREATE POLICY atlas_f20_runtime_tenant_policy ON public.\"{$name}\" FOR ALL TO atlas_app_runtime USING (company_id = NULLIF(current_setting('atlas.tenant_id', true), '')::bigint) WITH CHECK (company_id = NULLIF(current_setting('atlas.tenant_id', true), '')::bigint)");
