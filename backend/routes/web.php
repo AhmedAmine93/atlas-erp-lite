@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\IntegrationsController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\DashboardController;
@@ -126,6 +127,17 @@ Route::prefix('api')->group(function () {
         Route::post('hotel-bookings/{id}/checkin', [HotelBookingController::class, 'checkin'])->whereNumber('id');
         Route::post('hotel-bookings/{id}/checkout', [HotelBookingController::class, 'checkout'])->whereNumber('id');
         Route::post('hotel-bookings/{id}/cancel', [HotelBookingController::class, 'cancel'])->whereNumber('id');
+        Route::prefix('integrations/v1')->group(function () {
+            Route::get('{area}', [IntegrationsController::class,'index'])->whereIn('area',['connectors','api','imports','jobs','errors','iot']);
+            Route::post('{area}', [IntegrationsController::class,'store'])->whereIn('area',['connectors','jobs','iot']);
+            Route::post('connectors/{id}/{action}', [IntegrationsController::class,'connectorAction'])->whereNumber('id')->whereIn('action',['sandbox','activate','suspend','rotate']);
+            Route::post('webhooks/{connector}/receive', [IntegrationsController::class,'receiveWebhook'])->whereNumber('connector')->middleware('throttle:30,1');
+            Route::post('exchange', [IntegrationsController::class,'exchange'])->middleware('throttle:15,1');
+            Route::post('jobs/{id}/{action}', [IntegrationsController::class,'jobAction'])->whereNumber('id')->whereIn('action',['resume','suspend','run']);
+            Route::post('errors/{id}/resolve', [IntegrationsController::class,'resolveError'])->whereNumber('id');
+            Route::post('devices/{id}/telemetry', [IntegrationsController::class,'telemetry'])->whereNumber('id')->middleware('throttle:60,1');
+            Route::get('{area}/{id}/history', [IntegrationsController::class,'history'])->whereIn('area',['connectors','jobs','errors','iot'])->whereNumber('id');
+        });
         Route::get('data/sources', [DataSourceCatalogController::class, 'index']);
         Route::post('data/sources', [DataSourceCatalogController::class, 'store']);
         Route::post('data/sources/{id}/validate', [DataSourceCatalogController::class, 'validateSource'])->whereNumber('id');
