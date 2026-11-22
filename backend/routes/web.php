@@ -8,6 +8,7 @@ use App\Http\Controllers\PilotageController;
 use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\MetricsController;
+use App\Http\Controllers\BiReportingController;
 use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\SalesController;
@@ -52,6 +53,15 @@ Route::prefix('api')->group(function () {
         Route::post('tenant/switch', [TenantContextController::class, 'switch']);
         Route::post('logout', [AuthController::class, 'logout']);
         Route::get('dashboard', DashboardController::class);
+        Route::get('analytics/catalog', [BiReportingController::class, 'catalog']);
+        Route::get('analytics/reports', [BiReportingController::class, 'definitions']);
+        Route::post('analytics/reports', [BiReportingController::class, 'createDefinition']);
+        Route::post('analytics/reports/{id}/run', [BiReportingController::class, 'run'])->whereNumber('id');
+        Route::get('analytics/exports', [BiReportingController::class, 'exports']);
+        Route::post('analytics/exports', [BiReportingController::class, 'createExport']);
+        Route::get('analytics/exports/{id}/download', [BiReportingController::class, 'download'])->whereNumber('id');
+        Route::get('analytics/{dataset}', [BiReportingController::class, 'show'])
+            ->whereIn('dataset', ['sales', 'finance', 'stock', 'suppliers']);
         Route::get('pilotage/{section}', [PilotageController::class, 'show'])
             ->whereIn('section', ['direction','sales','finance','logistics','alerts']);
         Route::get('pilotage/alerts/rules', [PilotageController::class, 'rules']);
