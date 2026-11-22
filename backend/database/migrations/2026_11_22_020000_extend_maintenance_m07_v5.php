@@ -214,6 +214,73 @@ return new class extends Migration {
             $t->index(['company_id','work_order_id','created_at']);
         });
 
+        // Guard both self-referencing trees and site/location invariants at SQL level.
+        DB::unprepared(<<<'SQL'
+CREATE FUNCTION m07_location_guard() RETURNS trigger LANGUAGE plpgsql AS $
+DECLARE parent_site bigint;
+BEGIN
+  IF NEW.parent_id IS NOT NULL THEN
+    SELECT site_id INTO parent_site FROM maintenance_locations
+     WHERE company_id=NEW.company_id AND id=NEW.parent_id;
+    IF parent_site IS NULL OR parent_site <> NEW.site_id THEN
+      RAISE EXCEPTION 'Parent location belongs to another site' USING ERRCODE='23514';
+    END IF;
+    IF NEW.id=NEW.parent_id OR EXISTS (
+      WITH RECURSIVE lineage AS (
+        SELECT id,parent_id FROM maintenance_locations
+         WHERE company_id=NEW.company_id AND id=NEW.parent_id
+        UNION ALL
+        SELECT parent.id,parent.parent_id FROM maintenance_locations parent
+        JOIN lineage ON parent.id=lineage.parent_id
+        WHERE parent.company_id=NEW.company_id
+      ) SELECT 1 FROM lineage WHERE id=NEW.id
+    ) THEN
+      RAISE EXCEPTION 'Location hierarchy cycle' USING ERRCODE='23514';
+    END IF;
+  END IF;
+  RETURN NEW;
+END; $;
+CREATE TRIGGER m07_location_guard_trigger
+BEFORE INSERT OR UPDATE OF company_id,site_id,parent_id ON maintenance_locations
+FOR EACH ROW EXECUTE FUNCTION m07_location_guard();
+SQL);
+        DB::unprepared(<<<'SQL'
+CREATE FUNCTION m07_asset_guard() RETURNS trigger LANGUAGE plpgsql AS $
+DECLARE linked_site bigint;
+BEGIN
+  IF NEW.location_id IS NOT NULL THEN
+    SELECT site_id INTO linked_site FROM maintenance_locations
+     WHERE company_id=NEW.company_id AND id=NEW.location_id;
+    IF linked_site IS NULL OR linked_site <> NEW.site_id THEN
+      RAISE EXCEPTION 'Asset location belongs to another site' USING ERRCODE='23514';
+    END IF;
+  END IF;
+  IF NEW.parent_asset_id IS NOT NULL THEN
+    SELECT site_id INTO linked_site FROM maintenance_assets
+     WHERE company_id=NEW.company_id AND id=NEW.parent_asset_id;
+    IF linked_site IS NULL OR linked_site <> NEW.site_id THEN
+      RAISE EXCEPTION 'Asset parent belongs to another site' USING ERRCODE='23514';
+    END IF;
+    IF NEW.id=NEW.parent_asset_id OR EXISTS (
+      WITH RECURSIVE lineage AS (
+        SELECT id,parent_asset_id FROM maintenance_assets
+         WHERE company_id=NEW.company_id AND id=NEW.parent_asset_id
+        UNION ALL
+        SELECT parent.id,parent.parent_asset_id FROM maintenance_assets parent
+        JOIN lineage ON parent.id=lineage.parent_asset_id
+        WHERE parent.company_id=NEW.company_id
+      ) SELECT 1 FROM lineage WHERE id=NEW.id
+    ) THEN
+      RAISE EXCEPTION 'Equipment hierarchy cycle' USING ERRCODE='23514';
+    END IF;
+  END IF;
+  RETURN NEW;
+END; $;
+CREATE TRIGGER m07_asset_guard_trigger
+BEFORE INSERT OR UPDATE OF company_id,site_id,location_id,parent_asset_id ON maintenance_assets
+FOR EACH ROW EXECUTE FUNCTION m07_asset_guard();
+SQL);
+
         $role = DB::selectOne("SELECT (rolsuper OR rolbypassrls OR rolcreatedb OR rolcreaterole OR rolreplication)::int AS elevated FROM pg_roles WHERE rolname='atlas_app_runtime'");
         if (! $role || (int) $role->elevated !== 0) {
             throw new RuntimeException('Restricted runtime DB role required for M07.');
@@ -240,6 +307,12 @@ SQL);
                 $seq = DB::selectOne("SELECT pg_get_serial_sequence(?, 'id') AS name", ["public.{$table}"]);
                 if ($seq?->name) DB::statement("REVOKE USAGE, SELECT ON SEQUENCE {$seq->name} FROM atlas_app_runtime");
             }
+        }
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement('DROP TRIGGER IF EXISTS m07_asset_guard_trigger ON maintenance_assets');
+            DB::statement('DROP FUNCTION IF EXISTS m07_asset_guard()');
+            DB::statement('DROP TRIGGER IF EXISTS m07_location_guard_trigger ON maintenance_locations');
+            DB::statement('DROP FUNCTION IF EXISTS m07_location_guard()');
         }
         foreach (array_reverse(self::TABLES) as $table) Schema::dropIfExists($table);
         Schema::table('maintenance_requests', function (Blueprint $t) {
