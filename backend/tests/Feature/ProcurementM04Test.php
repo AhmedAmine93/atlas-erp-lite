@@ -151,6 +151,35 @@ class ProcurementM04Test extends TestCase
         $this->assertStringNotContainsString('DANGEROUS', $foreignCsv->streamedContent());
     }
 
+    public function test_tenant_delegation_enforces_spending_ceiling_and_four_eyes(): void
+    {
+        $company=Company::where('code','ATLAS_DEMO')->firstOrFail();
+        $requester=$this->member($company,'delegate-requester');
+        $low=$this->member($company,'delegate-low');
+        $high=$this->member($company,'delegate-high');
+        $this->as($requester,$company);
+        $this->postJson('/api/purchasing/delegations',[
+            'user_id'=>$requester->id,'currency'=>'EUR','max_amount_cents'=>100000
+        ])->assertForbidden();
+        $this->postJson('/api/purchasing/delegations',[
+            'user_id'=>$low->id,'currency'=>'EUR','max_amount_cents'=>100000
+        ])->assertCreated();
+        $this->postJson('/api/purchasing/delegations',[
+            'user_id'=>$high->id,'currency'=>'EUR','max_amount_cents'=>200000
+        ])->assertCreated();
+        $this->getJson('/api/purchasing/delegations')->assertOk()->assertJsonCount(2,'data');
+        $id=$this->postJson('/api/purchasing/requests',[
+            'reference'=>'REQ-DELEGATE-1001','title'=>'Over-threshold order',
+            'estimated_total_cents'=>100100,'currency'=>'EUR'
+        ])->assertCreated()->json('id');
+        $this->postJson("/api/purchasing/requests/$id/submit")->assertOk();
+        $this->as($low,$company);
+        $this->postJson("/api/purchasing/requests/$id/approve")->assertForbidden();
+        $this->as($high,$company);
+        $this->postJson("/api/purchasing/requests/$id/approve")->assertOk()
+            ->assertJsonPath('status','approved');
+    }
+
     public function test_invalid_iban_checksum_is_rejected_without_persisting_plaintext(): void
     {
         $company=Company::where('code','ATLAS_DEMO')->firstOrFail();
