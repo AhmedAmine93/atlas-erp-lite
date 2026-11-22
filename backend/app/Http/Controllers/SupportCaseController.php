@@ -331,7 +331,8 @@ class SupportCaseController extends Controller
         ]);
         $companyId = app(TenantContext::class)->requireId();
         $data['code'] = strtoupper($data['code']);
-        $request->validate(['code' => Rule::unique('support_service_catalog', 'code')->where('company_id', $companyId)]);
+        // Database tenant/code UNIQUE handles conflicting concurrent requests.
+        // Do not pre-reject a legitimate idempotent replay.
         return $this->once($request, 'catalog.create', $data, function () use ($data) {
             $item = SupportServiceCatalog::create($data);
             Audit::record('support.catalog.created', $item);
