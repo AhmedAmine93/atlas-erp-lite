@@ -144,7 +144,12 @@ class SalesCommerceController extends Controller
             $record->pricing_policy=$snapshot['pricing_policy'] ?? 'historical';
         }
         if ($kind==='returns') $record->credit=$this->rows('sales_credit_notes')->where('return_id',$id)->first();
-        if ($kind==='deliveries') $record->lines=$this->rows('sales_delivery_lines')->where('delivery_id',$id)->get();
+        if ($kind==='deliveries') {
+            $record->lines=$this->rows('sales_delivery_lines')->where('delivery_id',$id)->get();
+            $received=$this->rows('sales_return_lines')->whereIn('delivery_line_id',$record->lines->pluck('id'))
+                ->groupBy('delivery_line_id')->selectRaw('delivery_line_id, SUM(quantity_received) AS quantity')->pluck('quantity','delivery_line_id');
+            foreach ($record->lines as $line) $line->remaining_quantity=$line->quantity-(int)($received[$line->id] ?? 0);
+        }
         if ($kind==='returns') $record->lines=$this->rows('sales_return_lines')->where('return_id',$id)->get();
         if ($kind==='contracts') $record->versions=$this->rows('sales_contract_versions')->where('contract_id',$id)->orderBy('version_no')->get();
         return response()->json($record);
@@ -266,13 +271,13 @@ class SalesCommerceController extends Controller
     {
         $this->authorized('sales');
         [$from,$to]=match ($action) {
-            'confirm'=>['draft','confirmed'], 'prepare'=>['reserved','prepared'], 'close'=>['shipped','closed'],
+            'confirm'=>['draft','confirmed'], 'prepare'=>['reserved','prepared'], 'close'=>[['shipped','cancelled'],'closed'],
             default=>abort(404),
         };
         return $this->idempotent($r,"order-{$action}-{$order}",function () use ($r,$order,$action,$from,$to) {
             $doc=Order::lockForUpdate()->findOrFail($order);
             $this->version($r,$doc);
-            if ($doc->fulfillment_mode!=='reservation_v2' || $doc->status!==$from) $this->error('Transition de commande interdite.');
+            if ($doc->fulfillment_mode!=='reservation_v2' || !in_array($doc->status,(array)$from,true)) $this->error('Transition de commande interdite.');
             if ($action==='close' && (!$doc->invoice()->whereIn('status',['issued','paid'])->exists()
                 || $this->rows('sales_deliveries')->where('order_id',$order)->where('status','!=','received')->exists())) {
                 $this->error('La clôture exige les réceptions et une facture émise.');
@@ -587,7 +592,18 @@ class SalesCommerceController extends Controller
             foreach ($lines as $line) {
                 if (!$line->quantity_credit_eligible) continue;
                 $source=$this->one('sales_delivery_lines',$line->delivery_line_id);
-                $amount=Money::line($source->price_cents,$line->quantity_credit_eligible,$source->vat_bps);
+                $invoiceItem=collect($invoice->snapshot['items'])->firstWhere('id',$source->order_item_id);
+                if (!$invoiceItem) $this->error('Ligne absente de la facture.');
+                $credited=(int)DB::table('sales_return_lines as rl')
+                    ->join('sales_delivery_lines as dl','dl.id','=','rl.delivery_line_id')
+                    ->join('sales_credit_notes as cn','cn.return_id','=','rl.return_id')
+                    ->where('cn.company_id',$this->company())->where('cn.invoice_id',$invoice->id)
+                    ->where('dl.order_item_id',$source->order_item_id)->sum('rl.quantity_credit_eligible');
+                $newQuantity=$credited + $line->quantity_credit_eligible;
+                if ($newQuantity>$invoiceItem['quantity']) $this->error('Quantité déjà créditée.');
+                $previous=Money::line($invoiceItem['price_cents'],$credited,$invoiceItem['vat_bps']);
+                $amount=Money::line($invoiceItem['price_cents'],$newQuantity,$invoiceItem['vat_bps']);
+                foreach ($previous as $key=>$cents) $amount[$key]-=$cents;
                 $sum+=$amount['total_cents'];
                 $snapshot[]=array_merge((array)$line,['amounts'=>$amount]);
             }

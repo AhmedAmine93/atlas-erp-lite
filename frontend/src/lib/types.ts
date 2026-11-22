@@ -30,6 +30,7 @@ export type Product = {
   alert_threshold: number;
 };
 export type Line = {
+  shipped_quantity?: number;
   id?: number;
   product_id: number;
   reference: string;

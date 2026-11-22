@@ -4,7 +4,7 @@ if (!process.env.DEMO_PASSWORD) throw new Error("Set DEMO_PASSWORD before runnin
 
 test("M03 : devis révisé, commande réservée, livraison, retour et avoir", async ({ page }) => {
   await page.goto("/");
-  await page.getByLabel("Adresse e-mail", { exact:true }).fill("admin@atlas.example");
+  await page.getByLabel("Adresse e-mail", { exact:true }).fill("v5-browser-m03@atlas.example");
   await page.getByLabel("Mot de passe", { exact:true }).fill(process.env.DEMO_PASSWORD!);
   await page.getByRole("button", {name:"Se connecter",exact:true}).click();
   await expect(page.getByRole("button",{name:"Devis",exact:true})).toBeVisible();
@@ -80,7 +80,7 @@ test("M03 : devis révisé, commande réservée, livraison, retour et avoir", as
 
 test("M03 : contrats, tarifs et droits de navigation", async ({ page }) => {
   await page.goto("/");
-  await page.getByLabel("Adresse e-mail",{exact:true}).fill("admin@atlas.example");
+  await page.getByLabel("Adresse e-mail",{exact:true}).fill("v5-browser-m03@atlas.example");
   await page.getByLabel("Mot de passe",{exact:true}).fill(process.env.DEMO_PASSWORD!);
   await page.getByRole("button",{name:"Se connecter",exact:true}).click();
   await expect(page.getByRole("button",{name:"Devis",exact:true})).toBeVisible();

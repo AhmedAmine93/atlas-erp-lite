@@ -240,4 +240,27 @@ class SalesCommerceV5Test extends TestCase
         $this->assertStringNotContainsString('Secret-site-B',$export);
         $this->getJson('/api/sales-v5/delegates')->assertForbidden();
     }
+
+    public function test_lost_shipment_then_cancelled_remainder_invoices_only_received_quantity(): void
+    {
+        $company=Company::where('code','ATLAS_DEMO')->firstOrFail();
+        $maker=$this->member('commercial','partial-sales@example.test');
+        $admin=$this->member('admin','partial-approval@example.test');
+        [, $revision,$product]=$this->acceptedRevision($maker,$admin,$company);
+        $order=$this->postJson("/api/sales-v5/revisions/{$revision}/convert",[],$this->requestKey())->assertCreated()->json();
+        $url='/api/sales-v5/orders/'.$order['id'];
+        foreach (['confirm','reserve','prepare'] as $step) $this->postJson($url.'/'.$step,[],$this->requestKey())->assertCreated();
+        $delivery=$this->postJson($url.'/ship',['recipient'=>'Client fictif',
+            'lines'=>[['order_item_id'=>$order['items'][0]['id'],'quantity'=>3]]],$this->requestKey())->assertCreated()->json('id');
+        $this->postJson($url.'/cancel',[],$this->requestKey())->assertCreated();
+        $this->postJson("/api/sales-v5/deliveries/{$delivery}/lost",['reason'=>'Colis introuvable'], $this->requestKey())->assertCreated();
+        $this->postJson('/api/invoices',['order_id'=>$order['id']])->assertStatus(409);
+        $this->postJson("/api/sales-v5/deliveries/{$delivery}/acknowledge",['proof_reference'=>'Réception confirmée'], $this->requestKey())->assertCreated();
+        $invoice=$this->postJson('/api/invoices',['order_id'=>$order['id']])->assertCreated()
+            ->assertJsonPath('snapshot.items.0.quantity',3)->assertJsonPath('total_cents',16200)->json('id');
+        $this->patchJson("/api/invoices/{$invoice}",['status'=>'issued'])->assertOk();
+        $this->postJson($url.'/close',[],$this->requestKey())->assertCreated()->assertJsonPath('status','closed');
+        $this->assertDatabaseHas('sales_reservations',['order_id'=>$order['id'],'quantity_shipped'=>3,'quantity_released'=>2]);
+        $this->assertSame(4,$product->fresh()->stock);
+    }
 }

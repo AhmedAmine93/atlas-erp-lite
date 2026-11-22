@@ -127,7 +127,7 @@ export default function SalesCommerceWorkspace({view,activeCompanyId,canWrite,ca
       return [
         ...(row.status==="draft"?[{label:"Confirmer la commande",endpoint:"sales-v5/orders/"+row.id+"/confirm",fields:[]}]:[]),
         ...(row.status==="reserved"?[{label:"Préparer la commande",endpoint:"sales-v5/orders/"+row.id+"/prepare",fields:[]}]:[]),
-        ...(row.status==="shipped"?[{label:"Solder la commande",endpoint:"sales-v5/orders/"+row.id+"/close",fields:[]}]:[]),
+        ...(["shipped","cancelled"].includes(row.status??"")?[{label:"Solder la commande",endpoint:"sales-v5/orders/"+row.id+"/close",fields:[]}]:[]),
         ...(row.status==="confirmed"?[{label:"Réserver le stock",endpoint:`sales-v5/orders/${row.id}/reserve`,fields:[]}]:[]),
         ...(["prepared","partially_shipped"].includes(row.status??"")?[
           {label:"Expédier un reliquat",endpoint:`sales-v5/orders/${row.id}/ship`,
@@ -229,6 +229,7 @@ export default function SalesCommerceWorkspace({view,activeCompanyId,canWrite,ca
           form.endpoint.includes("/ship")?{order_item_id:Number(x.id),quantity:Number(x.quantity)}:
             {delivery_line_id:Number(x.id),quantity:Number(x.quantity)}
         ));
+        if(lines.some(x=>Number(x.quantity)>Number(chosenOptions.find(opt=>opt.id===Number(x.id))?.remaining_quantity??0)))throw Error("La quantité dépasse le reliquat disponible.");
         if(!selected.length)throw Error("Ajoutez au moins une ligne et sa quantité.");
         if(new Set(selected.map(x=>Object.values(x)[0])).size!==selected.length)throw Error("Lignes dupliquées.");
         payload.lines=selected;
@@ -253,14 +254,14 @@ export default function SalesCommerceWorkspace({view,activeCompanyId,canWrite,ca
     if(!form||form.endpoint!=="sales-v5/returns"||!chosenDelivery){setDeliveryChoices([]);return;}
     let live=true;
     api<{lines:Entry[]}>(`sales-v5/deliveries/${chosenDelivery}`)
-      .then(d=>{if(live)setDeliveryChoices(d.lines??[]);}).catch(()=>{if(live)setDeliveryChoices([]);});
+      .then(d=>{if(live)setDeliveryChoices((d.lines??[]).filter(x=>Number(x.remaining_quantity)>0));}).catch(()=>{if(live)setDeliveryChoices([]);});
     return()=>{live=false;};
   },[form,chosenDelivery]);
   const [orderChoices,setOrderChoices]=useState<Entry[]>([]);
   useEffect(()=>{
     if(!form?.endpoint.includes("/ship")||!focus){setOrderChoices([]);return;}
     let live=true;
-    api<{items:Entry[]}>(`orders/${focus.id}`).then(d=>{if(live)setOrderChoices(d.items??[]);})
+    api<{items:Entry[]}>(`orders/${focus.id}`).then(d=>{if(live)setOrderChoices((d.items??[]).filter(x=>Number(x.remaining_quantity)>0));})
       .catch(()=>{if(live)setOrderChoices([]);});return()=>{live=false;};
   },[form,focus]);
   const chosenOptions=form?.endpoint.includes("/ship")?orderChoices:deliveryChoices;

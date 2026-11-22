@@ -96,6 +96,8 @@ const date = (s: string) =>
 const labels: Record<string, string> = {
   draft: "Brouillon",
   converted: "Converti",
+  confirmed:"Confirmée", reserved:"Réservée", prepared:"Préparée", partially_shipped:"Partiellement expédiée",
+  shipped:"Expédiée", closed:"Soldée", sent:"Envoyé", accepted:"Accepté", expired:"Expiré",
   validated: "Validée",
   issued: "Émise",
   paid: "Payée",
@@ -1152,9 +1154,9 @@ function ListView({
             {(product
               ? ["1"]
               : view === "quotes"
-                ? ["draft", "converted"]
+                ? ["draft","sent","accepted","converted","expired","cancelled"]
                 : view === "orders"
-                  ? ["draft", "validated"]
+                  ? ["draft","confirmed","reserved","prepared","partially_shipped","shipped","closed","cancelled","validated"]
                   : ["draft", "issued", "paid", "cancelled"]
             ).map((s) => (
               <option value={s} key={s}>
@@ -1998,7 +2000,7 @@ function Detail({
             <Check size={16} />
           </button>
         )}
-        {can && kind === "orders" && ["validated","shipped"].includes(row.status) && (
+        {can && kind === "orders" && (["validated","shipped"].includes(row.status) || (row.status==="cancelled" && row.items?.some(x=>Number(x.shipped_quantity)>0) && row.fulfillment_mode==="reservation_v2")) && (
           <button
             className="button primary"
             disabled={busy}
