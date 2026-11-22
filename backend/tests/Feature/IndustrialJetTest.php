@@ -139,6 +139,28 @@ final class IndustrialJetTest extends TestCase
         $this->getJson('/api/industrial/inspections')->assertOk()->assertJsonPath('total',1);
     }
 
+    public function test_industrial_sql_package_fails_closed_without_transaction_tenant_context(): void
+    {
+        if (DB::getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('SQL package requires PostgreSQL');
+        }
+        $company=Company::where('code','ATLAS_DEMO')->firstOrFail();
+        $user=$this->signIn($company,'admin','missing-guc');
+        $asset=$this->asset('NOGUC');
+        try {
+            DB::transaction(function () use ($company,$asset,$user) {
+                DB::selectOne("SELECT set_config('atlas.tenant_id', '', true)");
+                DB::selectOne('SELECT * FROM atlas_industrial.record_meter(?,?,?,?,?,?)',[
+                    $company->id,$asset,'HOURS',2,'meter-without-guc',$user->id,
+                ]);
+            });
+            $this->fail('SQL package must reject missing tenant transaction context');
+        } catch (\Illuminate\Database\QueryException $exception) {
+            $this->assertSame('42501',(string) ($exception->errorInfo[0] ?? $exception->getCode()));
+        }
+        $this->assertDatabaseCount('industrial_meter_readings',0);
+    }
+
     public function test_cross_tenant_template_foreign_key_and_immutable_journals(): void
     {
         $a=Company::where('code','ATLAS_DEMO')->firstOrFail();
