@@ -25,13 +25,15 @@ return new class extends Migration
             $table->unsignedInteger('attempts')->default(0);
             $table->text('last_error')->nullable();
             $table->index(['published_at', 'id'], 'platform_outbox_pending_idx');
-            $table->index(['company_id', 'id']);
+            $table->unique(['company_id', 'id'], 'platform_outbox_tenant_id_unique');
         });
 
         Schema::create('platform_event_receipts', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('company_id')->constrained('companies')->restrictOnDelete();
-            $table->foreignId('event_id')->constrained('platform_outbox_events')->restrictOnDelete();
+            $table->unsignedBigInteger('event_id');
+            $table->foreign(['company_id', 'event_id'], 'platform_receipts_tenant_event_fk')
+                ->references(['company_id', 'id'])->on('platform_outbox_events')->restrictOnDelete();
             $table->char('payload_sha256', 64);
             $table->string('event_type', 255);
             $table->timestampTz('processed_at');
