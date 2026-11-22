@@ -105,15 +105,16 @@ final class IndustrialJetController extends Controller
                     [$company,$data['asset_id'],$data['meter_code'],$data['reading_value'],
                         $data['idempotency_key'],$request->user()->id],
                 );
-                if (! $result->replayed) {
+                $replayed=filter_var($result->replayed,FILTER_VALIDATE_BOOLEAN);
+                if (! $replayed) {
                     Audit::record('industrial.meter.recorded',null,[
                         'reading_id'=>(int) $result->reading_id,
                         'asset_id'=>(int) $data['asset_id'],
                         'meter_code'=>$data['meter_code'],
                     ]);
                 }
-                return response()->json(['id'=>(int) $result->reading_id,'replayed'=>(bool) $result->replayed],
-                    $result->replayed ? 200 : 201);
+                return response()->json(['id'=>(int) $result->reading_id,'replayed'=>$replayed],
+                    $replayed ? 200 : 201);
             },3);
         } catch (QueryException $exception) {
             $this->fail($exception);
@@ -184,7 +185,8 @@ final class IndustrialJetController extends Controller
                     $data['observations'],$data['idempotency_key'],$request->user()->id,
                 ]);
                 $di=null;$order=null;
-                if (! $row->replayed) {
+                $replayed=filter_var($row->replayed,FILTER_VALIDATE_BOOLEAN);
+                if (! $replayed) {
                     if ($data['result']==='fail') {
                         // A failed inspection atomically creates ONE corrective DI and BT.
                         // The immutable inspection ID is also the deterministic DI reference.
@@ -209,15 +211,15 @@ final class IndustrialJetController extends Controller
                         'inspection_id'=>(int) $row->inspection_id,'result'=>$data['result'],
                     ]);
                 }
-                if ($row->replayed && $data['result']==='fail') {
+                if ($replayed && $data['result']==='fail') {
                     $di=MaintenanceRequest::query()->where('reference','INS-'.(int) $row->inspection_id)->first();
                     $order=$di?->id ? MaintenanceWorkOrder::query()
                         ->where('maintenance_request_id',$di->id)->first() : null;
                 }
                 return response()->json([
-                    'id'=>(int) $row->inspection_id,'replayed'=>(bool) $row->replayed,
+                    'id'=>(int) $row->inspection_id,'replayed'=>$replayed,
                     'corrective_request_id'=>$di?->id,'corrective_work_order_id'=>$order?->id,
-                ],$row->replayed ? 200 : 201);
+                ],$replayed ? 200 : 201);
             },3);
         } catch (QueryException $exception) {
             $this->fail($exception);
