@@ -4,7 +4,7 @@ test("M01: all five pilotage sections render with tenant-backed indicators", asy
   const password = process.env.DEMO_PASSWORD;
   if (!password) throw new Error("DEMO_PASSWORD is required for the M01 browser test.");
   await page.goto("/");
-  await page.getByLabel("Adresse e-mail", { exact: true }).fill("v5-browser-e2e@atlas.example");
+  await page.getByLabel("Adresse e-mail", { exact: true }).fill("v5-browser-e2e-pilotage@atlas.example");
   await page.getByLabel("Mot de passe", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Se connecter", exact: true }).click();
 
