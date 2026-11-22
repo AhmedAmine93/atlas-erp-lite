@@ -144,7 +144,7 @@ export const navigationSections: NavigationSection[] = [
       { id: "hotel-availability", label: "Disponibilité locale", ready: true },
       { id: "hotel-checkin", label: "Arrivées et départs", ready: true },
       { id: "hotel-housekeeping", label: "Housekeeping", ready: true },
-      { id: "hotel-minibar", label: "Mini-bar" },
+      { id: "hotel-minibar", label: "Mini-bar", ready: true },
       { id: "hotel-folios", label: "Folios et facturation" },
       { id: "hotel-channel", label: "Canaux et CRS/PMS" },
       { id: "hotel-night-audit", label: "Clôture de journée" },
