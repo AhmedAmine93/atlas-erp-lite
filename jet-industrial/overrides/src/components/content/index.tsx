@@ -3,13 +3,14 @@ import { useEffect, useMemo, useState } from "preact/hooks";
 import "ojs/ojbutton";
 import { PlanningWorkspace, TeamWorkspace, ReportWorkspace } from "./planning";
 import { PreventiveWorkspace, type PreventivePlan, type PreventiveOccurrence } from "./preventive";
+import { IndustrialWorkspace, type IndustrialTab } from "./industrial";
 import {
   api,fetchPages,post,resetSession,setSession,
   type Site,type Asset,type Intervention,type WorkOrder,type SessionProfile,
   type MaintenanceTeam,type MaintenanceTechnician,type MaintenanceSlot,type MaintenanceReport
 } from "./atlas-api";
 
-type Tab="overview"|"assets"|"requests"|"orders"|"teams"|"planning"|"reports"|"preventive";
+type Tab="overview"|"assets"|"requests"|"orders"|"teams"|"planning"|"reports"|"preventive"|IndustrialTab;
 const priorities=["low","normal","high","critical"] as const;
 const statusLabels:Record<string,string>={
  new:"Nouvelle",qualified:"Qualifiée",open:"Ouvert",in_progress:"En cours",
@@ -23,6 +24,7 @@ const blankSite={code:"",name:""};
 
 export function Content(){
  const [tab,setTab]=useState<Tab>("overview");
+ const [generation,setGeneration]=useState(0);
  const [profile,setProfile]=useState<SessionProfile|null>(null);
  const [sites,setSites]=useState<Site[]>([]);
  const [assets,setAssets]=useState<Asset[]>([]);
@@ -75,6 +77,7 @@ export function Content(){
    setProfile(p);setSites(s);setAssets(a);setRequests(r);setOrders(o);
    setTeams(t);setTechnicians(tech);setSlots(planning);setReport(summary);
    setPlans(plans);setOccurrences(nextOccurrences);
+   setGeneration(n=>n+1);
   }catch(e){
    setProfile(null);setSites([]);setAssets([]);setRequests([]);setOrders([]);
    setTeams([]);setTechnicians([]);setSlots([]);setReport(null);
@@ -138,15 +141,30 @@ export function Content(){
   </header>
   <div class="atlas-jet-body">
    <nav class="atlas-jet-nav" aria-label="Navigation GMAO">
-    <p>POSTE INDUSTRIEL</p>
     {([
-     ["overview","Vue d’ensemble"],["assets","Sites et équipements"],
-     ["requests","Demandes d’intervention"],["orders","Bons de travail"],
-     ["teams","Techniciens & équipes"],["planning","Planning technique"],
-     ["preventive","Maintenance préventive"],["reports","Rapports GMAO"]
-    ] as [Tab,string][]).map(([id,name])=>
-     <button type="button" key={id} class={tab===id?"active":""} aria-current={tab===id?"page":undefined}
-      onClick={()=>setTab(id)}>{name}</button>
+     ["PILOTAGE INDUSTRIEL",[
+       ["industrial-overview","Cockpit & supervision"],["overview","Vue générale"],
+       ["reports","Rapports GMAO"]
+     ]],
+     ["PARC ET INTERVENTIONS",[
+       ["assets","Sites et équipements"],["requests","Demandes d’intervention"],
+       ["orders","Bons de travail"]
+     ]],
+     ["EXPLOITATION ET FIABILITÉ",[
+       ["meters","Compteurs & relevés"],["inspection-templates","Modèles de contrôle"],
+       ["inspections","Inspections & conformité"],["industrial-rules","Règles SQL métier"]
+     ]],
+     ["PLANIFICATION ET PRÉVENTIF",[
+       ["teams","Techniciens & équipes"],["planning","Planning technique"],
+       ["preventive","Maintenance préventive"]
+     ]]
+    ] as [string,[Tab,string][]][]).map(([group,items])=>
+      <div class="atlas-jet-nav-group" key={group}>
+       <p>{group}</p>
+       {items.map(([id,name])=><button type="button" key={id}
+        class={tab===id?"active":""} aria-current={tab===id?"page":undefined}
+        onClick={()=>setTab(id)}>{name}</button>)}
+      </div>
     )}
     <div class="atlas-jet-nav-info">
       <strong>Isolation multi-sociétés</strong>
@@ -159,7 +177,11 @@ export function Content(){
       <h1>{tab==="overview"?"Pilotage industriel":tab==="assets"?"Parc technique":
        tab==="requests"?"Demandes d’intervention":tab==="orders"?"Bons de travail":
        tab==="teams"?"Équipes et techniciens":tab==="planning"?"Planning technique":
-       tab==="preventive"?"Maintenance préventive":"Rapports industriels"}</h1>
+       tab==="preventive"?"Maintenance préventive":tab==="reports"?"Rapports industriels":
+       tab==="industrial-overview"?"Cockpit de fiabilité":
+       tab==="meters"?"Compteurs et relevés d’exploitation":
+       tab==="inspection-templates"?"Modèles de contrôle":
+       tab==="inspections"?"Inspections et non-conformités":"Référentiel des règles industrielles"}</h1>
       <p>Opérations réelles via les API métier ATLAS ONE, sans écriture directe dans PostgreSQL.</p></div>
      <div class="atlas-jet-actions">
       {canWrite&&tab==="assets"&&<><oj-button onojAction={()=>setOpenForm("site")}>+ Site</oj-button>
@@ -173,6 +195,9 @@ export function Content(){
     </div>}
     {loading&&<p class="atlas-jet-muted">Chargement des données de la société active…</p>}
     {!loading&&profile&&<>
+     {(["industrial-overview","meters","inspections","inspection-templates","industrial-rules"] as Tab[])
+       .includes(tab)&&<IndustrialWorkspace mode={tab as IndustrialTab} assets={assets}
+         busy={busy} execute={execute} refreshVersion={generation}/>}
      {tab==="overview"&&<>
       <div class="atlas-jet-metrics">
        {[
