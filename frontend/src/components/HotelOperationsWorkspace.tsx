@@ -53,7 +53,7 @@ export default function HotelOperationsWorkspace({view,activeCompanyId}:{
  useEffect(()=>{
    let live=true;
    api<Page>("hotels").then(result=>{
-      if(live) {setHotels(result.data);setHotel(current=>current || str(result.data[0]?.id));}
+      if(live) {setHotels(result.data);setHotel(str(result.data[0]?.id));}
    }).catch((e:Error)=>{if(live)setError(e.message);});
    return ()=>{live=false;};
  },[activeCompanyId]);
