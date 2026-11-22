@@ -43,6 +43,7 @@ import { canEditWorkspaceView, canOpenWorkspaceView, parseWorkspacePath, workspa
 import OrganizationWorkspace from "@/components/OrganizationWorkspace";
 import AdministrationWorkspace, { adminViews } from "@/components/AdministrationWorkspace";
 import AdminMembersWorkspace from "@/components/AdminMembersWorkspace";
+import AdminAuditWorkspace from "@/components/AdminAuditWorkspace";
 import DomainWorkspace, { domainViews } from "@/components/DomainWorkspace";
 import HotelHousekeepingWorkspace from "@/components/HotelHousekeepingWorkspace";
 import HotelMinibarWorkspace from "@/components/HotelMinibarWorkspace";
@@ -579,6 +580,8 @@ export default function Workspace() {
             <HotelHousekeepingWorkspace key={"hotel-housekeeping-"+user.active_company_id} activeCompanyId={user.active_company_id ?? null} />
           ) : domainViews.has(view) ? (
             <DomainWorkspace key={view+"-"+user.active_company_id} view={view} activeCompanyId={user.active_company_id ?? null} />
+          ) : view === "audit-logs" ? (
+            <AdminAuditWorkspace key={"audit-"+user.active_company_id} activeCompanyId={user.active_company_id ?? null}/>
           ) : view === "users" ? (
             <AdminMembersWorkspace key={"users-"+user.active_company_id} activeCompanyId={user.active_company_id ?? null}/>
           ) : adminViews.includes(view) ? (
