@@ -167,6 +167,40 @@ final class CrmWorkspaceTest extends TestCase
         $this->assertDatabaseHas('audit_logs',['action'=>'crm.activities.rescheduled']);
     }
 
+    public function test_opportunity_quote_link_enforces_tenant_and_customer_and_is_idempotent(): void
+    {
+        $customer=Customer::create(['name'=>'Client du devis','email'=>'quote-link@example.test']);
+        $other=Customer::create(['name'=>'Autre client','email'=>'other-quote@example.test']);
+        $product=\App\Models\Product::create([
+            'reference'=>'CRM-Q1','name'=>'Service fictif','category'=>'Services',
+            'price_cents'=>1000,'vat_bps'=>2000,'stock'=>0,'alert_threshold'=>0
+        ]);
+        $quoteId=$this->postJson('/api/quotes',[
+            'customer_id'=>$customer->id,'items'=>[['product_id'=>$product->id,'quantity'=>1]]
+        ])->assertCreated()->json('id');
+        $opportunity=$this->postJson('/api/crm/opportunities',[
+            'title'=>'Pipeline', 'customer_id'=>$customer->id
+        ])->assertCreated()->json('id');
+        $wrong=$this->postJson('/api/crm/opportunities',[
+            'title'=>'Autre pipeline', 'customer_id'=>$other->id
+        ])->assertCreated()->json('id');
+        $this->postJson('/api/crm/opportunities/'.$wrong.'/quotes',[
+            'quote_id'=>$quoteId
+        ])->assertUnprocessable();
+        $this->postJson('/api/crm/opportunities/'.$opportunity.'/quotes',[
+            'quote_id'=>$quoteId
+        ])->assertCreated();
+        $this->postJson('/api/crm/opportunities/'.$opportunity.'/quotes',[
+            'quote_id'=>$quoteId
+        ])->assertOk();
+        $this->getJson('/api/crm/opportunities/'.$opportunity.'/quotes')
+            ->assertOk()->assertJsonPath('data.0.id',$quoteId);
+        $this->assertSame(1,DB::table('crm_opportunity_quotes')->count());
+        $foreign=Company::create(['code'=>'CRM_Q_B','name'=>'Autre entreprise quote'])->id;
+        $this->login('admin','qb',$foreign);
+        $this->getJson('/api/crm/opportunities/'.$opportunity.'/quotes')->assertNotFound();
+    }
+
     public function test_pg_runtime_rls_isolates_all_new_crm_tables(): void
     {
         if (DB::getDriverName()!=='pgsql') $this->markTestSkipped('RLS PostgreSQL uniquement.');
