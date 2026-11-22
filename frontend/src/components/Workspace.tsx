@@ -44,6 +44,7 @@ import OrganizationWorkspace from "@/components/OrganizationWorkspace";
 import DomainWorkspace, { domainViews } from "@/components/DomainWorkspace";
 import CrmWorkspace from "@/components/CrmWorkspace";
 import CrmCustomerImport from "@/components/CrmCustomerImport";
+import CrmCustomerQuality from "@/components/CrmCustomerQuality";
 import PilotageWorkspace from "@/components/PilotageWorkspace";
 import HotelHousekeepingWorkspace from "@/components/HotelHousekeepingWorkspace";
 import HotelMinibarWorkspace from "@/components/HotelMinibarWorkspace";
@@ -593,6 +594,9 @@ export default function Workspace() {
             <>
             {view === "customers" && ["admin","commercial"].includes(user.role.name) && (
               <CrmCustomerImport onImported={() => setRefresh(n => n + 1)} />
+            )}
+            {view === "customers" && ["admin","commercial"].includes(user.role.name) && (
+              <CrmCustomerQuality activeCompanyId={user.active_company_id ?? null} onChanged={() => setRefresh(n => n + 1)} />
             )}
             <ListView
               key={view}
