@@ -74,7 +74,7 @@ export default function CrmWorkspace({view,activeCompanyId,canEdit}:{view:View;a
  const [audienceTotal,setAudienceTotal]=useState(0);
  const [memberId,setMemberId]=useState("");
  const [quoteId,setQuoteId]=useState("");
- const [summary,setSummary]=useState<{customers_active:number;prospects_open:number;opportunities_open:number;forecast_cents:number;activities_overdue:number;activities_due_today:number}|null>(null);
+ const [summary,setSummary]=useState<{customers_active:number;prospects_open:number;opportunities_open:number;forecast_cents:number;pipeline_by_currency?:Array<{currency:string;forecast_cents:number|string}>;activities_overdue:number;activities_due_today:number}|null>(null);
  const [quotes,setQuotes]=useState<Array<{id:number;number:string;status:string;total_cents:number}>>([]);
  const resource=conf.resource;
  useEffect(()=>{setRows([]);setSelected(null);setForm(false);setEdit(null);setPage(1);setSearch("");setQuery("");},[view,activeCompanyId]);
@@ -232,7 +232,12 @@ export default function CrmWorkspace({view,activeCompanyId,canEdit}:{view:View;a
     <div><span>Clients actifs</span><strong>{summary.customers_active}</strong></div>
     <div><span>Prospects ouverts</span><strong>{summary.prospects_open}</strong></div>
     <div><span>Affaires en cours</span><strong>{summary.opportunities_open}</strong></div>
-    <div><span>Pipeline pondéré</span><strong>{new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR"}).format(summary.forecast_cents/100)}</strong></div>
+    <div><span>Pipeline pondéré par devise</span>
+      <strong>{(summary.pipeline_by_currency?.length ? summary.pipeline_by_currency
+        : [{currency:"EUR",forecast_cents:summary.forecast_cents}]).map(item=>
+        <span key={item.currency}>{new Intl.NumberFormat("fr-FR",{style:"currency",currency:item.currency})
+          .format(Number(item.forecast_cents)/100)} </span>)}</strong>
+    </div>
     <div><span>Relances en retard</span><strong>{summary.activities_overdue}</strong></div>
     <div><span>Relances aujourd'hui</span><strong>{summary.activities_due_today}</strong></div>
   </div>}
