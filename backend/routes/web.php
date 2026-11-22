@@ -3,6 +3,13 @@
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ContactController;
+use App\Http\Controllers\CrmWorkspaceController;
+use App\Http\Controllers\CrmCustomerImportController;
+use App\Http\Controllers\CrmExportController;
+use App\Http\Controllers\CrmCustomerQualityController;
+use App\Http\Controllers\CrmSegmentAudienceController;
+use App\Http\Controllers\CrmExternalIdentityController;
+use App\Http\Controllers\CrmCustomerLifecycleController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PilotageController;
 use App\Http\Controllers\PilotageManagementController;
@@ -147,6 +154,35 @@ Route::prefix('api')->group(function () {
         Route::put('products/{id}', [ProductController::class, 'save'])->whereNumber('id');
         Route::delete('products/{id}', [ProductController::class, 'destroy'])->whereNumber('id');
         Route::post('products/{id}/stock', [ProductController::class, 'adjust'])->whereNumber('id');
+        // M02 CRM: explicit allowlisted resources, always behind auth + tenant middleware.
+        Route::get('crm/summary', [CrmWorkspaceController::class,'summary']);
+        Route::get('crm/customers/archived', [CrmCustomerLifecycleController::class,'archived']);
+        Route::post('crm/customers/{id}/restore', [CrmCustomerLifecycleController::class,'restore'])->whereNumber('id');
+        Route::get('crm/external-identifiers/{kind}/{id}', [CrmExternalIdentityController::class,'index'])
+            ->whereIn('kind',['customers','suppliers','contacts','prospects'])->whereNumber('id');
+        Route::post('crm/external-identifiers/{kind}/{id}', [CrmExternalIdentityController::class,'store'])
+            ->whereIn('kind',['customers','suppliers','contacts','prospects'])->whereNumber('id');
+        Route::post('crm/external-identifiers/{id}/revoke', [CrmExternalIdentityController::class,'revoke'])
+            ->whereNumber('id');
+        Route::get('crm/customers/duplicate-candidates', [CrmCustomerQualityController::class,'candidates']);
+        Route::get('crm/customers/duplicate-links', [CrmCustomerQualityController::class,'links']);
+        Route::post('crm/customers/duplicate-links', [CrmCustomerQualityController::class,'link']);
+        Route::post('crm/customers/duplicate-links/{id}/reverse', [CrmCustomerQualityController::class,'reverse'])->whereNumber('id');
+        Route::get('crm/export/{resource}', [CrmExportController::class,'download'])->whereIn('resource',['customers','prospects','contacts','opportunities','activities','segments']);
+        Route::post('crm/customers/import', [CrmCustomerImportController::class,'store']);
+        Route::get('crm/{resource}', [CrmWorkspaceController::class,'index'])->whereIn('resource',['prospects','contacts','opportunities','activities','segments']);
+        Route::post('crm/{resource}', [CrmWorkspaceController::class,'store'])->whereIn('resource',['prospects','contacts','opportunities','activities','segments']);
+        Route::get('crm/{resource}/{id}', [CrmWorkspaceController::class,'show'])->whereIn('resource',['prospects','contacts','opportunities','activities','segments'])->whereNumber('id');
+        Route::put('crm/{resource}/{id}', [CrmWorkspaceController::class,'update'])->whereIn('resource',['prospects','contacts','opportunities','activities','segments'])->whereNumber('id');
+        Route::post('crm/{resource}/{id}/transition', [CrmWorkspaceController::class,'transition'])->whereIn('resource',['prospects','opportunities','activities'])->whereNumber('id');
+        Route::get('crm/opportunities/{id}/quotes', [CrmWorkspaceController::class,'opportunityQuotes'])->whereNumber('id');
+        Route::post('crm/opportunities/{id}/quotes', [CrmWorkspaceController::class,'linkQuote'])->whereNumber('id');
+        Route::post('crm/activities/{id}/reschedule', [CrmWorkspaceController::class,'reschedule'])->whereNumber('id');
+        Route::post('crm/prospects/{id}/convert', [CrmWorkspaceController::class,'convert'])->whereNumber('id');
+        Route::post('crm/customers/{id}/archive', [CrmWorkspaceController::class,'archiveCustomer'])->whereNumber('id');
+        Route::get('crm/segments/{id}/marketing-audience', [CrmSegmentAudienceController::class,'index'])->whereNumber('id');
+        Route::get('crm/segments/{id}/members', [CrmWorkspaceController::class,'segmentMembers'])->whereNumber('id');
+        Route::put('crm/segments/{id}/members', [CrmWorkspaceController::class,'setSegmentMember'])->whereNumber('id');
         Route::get('{kind}', [ContactController::class, 'index'])->whereIn('kind', ['customers', 'suppliers']);
         Route::get('{kind}/{id}', [ContactController::class, 'show'])->whereIn('kind', ['customers', 'suppliers'])->whereNumber('id');
         Route::post('{kind}', [ContactController::class, 'save'])->whereIn('kind', ['customers', 'suppliers']);
