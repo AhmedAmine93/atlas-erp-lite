@@ -12,7 +12,12 @@ class InvoiceService
     {
         return DB::transaction(function () use ($orderId) {
             $order = Order::lockForUpdate()->findOrFail($orderId);
-            abort_if($order->status !== 'validated', 409, 'Validez la commande avant de la facturer.');
+            // Legacy orders were already debited at validation; V5 orders are invoiced
+            // only after the entire quantity has been shipped, never at reservation.
+            $eligible = $order->fulfillment_mode === 'reservation_v2'
+                ? $order->status === 'shipped'
+                : $order->status === 'validated';
+            abort_unless($eligible, 409, 'La commande doit être intégralement expédiée ou validée (mode historique).');
             abort_if($order->invoice()->exists(), 409, 'Cette commande possède déjà une facture.');
             $invoice = Invoice::create(array_merge($order->only(['subtotal_cents', 'tax_cents', 'total_cents']), ['order_id' => $orderId,
                 'snapshot' => ['customer' => $order->customer->only(['name', 'email', 'phone', 'address']), 'order_number' => $order->number,
