@@ -134,6 +134,29 @@ final class CrmWorkspaceController extends Controller
         Audit::record('crm.'.$resource.'.'.$event, null, array_merge(['record_id'=>$id], $extra));
     }
 
+    /** Private, server-side CRM performance numbers; never expose contact PII. */
+    public function summary()
+    {
+        Gate::authorize('crmRead');
+        $company=$this->company();
+        $opp=DB::table('crm_opportunities')->where('company_id',$company)
+            ->whereNotIn('stage',['lost','won']);
+        $forecast=(clone $opp)
+            ->selectRaw('COALESCE(SUM(amount_cents * probability_bps / 10000),0) AS amount')
+            ->first();
+        return response()->json([
+            'customers_active'=>Customer::query()->whereNull('archived_at')->count(),
+            'prospects_open'=>DB::table('crm_prospects')->where('company_id',$company)
+                ->whereIn('status',['new','qualified'])->count(),
+            'opportunities_open'=>(clone $opp)->count(),
+            'forecast_cents'=>(int)($forecast->amount??0),
+            'activities_overdue'=>DB::table('crm_activities')->where('company_id',$company)
+                ->where('status','planned')->where('due_at','<',now())->count(),
+            'activities_due_today'=>DB::table('crm_activities')->where('company_id',$company)
+                ->where('status','planned')->whereDate('due_at',today())->count(),
+        ]);
+    }
+
     public function index(Request $request, string $resource)
     {
         Gate::authorize('crmRead');
