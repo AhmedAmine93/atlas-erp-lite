@@ -23,7 +23,7 @@ return new class extends Migration {
                 FOREIGN KEY (company_id,hotel_id,product_id) REFERENCES minibar_products(company_id,hotel_id,id)
             );
             SQL);
-        $grant = require dirname(__DIR__).'/minibar_runtime.php';
+        $grant = require database_path('minibar_runtime.php');
         $grant(['minibar_products' => 'SELECT, INSERT, UPDATE (name,active)', 'minibar_prices' => 'SELECT, INSERT']);
     }
 
