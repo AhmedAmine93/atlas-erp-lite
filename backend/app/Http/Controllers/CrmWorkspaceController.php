@@ -29,7 +29,7 @@ final class CrmWorkspaceController extends Controller
         'prospects' => ['name','email','phone','source','owner_id','opt_out'],
         'contacts' => ['customer_id','first_name','last_name','email','phone','job_title','consent','active','valid_from','valid_to'],
         'opportunities' => ['customer_id','prospect_id','owner_id','title','amount_cents','currency','probability_bps','expected_close_at'],
-        'activities' => ['customer_id','prospect_id','contact_id','opportunity_id','owner_id','title','type','priority','due_at','timezone'],
+        'activities' => ['customer_id','prospect_id','contact_id','opportunity_id','owner_id','title','type','purpose','priority','due_at','timezone'],
         'segments' => ['code','name','mode','criteria'],
     ];
 
@@ -102,6 +102,7 @@ final class CrmWorkspaceController extends Controller
                 'contact_id' => 'nullable|integer|min:1', 'opportunity_id' => 'nullable|integer|min:1',
                 'owner_id' => 'sometimes|required|integer|min:1', 'title' => 'sometimes|required|string|max:255',
                 'type' => ['sometimes',Rule::in(['call','meeting','email','task'])],
+                'purpose' => ['sometimes',Rule::in(['service','sales','marketing'])],
                 'priority' => ['sometimes',Rule::in(['low','normal','high'])],
                 'due_at' => 'sometimes|required|date',
                 'timezone' => 'sometimes|timezone',
@@ -126,6 +127,37 @@ final class CrmWorkspaceController extends Controller
         if ($resource === 'segments' && ($data['mode'] ?? '') === 'dynamic') {
             abort_unless(isset($data['criteria']['field'], $data['criteria']['value']), 422,
                 'Critères de segmentation nécessaires.');
+        }
+    }
+
+    /**
+     * Marketing tasks require a verified opt-in for all explicitly targeted
+     * people. No emails are sent here: this controls CRM task scheduling.
+     */
+    private function assertMarketingEligibility(array $values): void
+    {
+        if (($values['purpose'] ?? 'service') !== 'marketing') return;
+        $contactId=$values['contact_id'] ?? null;
+        $prospectId=$values['prospect_id'] ?? null;
+        abort_unless($contactId || $prospectId,422,'Un contact ou prospect ayant consenti est obligatoire.');
+        if ($contactId) {
+            $contact=DB::table('crm_contacts')->where('company_id',$this->company())
+                ->where('id',$contactId)->first();
+            abort_unless($contact && $contact->active && $contact->consent==='granted',
+                422,'Le contact ne dispose pas d’un consentement marketing valide.');
+            $today=now()->toDateString();
+            abort_if(($contact->valid_from && $contact->valid_from>$today)
+                || ($contact->valid_to && $contact->valid_to<$today),
+                422,'Le contact n’est pas dans sa période de validité.');
+        }
+        if ($prospectId) {
+            $prospect=DB::table('crm_prospects')->where('company_id',$this->company())
+                ->where('id',$prospectId)->first();
+            abort_unless($prospect && !$prospect->opt_out
+                && in_array($prospect->status,['new','qualified'],true),
+                422,'Prospect opposé, perdu ou converti : prospection marketing interdite.');
+            // A prospect with opt_out=false is not necessarily opted-in.
+            abort(422,'Un prospect seul ne prouve pas un consentement marketing : utilisez un contact avec consentement accordé.');
         }
     }
 
@@ -216,6 +248,7 @@ final class CrmWorkspaceController extends Controller
             $data['owner_id'] = (int)$request->user()->id;
         }
         $this->checkReferences($resource, $data);
+        if ($resource === 'activities') $this->assertMarketingEligibility($data);
         if ($resource === 'segments') $data['criteria'] = json_encode($data['criteria'] ?? [], JSON_THROW_ON_ERROR);
         return DB::transaction(function () use ($resource,$data) {
             $now = now();
@@ -243,6 +276,10 @@ final class CrmWorkspaceController extends Controller
             if ($resource === 'opportunities') abort_if(in_array($row->stage,['won','lost'],true),409,'Opportunité clôturée.');
             if ($resource === 'activities') abort_if($row->status !== 'planned',409,'Activité clôturée.');
             if ($resource === 'segments') abort_if($row->archived_at !== null,409,'Segment archivé.');
+            if ($resource === 'activities') {
+                $effective=array_merge((array)$row,$data);
+                $this->assertMarketingEligibility($effective);
+            }
             $revision = (int)$request->input('expected_revision',0);
             abort_unless($revision === (int)$row->revision,409,'Fiche modifiée par un autre utilisateur.');
             if ($resource === 'segments' && isset($data['criteria'])) {
