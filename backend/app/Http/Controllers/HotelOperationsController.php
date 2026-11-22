@@ -171,6 +171,84 @@ final class HotelOperationsController extends Controller
         });
     }
 
+    /**
+     * A folio transfer is two immutable and balanced ledger entries in one
+     * transaction. Both folios must belong to the same hotel and same stay.
+     */
+    public function transfer(Request $request, int $hotel, int $folio)
+    {
+        $property = $this->property($hotel);
+        $data = $request->validate([
+            'destination_folio_id' => 'required|integer|min:1|different:folio',
+            'source_entry_id' => 'required|integer|min:1',
+            'amount_cents' => 'required|integer|between:1,100000000000',
+            'business_date' => 'required|date_format:Y-m-d',
+            'reason' => 'required|string|min:5|max:300',
+            'request_id' => 'required|uuid',
+            'company_id' => 'prohibited', 'hotel_id' => 'prohibited',
+        ]);
+        $destination = (int)$data['destination_folio_id'];
+        abort_if($destination === $folio, 422, 'Le folio cible doit être différent.');
+        return DB::transaction(function () use ($property, $request, $folio, $destination, $data) {
+            $key = ['company_id' => $property->company_id, 'hotel_id' => $property->id];
+            $folios = DB::table('hotel_folios')->where($key)
+                ->whereIn('id', [$folio,$destination])
+                ->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+            $sourceFolio = $folios->get($folio);
+            $targetFolio = $folios->get($destination);
+            abort_unless($sourceFolio && $targetFolio, 404);
+            abort_unless($sourceFolio->booking_id === $targetFolio->booking_id, 409,
+                'Transfert entre séjours distincts interdit.');
+            $existing = DB::table('hotel_folio_entries')->where($key)
+                ->where('request_id',$data['request_id'])->first();
+            if ($existing) {
+                abort_unless($existing->kind === 'transfer_out'
+                    && $existing->folio_id === $folio
+                    && $existing->related_entry_id === (int)$data['source_entry_id']
+                    && $existing->amount_cents == (int)$data['amount_cents']
+                    && $existing->business_date === $data['business_date']
+                    && $existing->source_reference === 'folio:'.$destination
+                    && $existing->note === $data['reason'],
+                    409, 'Clé de transfert réutilisée avec un autre contenu.');
+                return response()->json(['id' => $existing->id, 'replayed' => true]);
+            }
+            abort_unless($sourceFolio->status === 'open' && $targetFolio->status === 'open',
+                409, 'Les deux folios doivent être ouverts.');
+            $this->assertOpenDay($property, $data['business_date']);
+            $entry = DB::table('hotel_folio_entries')->where($key)
+                ->where('folio_id',$folio)->where('id',$data['source_entry_id'])
+                ->lockForUpdate()->first();
+            abort_unless($entry && in_array($entry->kind,['charge','transfer_in'], true),
+                409, 'Ligne de débit source introuvable.');
+            $already = DB::table('hotel_folio_entries')->where($key)
+                ->where('folio_id', $folio)->where('related_entry_id',$entry->id)
+                ->where('kind','transfer_out')->sum('amount_cents');
+            abort_if($already + (int)$data['amount_cents'] > $entry->amount_cents, 409,
+                'Montant transféré supérieur à la ligne source.');
+            $common = $key + [
+                'business_date' => $data['business_date'],
+                'source_type' => 'transfer', 'amount_cents' => (int)$data['amount_cents'],
+                'note' => $data['reason'], 'related_entry_id' => $entry->id,
+                'created_by' => $request->user()->id,
+            ];
+            $out = DB::table('hotel_folio_entries')->insertGetId($common + [
+                'folio_id' => $folio, 'kind' => 'transfer_out',
+                'source_reference' => 'folio:'.$destination,
+                'request_id' => $data['request_id'],
+            ]);
+            $in = DB::table('hotel_folio_entries')->insertGetId($common + [
+                'folio_id' => $destination, 'kind' => 'transfer_in',
+                'source_reference' => 'folio:'.$folio,
+                'request_id' => (string)\\Illuminate\\Support\\Str::uuid(),
+            ]);
+            Audit::record('hotel.folio.transfer', $property, [
+                'out_id' => $out, 'in_id' => $in,
+                'source_folio_id' => $folio, 'destination_folio_id' => $destination,
+            ]);
+            return response()->json(['out_id' => $out,'in_id' => $in],201);
+        },3);
+    }
+
     public function referenceRules(int $hotel)
     {
         $property = $this->property($hotel);
