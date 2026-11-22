@@ -96,6 +96,13 @@ class InventoryWorkflowM05Test extends TestCase
             'status'=>'available','reason'=>'Contrôle conforme',
         ])->assertOk()->assertJsonPath('status','available');
         $this->actingAs($stock);
+        $this->postJson('/api/inventory/allocate', [
+            'product_id'=>$product->id,'location_id'=>$location,
+            'lot_id'=>$lot,'quantity'=>1,
+            'reason'=>'Association stock au lot validé',
+            'source_reference'=>'LOT-RECONCILE',
+            'operation_key'=>'b3bdfdd0-42a9-4422-a097-914d6d427f10',
+        ])->assertCreated();
         $this->postJson('/api/inventory/serials',[
             'product_id'=>$product->id,'lot_id'=>$lot,'location_id'=>$location,
             'serial_number'=>'SN-M05-001',
