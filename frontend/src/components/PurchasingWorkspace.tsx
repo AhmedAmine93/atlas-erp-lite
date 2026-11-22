@@ -82,6 +82,7 @@ export default function PurchasingWorkspace({view,activeCompanyId}:{view:string;
   const [error,setError]=useState(""),[notice,setNotice]=useState(""),[search,setSearch]=useState("");
   const [editing,setEditing]=useState(false),[values,setValues]=useState<Record<string,string>>({currency:"EUR"});
   const [lines,setLines]=useState<Line[]>([blankLine()]);
+  const [editingRequestLines,setEditingRequestLines]=useState<number|null>(null);
   const [details,setDetails]=useState<{id:number;label:string;rows:RecordRow[]}|null>(null);
   useEffect(()=>{
     let live=true;setLoading(true);setError("");setDetails(null);
@@ -101,7 +102,7 @@ export default function PurchasingWorkspace({view,activeCompanyId}:{view:string;
 
   function openCreate() {
     setValues({currency:"EUR",delivery_days:"0",shipping_cents:"0"});
-    setLines([blankLine()]);setError("");setEditing(true);
+    setLines([blankLine()]);setEditingRequestLines(null);setError("");setEditing(true);
   }
   function replaceLine(i:number,key:keyof Line,value:string) {
     setLines(current=>current.map((line,k)=>k===i?{...line,[key]:value}:line));
@@ -136,6 +137,24 @@ export default function PurchasingWorkspace({view,activeCompanyId}:{view:string;
     }
     await perform(view==="suppliers"?"suppliers":screen.endpoint,payload);
   }
+  async function editRequestLines(id:number) {
+    setError("");try {
+      const current=await all<RecordRow>("purchasing/requests/"+id+"/lines");
+      setLines(current.length?current.map(r=>({...blankLine(),description:String(r.description??""),
+        quantity:String(r.quantity??1),unit_price_cents:String(r.unit_price_cents??0),
+        vat_bps:String(r.vat_bps??0)})):[blankLine()]);
+      setEditingRequestLines(id);
+      setEditing(false);
+    }catch(e){setError((e as Error).message);}
+  }
+  async function saveRequestLines(event:FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if(editingRequestLines===null)return;
+    const payload={lines:lines.map(l=>({description:l.description,quantity:number(l.quantity),
+      unit_price_cents:number(l.unit_price_cents),vat_bps:number(l.vat_bps)}))};
+    await perform("purchasing/requests/"+editingRequestLines+"/lines",payload,"PUT");
+    setEditingRequestLines(null);
+  }
   async function fetchLines(path:string,title:string,id:number) {
     setError("");try{const data=await all<RecordRow>(path);setDetails({label:title,id,rows:data});}
     catch(e){setError((e as Error).message);}
@@ -153,7 +172,7 @@ export default function PurchasingWorkspace({view,activeCompanyId}:{view:string;
   function rowActions(row:RecordRow) {
     const id=row.id,status=row.status??"";
     if(view==="suppliers") return <>
-      {action("Bloquer",()=>ask("purchasing/suppliers/"+id+"/status","reason","Motif du blocage (5 caractères minimum)",5))}
+      {action("Bloquer",()=>{const reason=window.prompt("Motif du blocage");if(reason?.trim())void perform("purchasing/suppliers/"+id+"/status",{status:"blocked",reason:reason.trim()});})}
       {action("Activer",()=>void perform("purchasing/suppliers/"+id+"/status",{status:"active"}))}
       {action("Archiver",()=>{if(window.confirm("Archiver ce fournisseur ?"))void perform("purchasing/suppliers/"+id+"/status",{status:"archived"});})}
       {action("IBAN : demande",()=>ask("purchasing/suppliers/"+id+"/bank-changes","iban","Nouvel IBAN (il sera chiffré côté serveur)",15))}
@@ -164,6 +183,7 @@ export default function PurchasingWorkspace({view,activeCompanyId}:{view:string;
       {status==="submitted"&&action("Approuver",()=>void perform("purchasing/requests/"+id+"/approve",{}))}
       {status==="submitted"&&action("Refuser",()=>ask("purchasing/requests/"+id+"/reject","reason","Motif de refus",5))}
       {action("Lignes",()=>void fetchLines("purchasing/requests/"+id+"/lines","Lignes de demande",id))}
+      {["draft","submitted","rejected","approved"].includes(status)&&action("Réviser les lignes",()=>void editRequestLines(id))}
       {action("Historique",()=>void fetchLines("purchasing/requests/"+id+"/history","Historique de demande",id))}
     </>;
     if(view==="supplier-quotes")return status==="received"?
@@ -198,6 +218,22 @@ export default function PurchasingWorkspace({view,activeCompanyId}:{view:string;
     </div>
     {notice&&<p role="status" className="notice">{notice}</p>}
     {error&&<p role="alert" className="error">{error}</p>}
+    {editingRequestLines!==null&&<form className="atlas-domain-form" onSubmit={e=>void saveRequestLines(e)}>
+      <div className="atlas-domain-form-heading"><h3>Révision des lignes — demande #{editingRequestLines}</h3>
+        <button type="button" className="button secondary" onClick={()=>setEditingRequestLines(null)}>Fermer</button>
+      </div>
+      <p>Une révision remet la demande en brouillon et invalide l’approbation précédente.</p>
+      {lines.map((line,i)=><div key={i} className="atlas-domain-fields">
+        {(["description","quantity","unit_price_cents","vat_bps"] as const).map(key=>
+          <label key={key}><span>{({description:"Description",quantity:"Quantité",unit_price_cents:"Prix unitaire (centimes)",vat_bps:"TVA (points de base)"})[key]}</span>
+            <input type={key==="description"?"text":"number"} min={key==="quantity"?1:0} required
+              value={line[key]} onChange={e=>replaceLine(i,key,e.target.value)}/></label>)}
+        <button type="button" className="button secondary" disabled={lines.length<=1}
+          onClick={()=>setLines(ls=>ls.filter((_,j)=>i!==j))}>Supprimer</button>
+      </div>)}
+      <button type="button" className="button secondary" onClick={()=>setLines(ls=>[...ls,blankLine()])}>Ajouter une ligne</button>
+      <button type="submit" className="button primary" disabled={busy}>Enregistrer la nouvelle révision</button>
+    </form>}
     {editing&&<form className="atlas-domain-form" onSubmit={e=>void save(e)}>
       <div className="atlas-domain-form-heading"><h3>Nouvelle opération</h3>
         <button type="button" className="button secondary" onClick={()=>setEditing(false)}>Fermer</button>
