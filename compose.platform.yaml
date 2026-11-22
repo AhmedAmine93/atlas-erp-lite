@@ -17,6 +17,7 @@ services:
     environment:
       KAFKA_NODE_ID: "1"
       KAFKA_PROCESS_ROLES: "broker,controller"
+      KAFKA_LOG_DIRS: "/var/lib/kafka/data"
       KAFKA_LISTENERS: "PLAINTEXT://:9092,CONTROLLER://:9093"
       KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka:9092"
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT"
@@ -45,6 +46,16 @@ services:
     command:
       - /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic atlas.audit.v1 --partitions 3 --replication-factor 1
     restart: "no"
+  init:
+    environment:
+      ATLAS_PLATFORM_LOCAL: YES_ISOLATED_LOCAL
+    command:
+      - sh
+      - -ec
+      - |
+        php artisan migrate --force
+        if [ "$SEED_DEMO" = true ]; then php artisan db:seed --force; fi
+        php artisan platform:outbox:enable-local
   backend:
     environment:
       CACHE_STORE: redis
