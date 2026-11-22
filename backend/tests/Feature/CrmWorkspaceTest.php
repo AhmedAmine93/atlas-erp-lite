@@ -250,6 +250,58 @@ final class CrmWorkspaceTest extends TestCase
         $this->get('/api/crm/export/contacts')->assertForbidden();
     }
 
+    public function test_reversible_customer_duplicate_link_preserves_both_rows_and_history(): void
+    {
+        $canonical=Customer::create(['name'=>'Deux entreprises Alpha','email'=>'alpha-canon@example.test','phone'=>'0611223344']);
+        $duplicate=Customer::create(['name'=>'Deux entreprises Alpha','email'=>'alpha-dup@example.test','phone'=>'0611223344']);
+        $candidates=$this->getJson('/api/crm/customers/duplicate-candidates')->assertOk();
+        $this->assertNotEmpty($candidates->json('candidates'));
+        $link=$this->postJson('/api/crm/customers/duplicate-links',[
+            'duplicate_customer_id'=>$duplicate->id,'canonical_customer_id'=>$canonical->id,
+            'reason'=>'Même établissement vérifié manuellement',
+        ])->assertCreated()->assertJsonPath('active',true);
+        $id=$link->json('id');
+        $this->assertNotNull($duplicate->fresh()->archived_at);
+        $this->assertNotNull($canonical->fresh());
+        $this->getJson('/api/customers/'.$duplicate->id)->assertOk();
+        $this->postJson('/api/crm/customers/duplicate-links',[
+            'duplicate_customer_id'=>$duplicate->id,'canonical_customer_id'=>$canonical->id,
+            'reason'=>'Rejeu identique confirmé',
+        ])->assertOk()->assertJsonPath('id',$id);
+        $this->postJson('/api/crm/customers/duplicate-links',[
+            'duplicate_customer_id'=>$canonical->id,'canonical_customer_id'=>$duplicate->id,
+            'reason'=>'Tentative inversion impossible',
+        ])->assertConflict();
+        $this->postJson('/api/crm/customers/duplicate-links/'.$id.'/reverse',[
+            'reason'=>'Fiches distinctes confirmées','expected_revision'=>1,
+        ])->assertOk()->assertJsonPath('active',false);
+        $this->assertNull($duplicate->fresh()->archived_at);
+        $this->postJson('/api/crm/customers/duplicate-links/'.$id.'/reverse',[
+            'reason'=>'Annulation rejouée','expected_revision'=>1,
+        ])->assertConflict();
+        $this->assertDatabaseHas('audit_logs',['action'=>'crm.customer.duplicate.linked']);
+        $this->assertDatabaseHas('audit_logs',['action'=>'crm.customer.duplicate.reversed']);
+    }
+
+    public function test_duplicate_decisions_are_tenant_scoped_and_editor_only(): void
+    {
+        $first=Customer::create(['name'=>'Client doublon','email'=>'dup-one@example.test']);
+        $second=Customer::create(['name'=>'Client doublon','email'=>'dup-two@example.test']);
+        $this->login('reader','duplicate-reader',$this->company);
+        $this->getJson('/api/crm/customers/duplicate-candidates')->assertForbidden();
+        $this->postJson('/api/crm/customers/duplicate-links',[
+            'duplicate_customer_id'=>$second->id,'canonical_customer_id'=>$first->id,
+            'reason'=>'Lecteur non autorisé',
+        ])->assertForbidden();
+        $foreign=Company::create(['code'=>'CRM_DUP_B','name'=>'Entreprise doublons B'])->id;
+        $this->login('admin','duplicate-other',$foreign);
+        $this->getJson('/api/crm/customers/duplicate-links')->assertJsonPath('total',0);
+        $this->postJson('/api/crm/customers/duplicate-links',[
+            'duplicate_customer_id'=>$second->id,'canonical_customer_id'=>$first->id,
+            'reason'=>'Tentative interentreprises',
+        ])->assertNotFound();
+    }
+
     public function test_pg_runtime_rls_isolates_all_new_crm_tables(): void
     {
         if (DB::getDriverName()!=='pgsql') $this->markTestSkipped('RLS PostgreSQL uniquement.');
