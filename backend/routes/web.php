@@ -158,6 +158,8 @@ Route::prefix('api')->group(function () {
         Route::patch('invoices/{id}', [InvoiceController::class, 'transition'])->whereNumber('id');
         Route::get('invoices/{id}/pdf', [InvoiceController::class, 'pdf'])->whereNumber('id');
         // M11 ITSM workflows: tenant middleware, explicit gates, versioned writes.
+        Route::get('support/queue', [SupportCaseController::class, 'queue']);
+        Route::get('support/cases/{kind}/export', [SupportCaseController::class, 'export'])->whereIn('kind', ['ticket','problem','service','change']);
         Route::get('support/cases/{kind}', [SupportCaseController::class, 'index'])->whereIn('kind', ['ticket','problem','service','change']);
         Route::post('support/cases/{kind}', [SupportCaseController::class, 'store'])->whereIn('kind', ['ticket','problem','service','change']);
         Route::get('support/cases/{kind}/{id}', [SupportCaseController::class, 'show'])->whereIn('kind', ['ticket','problem','service','change'])->whereNumber('id');
