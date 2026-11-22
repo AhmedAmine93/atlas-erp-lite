@@ -70,6 +70,7 @@ Route::prefix('api')->group(function () {
         Route::get('purchasing/requests/{id}/history', [ProcurementController::class, 'requestHistory'])->whereNumber('id');
         Route::get('purchasing/requests/{id}/quotes/compare', [ProcurementCompletionController::class, 'compare'])->whereNumber('id');
         Route::get('purchasing/requests/{id}/awards', [ProcurementCompletionController::class, 'awardHistory'])->whereNumber('id');
+        Route::get('purchasing/orders/{id}/commitments', [ProcurementController::class, 'commitments'])->whereNumber('id');
         Route::get('purchasing/orders/{id}/amendments', [ProcurementCompletionController::class, 'amendments'])->whereNumber('id');
         Route::post('purchasing/orders/{id}/amendments', [ProcurementCompletionController::class, 'requestAmendment'])->whereNumber('id');
         Route::post('purchasing/amendments/{id}/decision', [ProcurementCompletionController::class, 'decideAmendment'])->whereNumber('id');
