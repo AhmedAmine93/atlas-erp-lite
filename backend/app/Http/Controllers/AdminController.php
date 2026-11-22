@@ -20,7 +20,7 @@ class AdminController extends Controller
     {
         Gate::authorize('admin');
         $companyId = app(TenantContext::class)->requireId();
-        $page = User::whereHas('companies', fn ($query) => $query->whereKey($companyId)->wherePivotNull('suspended_at'))
+        $page = User::whereHas('companies', fn ($query) => $query->whereKey($companyId)->whereNull('company_user.suspended_at'))
             ->orderBy('name')->paginate(20);
 
         // The legacy global User.role relation is for backward compatibility only.
