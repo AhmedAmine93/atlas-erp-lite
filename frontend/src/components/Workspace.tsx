@@ -52,6 +52,7 @@ import MaintenanceWorkspace from "@/components/MaintenanceWorkspace";
 import IntegrationsWorkspace from "@/components/IntegrationsWorkspace";
 import SalesCommerceWorkspace, { salesCommerceViews } from "@/components/SalesCommerceWorkspace";
 import PilotageWorkspace from "@/components/PilotageWorkspace";
+import OperationsWorkspace from "@/components/OperationsWorkspace";
 import FinanceWorkspace from "@/components/FinanceWorkspace";
 import BiReportingWorkspace from "@/components/BiReportingWorkspace";
 import PurchasingWorkspace from "@/components/PurchasingWorkspace";
@@ -606,6 +607,8 @@ export default function Workspace() {
             <InventoryWarehouseWorkspace key={"warehouses-"+user.active_company_id} role={user.role.name} activeCompanyId={user.active_company_id ?? null} />
           ) : ["stock-inventories","stock-transfers","lots-serials","replenishment"].includes(view) ? (
             <InventoryOperationsWorkspace key={view+"-"+user.active_company_id} view={view as "stock-inventories" | "stock-transfers" | "lots-serials" | "replenishment"} role={user.role.name} activeCompanyId={user.active_company_id ?? null} />
+          ) : view.startsWith("ops-") ? (
+            <OperationsWorkspace key={view + "-" + user.active_company_id} view={view} />
           ) : view === "support-incidents" ? (
             <SupportIncidents canDiagnose={["admin", "support_n3"].includes(user.role.name)} />
           ) : (view === "hotel-folios" || view === "hotel-channel" || view === "hotel-night-audit") ? (
