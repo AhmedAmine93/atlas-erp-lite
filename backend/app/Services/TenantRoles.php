@@ -22,6 +22,7 @@ class TenantRoles
             ->join('company_user', 'company_user.role_id', '=', 'roles.id')
             ->where('company_user.user_id', $user->id)
             ->where('company_user.company_id', $companyId)
+            ->whereNull('company_user.suspended_at')
             ->select('roles.id', 'roles.name')
             ->first();
     }
@@ -37,6 +38,7 @@ class TenantRoles
             'active_company_id' => $companyId,
             'companies' => $user->companies()
                 ->select('companies.id', 'companies.name', 'companies.code')
+                ->wherePivotNull('suspended_at')
                 ->orderBy('companies.id')
                 ->get()
                 ->map(fn ($company) => $company->only(['id', 'name', 'code']))

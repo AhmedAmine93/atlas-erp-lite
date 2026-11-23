@@ -41,13 +41,34 @@ import { api, send, all, fetchTenantBlob, setVerifiedCompanyContext, resetTenant
 import { nav, navigationSections, type View } from "@/lib/navigation";
 import { canEditWorkspaceView, canOpenWorkspaceView, parseWorkspacePath, workspaceHref, type WorkspaceRoute } from "@/lib/workspaceRoutes";
 import OrganizationWorkspace from "@/components/OrganizationWorkspace";
+import AdministrationWorkspace, { adminViews } from "@/components/AdministrationWorkspace";
+import AdminMembersWorkspace from "@/components/AdminMembersWorkspace";
+import AdminAuditWorkspace from "@/components/AdminAuditWorkspace";
 import DomainWorkspace, { domainViews } from "@/components/DomainWorkspace";
+import CrmWorkspace from "@/components/CrmWorkspace";
+import CrmCustomerImport from "@/components/CrmCustomerImport";
+import CrmCustomerQuality from "@/components/CrmCustomerQuality";
+import { CrmCustomerExternalPanel } from "@/components/CrmExternalIdentities";
+import CrmArchivedCustomers from "@/components/CrmArchivedCustomers";
+import InventoryWarehouseWorkspace from "@/components/InventoryWarehouseWorkspace";
+import InventoryOperationsWorkspace from "@/components/InventoryOperationsWorkspace";
+import HumanResourcesWorkspace from "@/components/HumanResourcesWorkspace";
+import MaintenanceWorkspace from "@/components/MaintenanceWorkspace";
+import IntegrationsWorkspace from "@/components/IntegrationsWorkspace";
 import SalesCommerceWorkspace, { salesCommerceViews } from "@/components/SalesCommerceWorkspace";
 import PilotageWorkspace from "@/components/PilotageWorkspace";
+import OperationsWorkspace from "@/components/OperationsWorkspace";
+import FinanceWorkspace from "@/components/FinanceWorkspace";
+import BiReportingWorkspace from "@/components/BiReportingWorkspace";
+import PurchasingWorkspace from "@/components/PurchasingWorkspace";
 import HotelHousekeepingWorkspace from "@/components/HotelHousekeepingWorkspace";
 import HotelMinibarWorkspace from "@/components/HotelMinibarWorkspace";
 import HotelAvailabilityWorkspace from "@/components/HotelAvailabilityWorkspace";
+import HotelOperationsWorkspace from "@/components/HotelOperationsWorkspace";
 import SupportIncidents from "@/components/SupportIncidents";
+import QualityWorkspace, { qualityViews } from "@/components/QualityWorkspace";
+import AiWorkspace from "@/components/AiWorkspace";
+import SupportITSM from "@/components/SupportITSM";
 import Login from "@/components/auth/Login";
 import WorkspaceSidebar from "@/components/layout/WorkspaceSidebar";
 import WorkspaceWelcome from "@/components/layout/WorkspaceWelcome";
@@ -497,6 +518,7 @@ export default function Workspace() {
                           "Des relations durables, un suivi simplifié.",
                         suppliers: "Vos partenaires, réunis au même endroit.",
                         products: "Le bon produit, au bon moment.",
+                        warehouses: "Dépôts et emplacements par entreprise.",
                         "stock-movements":
                           "Chaque entrée et chaque sortie, en toute transparence.",
                         quotes: "De la première proposition à la commande.",
@@ -521,11 +543,18 @@ export default function Workspace() {
               ![
                 "dashboard",
                 "stock-movements",
+                "warehouses",
                 "audit-logs",
                 "invoices",
                 "admin-companies",
+                "admin-roles",
+                "admin-settings",
+                "admin-documents",
+                "admin-security",
+                "users",
                 "support-incidents",
-              ].includes(view) && !domainViews.has(view) && (!salesCommerceViews.has(view as any) || ["quotes", "orders"].includes(view)) && (
+                "quality-controls", "nonconformities", "corrective-actions", "quality-audits", "compliance-docs",
+              ].includes(view) && !view.startsWith("hr-") && !domainViews.has(view) && (!salesCommerceViews.has(view as any) || ["quotes", "orders"].includes(view)) && (
                 <button
                   className="button primary"
                   onClick={() => setEditor({ kind: view })}
@@ -571,8 +600,28 @@ export default function Workspace() {
             </>
           ) : ["direction-dashboard", "sales-dashboard", "finance-dashboard", "logistics-dashboard", "alerts-dashboard"].includes(view) ? (
             <PilotageWorkspace key={view + "-" + user.active_company_id} view={view} user={user} />
+          ) : ["ai-assistant", "ai-search", "ai-anomalies", "ai-forecasts", "ai-suggestions"].includes(view) ? (
+            <AiWorkspace key={view+"-"+user.active_company_id} view={view} activeCompanyId={user.active_company_id ?? null} />
+          ) : ["analytics-sales", "analytics-finance", "analytics-stock", "analytics-suppliers", "analytics-custom", "analytics-exports"].includes(view) ? (
+            <BiReportingWorkspace key={view+"-"+user.active_company_id} view={view as "analytics-sales" | "analytics-finance" | "analytics-stock" | "analytics-suppliers" | "analytics-custom" | "analytics-exports"} activeCompanyId={user.active_company_id ?? null} />
+          ) : qualityViews.has(view) ? (
+            <QualityWorkspace key={view+"-"+user.active_company_id} view={view as "quality-controls" | "nonconformities" | "corrective-actions" | "quality-audits" | "compliance-docs"} user={user} />
+          ) : ["credit-notes","collections","payment-reminders","expenses","budgets","accounting-exports"].includes(view) ? (
+            <FinanceWorkspace key={"finance-"+view+"-"+user.active_company_id} view={view} activeCompanyId={user.active_company_id ?? null} canWrite={user.role.name === "admin"} />
+          ) : view === "warehouses" ? (
+            <InventoryWarehouseWorkspace key={"warehouses-"+user.active_company_id} role={user.role.name} activeCompanyId={user.active_company_id ?? null} />
+          ) : ["stock-inventories","stock-transfers","lots-serials","replenishment"].includes(view) ? (
+            <InventoryOperationsWorkspace key={view+"-"+user.active_company_id} view={view as "stock-inventories" | "stock-transfers" | "lots-serials" | "replenishment"} role={user.role.name} activeCompanyId={user.active_company_id ?? null} />
+          ) : view.startsWith("ops-") ? (
+            <OperationsWorkspace key={view + "-" + user.active_company_id} view={view} />
+          ) : ["prospects","crm-contacts","opportunities","crm-activities","customer-segments"].includes(view) ? (
+            <CrmWorkspace key={view+"-"+user.active_company_id} view={view as "prospects"|"crm-contacts"|"opportunities"|"crm-activities"|"customer-segments"} activeCompanyId={user.active_company_id ?? null} canEdit={["admin","commercial"].includes(user.role.name)} />
           ) : view === "support-incidents" ? (
             <SupportIncidents canDiagnose={["admin", "support_n3"].includes(user.role.name)} />
+          ) : (view === "hotel-folios" || view === "hotel-channel" || view === "hotel-night-audit") ? (
+            <HotelOperationsWorkspace key={view+"-"+user.active_company_id} view={view} activeCompanyId={user.active_company_id ?? null} />
+          ) : ["support-tickets","support-problems","support-services","support-changes","support-sla","support-knowledge"].includes(view) ? (
+            <SupportITSM key={view+"-"+user.active_company_id} view={view} role={user.role.name} />
           ) : view === "hotel-minibar" ? (
             <HotelMinibarWorkspace key={"minibar-"+user.active_company_id} />
           ) : view === "hotel-checkin" ? (
@@ -581,16 +630,38 @@ export default function Workspace() {
             <HotelAvailabilityWorkspace key={"hotel-availability-"+user.active_company_id} activeCompanyId={user.active_company_id ?? null} />
           ) : view === "hotel-housekeeping" ? (
             <HotelHousekeepingWorkspace key={"hotel-housekeeping-"+user.active_company_id} activeCompanyId={user.active_company_id ?? null} />
+          ) : ["suppliers","purchase-requests","supplier-quotes","purchase-orders","purchase-receipts","supplier-invoices"].includes(view) && user.role.name === "admin" ? (
+            <PurchasingWorkspace key={view+"-"+user.active_company_id} view={view} activeCompanyId={user.active_company_id ?? null} />
+          ) : view.startsWith("integrations-") ? (
+            <IntegrationsWorkspace key={view+"-"+user.active_company_id} view={view} />
+          ) : view.startsWith("maintenance-") ? (
+            <div key={view+"-"+user.active_company_id}>
+              {domainViews.has(view) && <DomainWorkspace view={view} activeCompanyId={user.active_company_id ?? null} />}
+              <MaintenanceWorkspace view={view} activeCompanyId={user.active_company_id ?? null} />
+            </div>
+          ) : view.startsWith("hr-") ? (
+            <HumanResourcesWorkspace key={view+"-"+user.active_company_id} view={view} activeCompanyId={user.active_company_id ?? null} />
           ) : domainViews.has(view) ? (
             <DomainWorkspace key={view+"-"+user.active_company_id} view={view} activeCompanyId={user.active_company_id ?? null} />
           ) : salesCommerceViews.has(view as any) && !["quotes","orders"].includes(view) ? (
             <SalesCommerceWorkspace key={view+"-"+user.active_company_id} view={view as "deliveries"|"sales-contracts"|"sales-returns"|"pricing"} activeCompanyId={user.active_company_id ?? null} canWrite={can(view)} canApprove={user.role.name === "admin"} />
+          ) : view === "audit-logs" ? (
+            <AdminAuditWorkspace key={"audit-"+user.active_company_id} activeCompanyId={user.active_company_id ?? null}/>
+          ) : view === "users" ? (
+            <AdminMembersWorkspace key={"users-"+user.active_company_id} activeCompanyId={user.active_company_id ?? null}/>
+          ) : adminViews.includes(view) ? (
+            <AdministrationWorkspace key={view+"-"+user.active_company_id} view={view} activeCompanyId={user.active_company_id ?? null} />
           ) : view === "admin-companies" ? (
             <OrganizationWorkspace
               activeCompanyId={user.active_company_id ?? null}
               onCompanySaved={async () => setUser(await api<User>("me"))}
             />
           ) : (
+            <>
+            {view === "customers" && ["admin","commercial"].includes(user.role.name) && <CrmCustomerImport onImported={() => setRefresh(n => n + 1)} />}
+            {view === "customers" && ["admin","commercial"].includes(user.role.name) && <CrmCustomerQuality activeCompanyId={user.active_company_id ?? null} onChanged={() => setRefresh(n => n + 1)} />}
+            {view === "customers" && ["admin","commercial"].includes(user.role.name) && <CrmCustomerExternalPanel />}
+            {view === "customers" && ["admin","commercial"].includes(user.role.name) && <CrmArchivedCustomers activeCompanyId={user.active_company_id ?? null} onChanged={() => setRefresh(n => n + 1)} />}
             <ListView
               key={view}
               view={view}
@@ -604,6 +675,7 @@ export default function Workspace() {
               }
               busy={busy}
             />
+            </>
           )}
           {["quotes","orders"].includes(view) && <SalesCommerceWorkspace key={"sales-v5-"+view+"-"+user.active_company_id} view={view as "quotes"|"orders"} activeCompanyId={user.active_company_id ?? null} canWrite={can(view)} canApprove={user.role.name === "admin"} revision={refresh} onChange={()=>setRefresh(n=>n+1)} embedded />}
           <footer className="page-footer">
@@ -2015,7 +2087,7 @@ function Detail({
             className="button primary"
             disabled={busy}
             onClick={() =>
-              action(`invoices/${row.id}`, "PATCH", { status: "issued" })
+              action(`invoices/${row.id}`, "PATCH", (() => { const dueAt = window.prompt("Date d’échéance (AAAA-MM-JJ), laisser vide si non définie"); return dueAt?.trim() ? { status: "issued", due_at: dueAt.trim() } : { status: "issued" }; })())
             }
           >
             Émettre la facture

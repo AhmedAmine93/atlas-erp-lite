@@ -20,7 +20,7 @@ class AdminController extends Controller
     {
         Gate::authorize('admin');
         $companyId = app(TenantContext::class)->requireId();
-        $page = User::whereHas('companies', fn ($query) => $query->whereKey($companyId))
+        $page = User::whereHas('companies', fn ($query) => $query->whereKey($companyId)->whereNull('company_user.suspended_at'))
             ->orderBy('name')->paginate(20);
 
         // The legacy global User.role relation is for backward compatibility only.
@@ -48,11 +48,57 @@ class AdminController extends Controller
         return Role::all();
     }
 
-    public function audit()
+    private function auditQuery(Request $request)
+    {
+        $filter = $request->validate([
+            'action' => 'nullable|string|max:120',
+            'from' => 'nullable|date',
+            'to' => 'nullable|date|after_or_equal:from',
+        ]);
+        return AuditLog::query()
+            ->when($filter['action'] ?? null, fn ($q, $action) => $q->where('action', $action))
+            ->when($filter['from'] ?? null, fn ($q, $from) => $q->whereDate('created_at', '>=', $from))
+            ->when($filter['to'] ?? null, fn ($q, $to) => $q->whereDate('created_at', '<=', $to))
+            ->orderByDesc('id');
+    }
+
+    public function audit(Request $request)
     {
         Gate::authorize('admin');
+        // Do not expose metadata containing potentially sensitive payloads in
+        // this generalized audit view; permissioned investigations require
+        // a separately reviewed field allowlist.
+        return $this->auditQuery($request)
+            ->select('id','user_id','action','entity_type','entity_id','created_at')
+            ->with('user:id,name')
+            ->paginate(30);
+    }
 
-        return AuditLog::with('user')->latest('id')->paginate(30);
+    public function auditExport(Request $request)
+    {
+        Gate::authorize('admin');
+        // Bound exports avoid loading unbounded personal data in memory.
+        $query = $this->auditQuery($request)
+            ->select('id','user_id','action','entity_type','entity_id','created_at');
+        abort_if((clone $query)->limit(10001)->count() > 10000, 422,
+            'Export limité à 10 000 lignes : réduisez la période.');
+        Audit::record('audit.exported', null, ['format'=>'csv','max_rows'=>10000]);
+        return response()->streamDownload(function () use ($query) {
+            $out = fopen('php://output','w');
+            fputcsv($out,['id','actor_id','action','entity_type','entity_id','created_at'], ';');
+            foreach ($query->cursor() as $row) {
+                // Prevent spreadsheet formula interpretation in exported text.
+                $safe = static function ($value): string {
+                    $value = (string) ($value ?? '');
+                    return preg_match('/^[=+\-@\t\r]/u', $value) ? "'".$value : $value;
+                };
+                fputcsv($out, [
+                    $row->id, $row->user_id, $safe($row->action),
+                    $safe($row->entity_type), $row->entity_id, $safe($row->created_at)
+                ], ';');
+            }
+            fclose($out);
+        }, 'atlas-audit.csv', ['Content-Type'=>'text/csv; charset=UTF-8']);
     }
 
     public function save(Request $r, ?int $id = null)
@@ -96,7 +142,7 @@ class AdminController extends Controller
                     abort_if(
                         DB::table('company_user')
                             ->where('company_id', $companyId)
-                            ->where('role_id', $adminRoleId)->count() <= 1,
+                            ->where('role_id', $adminRoleId)->whereNull('suspended_at')->count() <= 1,
                         409,
                         'Le dernier administrateur de cette entreprise doit être conservé.',
                     );

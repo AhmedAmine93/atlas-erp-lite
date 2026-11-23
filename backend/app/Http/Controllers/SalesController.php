@@ -52,7 +52,8 @@ class SalesController extends Controller
         $data = $r->validate(['customer_id' => 'required|integer|exists:customers,id', 'establishment_id'=>'nullable|integer|min:1', 'fulfillment_mode'=>'sometimes|in:reservation_v2', 'notes' => 'nullable|string|max:2000',
             'items' => 'required|array|min:1|max:100', 'items.*.product_id' => 'required|integer|distinct|exists:products,id', 'items.*.quantity' => 'required|integer|min:1|max:10000']);
 
-        Customer::findOrFail((int) $data['customer_id']);
+        $customer = Customer::findOrFail((int) $data['customer_id']);
+        abort_if($customer->archived_at !== null, 409, 'Impossible de créer une nouvelle vente pour un client archivé.');
         $productCount = Product::whereIn('id', array_column($data['items'], 'product_id'))->count();
         abort_unless($productCount === count($data['items']), 404, 'Produit inaccessible.');
 

@@ -19,11 +19,11 @@ class TenantContext
         }
 
         $selected = request()->hasSession() ? request()->session()->get('active_company_id') : null;
-        if ($selected && $user->companies()->whereKey((int) $selected)->exists()) {
+        if ($selected && $user->companies()->whereKey((int) $selected)->wherePivotNull('suspended_at')->exists()) {
             return (int) $selected;
         }
 
-        $first = $user->companies()->orderBy('companies.id')->value('companies.id');
+        $first = $user->companies()->wherePivotNull('suspended_at')->orderBy('companies.id')->value('companies.id');
 
         return $first ? (int) $first : null;
     }
