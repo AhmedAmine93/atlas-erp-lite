@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\Role;
 use App\Models\SupportIncident;
 use App\Models\SupportIncidentEvent;
+use App\Models\SupportSlaEscalation;
 use App\Services\Audit;
 use App\Services\SupportSla;
 use App\Services\TenantContext;
+use App\Services\TenantRoles;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -23,7 +25,7 @@ class SupportIncidentController extends Controller
     private function assignmentRule()
     {
         $tenantId = app(TenantContext::class)->requireId();
-        $roleIds = Role::whereIn('name', ['admin', 'support_n2', 'support_n3'])->pluck('id')->all();
+        $roleIds = Role::whereIn('name', ['admin', 'support_n1', 'support_n2', 'support_n3', 'support_manager'])->pluck('id')->all();
 
         return Rule::exists('company_user', 'user_id')
             ->where(fn ($query) => $query->where('company_id', $tenantId)->whereIn('role_id', $roleIds));
@@ -111,7 +113,7 @@ class SupportIncidentController extends Controller
                 'status' => 'open',
                 // Persist explicitly so the immediate API response is consistent
                 // with the database default before Eloquent refreshes the model.
-                'escalation_level' => 2,
+                'escalation_level' => app(TenantRoles::class)->role($request->user())?->name === 'support_n1' ? 1 : 2,
             ]);
             $this->event($incident, 'created', null, 'open');
             Audit::record('support.incident_created', $incident, [
@@ -195,21 +197,51 @@ class SupportIncidentController extends Controller
             'assigned_to' => ['sometimes', 'nullable', 'integer', $this->assignmentRule()],
         ]);
 
-        return DB::transaction(function () use ($data, $id) {
+        return DB::transaction(function () use ($data, $id, $request) {
             $incident = SupportIncident::lockForUpdate()->findOrFail($id);
             abort_if($incident->status === 'closed', 409, 'Un incident clôturé ne peut pas être escaladé.');
             abort_if($incident->escalation_level >= 3, 409, 'Incident déjà escaladé au N3.');
 
-            $incident->escalation_level = 3;
+            $incident->escalation_level++;
             $incident->escalated_at = now();
             if (array_key_exists('assigned_to', $data)) {
                 $incident->assigned_to = $data['assigned_to'];
             }
             $incident->save();
-            $this->event($incident, 'escalated_n3', null, null, $data['reason']);
-            Audit::record('support.incident_escalated', $incident);
+            $level = (int) $incident->escalation_level;
+            $this->event($incident, 'escalated_n'.$level, null, null, $data['reason']);
+            SupportSlaEscalation::create([
+                'incident_id' => $incident->id,
+                'raised_by' => $request->user()->id,
+                'target_level' => $level,
+                'status' => 'pending',
+                'reason' => $data['reason'],
+            ]);
+            Audit::record('support.incident_escalated', $incident, ['target_level' => $level]);
 
             return $this->decorate($incident->load(['reporter:id,name', 'assignee:id,name']));
+        }, 3);
+    }
+
+    /**
+     * A closed/resolved incident may be reopened without overwriting its
+     * original resolution timestamp or erasing any historical event.
+     */
+    public function reopen(Request $request, int $id)
+    {
+        Gate::authorize('support');
+        $data = $request->validate(['reason' => 'required|string|min:5|max:2000']);
+        return DB::transaction(function () use ($request, $id, $data) {
+            $incident = SupportIncident::lockForUpdate()->findOrFail($id);
+            abort_unless(in_array($incident->status, ['resolved', 'closed'], true), 409, 'Seul un incident résolu ou clôturé peut être rouvert.');
+            $before = $incident->status;
+            $incident->status = 'investigating';
+            // Keep the first response/resolution snapshots for SLA audit.
+            $incident->closed_at = null;
+            $incident->save();
+            $this->event($incident, 'reopened', $before, 'investigating', $data['reason']);
+            Audit::record('support.incident_reopened', $incident, ['from' => $before]);
+            return $this->decorate($incident->load(['reporter:id,name','assignee:id,name']));
         }, 3);
     }
 

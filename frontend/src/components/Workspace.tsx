@@ -50,6 +50,7 @@ import HotelMinibarWorkspace from "@/components/HotelMinibarWorkspace";
 import HotelAvailabilityWorkspace from "@/components/HotelAvailabilityWorkspace";
 import HotelOperationsWorkspace from "@/components/HotelOperationsWorkspace";
 import SupportIncidents from "@/components/SupportIncidents";
+import SupportITSM from "@/components/SupportITSM";
 import Login from "@/components/auth/Login";
 import WorkspaceSidebar from "@/components/layout/WorkspaceSidebar";
 import WorkspaceWelcome from "@/components/layout/WorkspaceWelcome";
@@ -577,6 +578,8 @@ export default function Workspace() {
             <SupportIncidents canDiagnose={["admin", "support_n3"].includes(user.role.name)} />
           ) : (view === "hotel-folios" || view === "hotel-channel" || view === "hotel-night-audit") ? (
             <HotelOperationsWorkspace key={view+"-"+user.active_company_id} view={view} activeCompanyId={user.active_company_id ?? null} />
+          ) : ["support-tickets","support-problems","support-services","support-changes","support-sla","support-knowledge"].includes(view) ? (
+            <SupportITSM key={view+"-"+user.active_company_id} view={view} role={user.role.name} />
           ) : view === "hotel-minibar" ? (
             <HotelMinibarWorkspace key={"minibar-"+user.active_company_id} />
           ) : view === "hotel-checkin" ? (

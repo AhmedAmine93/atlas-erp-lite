@@ -6,7 +6,7 @@ use Carbon\CarbonImmutable;
 
 /**
  * Calendar-time SLA policy, measured from creation. No business-hour pause
- * and no automatic penalties or contracts in F09.
+ * and no automatic penalties. M11 may override targets prospectively.
  */
 class SupportSla
 {
@@ -22,6 +22,28 @@ class SupportSla
         $policy = self::TARGETS[$severity] ?? null;
         if (! $policy) {
             throw new \InvalidArgumentException('Unsupported support priority.');
+        }
+
+        // M11.06: published company-specific versions are effective only
+        // from their start time; existing incidents keep their SLA snapshot.
+        // The bootstrap fallback preserves historical F09 contracts.
+        if (\Illuminate\Support\Facades\Schema::hasTable('support_sla_policies')) {
+            $tenantId = app(\App\Services\TenantContext::class)->id();
+            if ($tenantId) {
+                $published = \App\Models\SupportSlaPolicy::query()
+                    ->where('severity', $severity)
+                    ->where('published', true)
+                    ->where('effective_from', '<=', $createdAt)
+                    ->orderByDesc('effective_from')
+                    ->orderByDesc('version')
+                    ->first();
+                if ($published) {
+                    $policy = [
+                        'response' => $published->response_minutes,
+                        'resolution' => $published->resolution_minutes,
+                    ];
+                }
+            }
         }
 
         return [
