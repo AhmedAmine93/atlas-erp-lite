@@ -30,6 +30,9 @@ const linkViewsByRole: Record<User["role"]["name"], View[]> = {
   commercial: ["customers", "quotes", "orders", "invoices"],
   stock: ["products", "stock-movements"],
   reader: ["customers", "orders", "products", "invoices"],
+  support_n1: ["support-incidents"],
+  support_manager: ["support-incidents"],
+  support_cab: ["support-incidents"],
   support_n2: ["support-incidents"],
   support_n3: ["support-incidents"],
 };

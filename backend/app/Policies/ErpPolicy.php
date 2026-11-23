@@ -69,12 +69,27 @@ class ErpPolicy
 
     public function support(User $u): bool
     {
-        return in_array(app(TenantRoles::class)->role($u)?->name, ['admin', 'support_n2', 'support_n3'], true);
+        return in_array(app(TenantRoles::class)->role($u)?->name, ['admin', 'support_n1', 'support_n2', 'support_n3', 'support_manager', 'support_cab'], true);
     }
 
     public function supportDiagnostics(User $u): bool
     {
         return in_array(app(TenantRoles::class)->role($u)?->name, ['admin', 'support_n3'], true);
+    }
+
+    public function itsmRead(User $u): bool
+    {
+        return $this->oneOf($u, ['admin', 'support_n1', 'support_n2', 'support_n3', 'support_manager', 'support_cab']);
+    }
+
+    public function itsmManage(User $u): bool
+    {
+        return $this->oneOf($u, ['admin', 'support_n1', 'support_n2', 'support_n3', 'support_manager', 'support_cab']);
+    }
+
+    public function itsmAdmin(User $u): bool
+    {
+        return $this->oneOf($u, ['admin', 'support_manager']);
     }
 
     public function admin(User $u): bool
