@@ -82,10 +82,10 @@ export const navigationSections: NavigationSection[] = [
     items: [
       { id: "suppliers", label: "Fournisseurs", ready: true },
       { id: "purchase-requests", label: "Demandes d’achat", ready: true },
-      { id: "supplier-quotes", label: "Consultations fournisseurs" },
-      { id: "purchase-orders", label: "Commandes fournisseurs" },
-      { id: "purchase-receipts", label: "Réceptions fournisseurs" },
-      { id: "supplier-invoices", label: "Factures fournisseurs" },
+      { id: "supplier-quotes", label: "Consultations fournisseurs", ready: true },
+      { id: "purchase-orders", label: "Commandes fournisseurs", ready: true },
+      { id: "purchase-receipts", label: "Réceptions fournisseurs", ready: true },
+      { id: "supplier-invoices", label: "Factures fournisseurs", ready: true },
     ],
   },
   {

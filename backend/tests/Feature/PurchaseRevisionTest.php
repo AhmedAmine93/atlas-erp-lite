@@ -57,7 +57,9 @@ class PurchaseRevisionTest extends TestCase
         $this->actingAs($requester)->withSession(['active_company_id' => $company->id]);
         $this->patchJson("/api/purchasing/requests/$id/revise", [
             'estimated_total_cents' => 80000,
-        ])->assertStatus(409);
+        ])->assertOk()->assertJsonPath('revision',3)->assertJsonPath('status','draft');
+        $this->getJson("/api/purchasing/requests/$id/history")
+            ->assertOk()->assertJsonCount(2,'data');
     }
 
     public function test_foreign_tenant_cannot_revise(): void

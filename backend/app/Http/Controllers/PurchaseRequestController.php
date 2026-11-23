@@ -41,6 +41,20 @@ final class PurchaseRequestController extends Controller {
             abort_unless($item->status === 'submitted', 409, 'Seule une demande soumise peut être approuvée.');
             abort_if((int) $item->requested_by === (int) $request->user()->id,
                 403, 'Le demandeur ne peut pas approuver sa propre demande.');
+            // Explicit limits apply when the tenant configures delegations for this currency.
+            // Legacy companies without any policy keep their existing four-eyes workflow.
+            $tenant=app(TenantContext::class)->requireId();
+            $policies=DB::table('purchase_approval_delegations')
+                ->where('company_id',$tenant)->where('currency',$item->currency);
+            if((clone $policies)->exists()){
+                $grant=(clone $policies)->where('user_id',$request->user()->id)
+                    ->where('active',true)
+                    ->where(function($query){
+                        $query->whereNull('valid_until')->orWhereDate('valid_until','>=',now()->toDateString());
+                    })->lockForUpdate()->first();
+                abort_unless($grant && (int)$grant->max_amount_cents >= (int)$item->estimated_total_cents,
+                    403, 'Plafond de délégation insuffisant ou expiré.');
+            }
             $item->status = 'approved';
             $item->approved_by = $request->user()->id;
             $item->approved_at = now();
@@ -91,10 +105,19 @@ final class PurchaseRequestController extends Controller {
         abort_if($data === [], 422, 'Aucune modification.');
         return DB::transaction(function () use ($request, $id, $data) {
             $item = PurchaseRequest::query()->lockForUpdate()->findOrFail($id);
-            abort_unless(in_array($item->status, ['draft', 'submitted', 'rejected'], true),
-                409, 'Une demande approuvée ne peut pas être modifiée.');
+            abort_unless(in_array($item->status, ['draft', 'submitted', 'rejected', 'approved'], true),
+                409, 'La demande ne peut pas être révisée.');
             abort_unless((int) $item->requested_by === (int) $request->user()->id,
                 403, 'Seul le demandeur peut réviser.');
+            $company=app(TenantContext::class)->requireId();
+            abort_if(DB::table('supplier_quotes')->where('company_id',$company)
+                ->where('purchase_request_id',$id)->exists(),409,
+                'Consultation déjà engagée : créez une nouvelle demande plutôt que de modifier ses fondements.');
+            DB::table('purchase_request_history')->insert([
+                'company_id'=>$company,'purchase_request_id'=>$id,'revision'=>$item->revision,
+                'snapshot'=>json_encode($item->getAttributes(),JSON_THROW_ON_ERROR),
+                'changed_by'=>$request->user()->id,'created_at'=>now(),'updated_at'=>now(),
+            ]);
             $item->fill($data);
             $item->status = 'draft';
             $item->submitted_at = null;

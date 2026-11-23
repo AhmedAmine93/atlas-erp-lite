@@ -39,7 +39,16 @@ class ContactController extends Controller
     {
         Gate::authorize('crm');
         $item = $id ? $this->model($kind)::findOrFail($id) : new ($this->model($kind));
-        $data = $r->validate(['name' => 'required|string|max:255', 'email' => ['required', 'email', 'max:255', Rule::unique($kind)->where('company_id', app(TenantContext::class)->requireId())->ignore($id)], 'phone' => 'nullable|string|max:40', 'address' => 'nullable|string|max:2000']);
+        $rules = ['name' => 'required|string|max:255',
+            'email' => ['required', 'email', 'max:255',
+                Rule::unique($kind)->where('company_id', app(TenantContext::class)->requireId())->ignore($id)],
+            'phone' => 'nullable|string|max:40', 'address' => 'nullable|string|max:2000'];
+        if ($kind === 'suppliers') {
+            $rules['tax_registration'] = ['nullable','string','max:80',
+                Rule::unique('suppliers')->where('company_id', app(TenantContext::class)->requireId())->ignore($id)];
+            $rules['procurement_status'] = 'prohibited';
+        }
+        $data = $r->validate($rules);
 
         return DB::transaction(function () use ($item, $data, $id) {
             $item->fill($data)->save();
@@ -55,8 +64,14 @@ class ContactController extends Controller
 
         return DB::transaction(function () use ($kind, $id) {
             $item = $this->model($kind)::findOrFail($id);
-            $item->delete();
-            Audit::record('contact.deleted', $item);
+            if ($kind === 'suppliers') {
+                $item->procurement_status = 'archived';
+                $item->save();
+                Audit::record('supplier.archived', $item);
+            } else {
+                $item->delete();
+                Audit::record('contact.deleted', $item);
+            }
 
             return response()->noContent();
         });
