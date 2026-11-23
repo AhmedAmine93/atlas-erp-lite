@@ -233,12 +233,12 @@ export const navigationSections: NavigationSection[] = [
     label: "Intégrations & Automatisation",
     icon: SlidersHorizontal,
     items: [
-      { id: "integrations-connectors", label: "Connecteurs externes" },
-      { id: "integrations-api", label: "API et webhooks" },
-      { id: "integrations-imports", label: "Imports / exports" },
-      { id: "integrations-jobs", label: "Tâches planifiées" },
-      { id: "integrations-errors", label: "Erreurs de synchronisation" },
-      { id: "integrations-iot", label: "Capteurs IoT" },
+      { id: "integrations-connectors", label: "Connecteurs externes", ready: true },
+      { id: "integrations-api", label: "API et webhooks", ready: true },
+      { id: "integrations-imports", label: "Imports / exports", ready: true },
+      { id: "integrations-jobs", label: "Tâches planifiées", ready: true },
+      { id: "integrations-errors", label: "Erreurs de synchronisation", ready: true },
+      { id: "integrations-iot", label: "Capteurs IoT", ready: true },
     ],
   },
   {
