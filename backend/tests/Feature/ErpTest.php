@@ -110,7 +110,9 @@ class ErpTest extends TestCase
     {
         $this->order();
         $this->getJson('/api/customers/'.$this->customer->id)->assertOk()->assertJsonCount(1, 'orders');
-        $this->deleteJson('/api/customers/'.$this->customer->id)->assertConflict();
+        $this->deleteJson('/api/customers/'.$this->customer->id)->assertNoContent();
+        $this->assertNotNull($this->customer->fresh()->archived_at);
+        $this->getJson('/api/customers/'.$this->customer->id)->assertOk()->assertJsonCount(1, 'orders');
     }
 
     public function test_product_crud_filters_and_stock_audit(): void

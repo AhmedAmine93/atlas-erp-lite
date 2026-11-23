@@ -24,6 +24,7 @@ class ContactController extends Controller
         $r->validate(['search' => 'nullable|string|max:100', 'page' => 'nullable|integer|min:1']);
 
         return $this->model($kind)::query()->when($r->search, fn ($q) => $q->where(fn ($q) => $q->whereRaw('LOWER(name) LIKE ?', ['%'.mb_strtolower($r->search).'%'])->orWhereRaw('LOWER(email) LIKE ?', ['%'.mb_strtolower($r->search).'%'])))
+            ->when($kind === 'customers', fn ($q) => $q->whereNull('archived_at'))
             ->orderBy('name')->paginate(20);
     }
 
@@ -39,6 +40,7 @@ class ContactController extends Controller
     {
         Gate::authorize('crm');
         $item = $id ? $this->model($kind)::findOrFail($id) : new ($this->model($kind));
+        if ($kind === 'customers') abort_if($item->exists && $item->archived_at !== null, 409, 'Client archivé.');
         $rules = ['name' => 'required|string|max:255',
             'email' => ['required', 'email', 'max:255',
                 Rule::unique($kind)->where('company_id', app(TenantContext::class)->requireId())->ignore($id)],
@@ -69,8 +71,12 @@ class ContactController extends Controller
                 $item->save();
                 Audit::record('supplier.archived', $item);
             } else {
-                $item->delete();
-                Audit::record('contact.deleted', $item);
+                if (! $item->archived_at) {
+                    $item->archived_at = now();
+                    $item->archive_reason = 'Archivage demandé depuis le CRM';
+                    $item->save();
+                    Audit::record('crm.customer.archived', $item);
+                }
             }
 
             return response()->noContent();

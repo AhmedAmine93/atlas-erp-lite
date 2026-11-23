@@ -41,6 +41,7 @@ export function parseWorkspacePath(pathname: string): WorkspaceRoute | null {
 export function canOpenWorkspaceView(view: View, role: Role["name"]): boolean {
   if (!allowedViews.has(view)) return false;
   if (view === "dashboard") return true;
+  if (["prospects","crm-contacts","opportunities","crm-activities","customer-segments"].includes(view)) return ["admin","commercial","reader"].includes(role);
   if (view.startsWith("ops-")) return role === "admin";
   if (["analytics-custom", "analytics-exports"].includes(view)) return role === "admin";
   if (["analytics-sales", "analytics-finance", "analytics-suppliers"].includes(view)) return ["admin", "commercial", "reader"].includes(role);

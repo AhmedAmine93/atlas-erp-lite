@@ -45,6 +45,11 @@ import AdministrationWorkspace, { adminViews } from "@/components/Administration
 import AdminMembersWorkspace from "@/components/AdminMembersWorkspace";
 import AdminAuditWorkspace from "@/components/AdminAuditWorkspace";
 import DomainWorkspace, { domainViews } from "@/components/DomainWorkspace";
+import CrmWorkspace from "@/components/CrmWorkspace";
+import CrmCustomerImport from "@/components/CrmCustomerImport";
+import CrmCustomerQuality from "@/components/CrmCustomerQuality";
+import { CrmCustomerExternalPanel } from "@/components/CrmExternalIdentities";
+import CrmArchivedCustomers from "@/components/CrmArchivedCustomers";
 import InventoryWarehouseWorkspace from "@/components/InventoryWarehouseWorkspace";
 import InventoryOperationsWorkspace from "@/components/InventoryOperationsWorkspace";
 import HumanResourcesWorkspace from "@/components/HumanResourcesWorkspace";
@@ -609,6 +614,8 @@ export default function Workspace() {
             <InventoryOperationsWorkspace key={view+"-"+user.active_company_id} view={view as "stock-inventories" | "stock-transfers" | "lots-serials" | "replenishment"} role={user.role.name} activeCompanyId={user.active_company_id ?? null} />
           ) : view.startsWith("ops-") ? (
             <OperationsWorkspace key={view + "-" + user.active_company_id} view={view} />
+          ) : ["prospects","crm-contacts","opportunities","crm-activities","customer-segments"].includes(view) ? (
+            <CrmWorkspace key={view+"-"+user.active_company_id} view={view as "prospects"|"crm-contacts"|"opportunities"|"crm-activities"|"customer-segments"} activeCompanyId={user.active_company_id ?? null} canEdit={["admin","commercial"].includes(user.role.name)} />
           ) : view === "support-incidents" ? (
             <SupportIncidents canDiagnose={["admin", "support_n3"].includes(user.role.name)} />
           ) : (view === "hotel-folios" || view === "hotel-channel" || view === "hotel-night-audit") ? (
@@ -650,6 +657,11 @@ export default function Workspace() {
               onCompanySaved={async () => setUser(await api<User>("me"))}
             />
           ) : (
+            <>
+            {view === "customers" && ["admin","commercial"].includes(user.role.name) && <CrmCustomerImport onImported={() => setRefresh(n => n + 1)} />}
+            {view === "customers" && ["admin","commercial"].includes(user.role.name) && <CrmCustomerQuality activeCompanyId={user.active_company_id ?? null} onChanged={() => setRefresh(n => n + 1)} />}
+            {view === "customers" && ["admin","commercial"].includes(user.role.name) && <CrmCustomerExternalPanel />}
+            {view === "customers" && ["admin","commercial"].includes(user.role.name) && <CrmArchivedCustomers activeCompanyId={user.active_company_id ?? null} onChanged={() => setRefresh(n => n + 1)} />}
             <ListView
               key={view}
               view={view}
@@ -663,6 +675,7 @@ export default function Workspace() {
               }
               busy={busy}
             />
+            </>
           )}
           {["quotes","orders"].includes(view) && <SalesCommerceWorkspace key={"sales-v5-"+view+"-"+user.active_company_id} view={view as "quotes"|"orders"} activeCompanyId={user.active_company_id ?? null} canWrite={can(view)} canApprove={user.role.name === "admin"} revision={refresh} onChange={()=>setRefresh(n=>n+1)} embedded />}
           <footer className="page-footer">
