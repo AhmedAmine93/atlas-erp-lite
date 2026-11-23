@@ -42,6 +42,7 @@ import { nav, navigationSections, type View } from "@/lib/navigation";
 import { canEditWorkspaceView, canOpenWorkspaceView, parseWorkspacePath, workspaceHref, type WorkspaceRoute } from "@/lib/workspaceRoutes";
 import OrganizationWorkspace from "@/components/OrganizationWorkspace";
 import DomainWorkspace, { domainViews } from "@/components/DomainWorkspace";
+import HumanResourcesWorkspace from "@/components/HumanResourcesWorkspace";
 import MaintenanceWorkspace from "@/components/MaintenanceWorkspace";
 import IntegrationsWorkspace from "@/components/IntegrationsWorkspace";
 import SalesCommerceWorkspace, { salesCommerceViews } from "@/components/SalesCommerceWorkspace";
@@ -535,7 +536,7 @@ export default function Workspace() {
                 "admin-companies",
                 "support-incidents",
                 "quality-controls", "nonconformities", "corrective-actions", "quality-audits", "compliance-docs",
-              ].includes(view) && !domainViews.has(view) && (!salesCommerceViews.has(view as any) || ["quotes", "orders"].includes(view)) && (
+              ].includes(view) && !view.startsWith("hr-") && !domainViews.has(view) && (!salesCommerceViews.has(view as any) || ["quotes", "orders"].includes(view)) && (
                 <button
                   className="button primary"
                   onClick={() => setEditor({ kind: view })}
@@ -612,6 +613,8 @@ export default function Workspace() {
               {domainViews.has(view) && <DomainWorkspace view={view} activeCompanyId={user.active_company_id ?? null} />}
               <MaintenanceWorkspace view={view} activeCompanyId={user.active_company_id ?? null} />
             </div>
+          ) : view.startsWith("hr-") ? (
+            <HumanResourcesWorkspace key={view+"-"+user.active_company_id} view={view} activeCompanyId={user.active_company_id ?? null} />
           ) : domainViews.has(view) ? (
             <DomainWorkspace key={view+"-"+user.active_company_id} view={view} activeCompanyId={user.active_company_id ?? null} />
           ) : salesCommerceViews.has(view as any) && !["quotes","orders"].includes(view) ? (

@@ -21,6 +21,7 @@ const allLinks: QuickLink[] = [
   { view: "invoices", title: "Factures", description: "Suivi des règlements", icon: Receipt },
   { view: "products", title: "Stocks", description: "Catalogue & alertes", icon: Package },
   { view: "stock-movements", title: "Mouvements", description: "Entrées et sorties", icon: ArrowLeftRight },
+  { view: "hr-employees", title: "Collaborateurs", description: "Dossiers RH", icon: UsersRound },
   { view: "support-incidents", title: "Incidents", description: "Support N2 / N3", icon: LifeBuoy },
 ];
 
@@ -35,6 +36,7 @@ const linkViewsByRole: Record<User["role"]["name"], View[]> = {
   support_cab: ["support-incidents"],
   support_n2: ["support-incidents"],
   support_n3: ["support-incidents"],
+  hr: ["hr-employees"],
   quality_manager: ["quality-controls", "nonconformities", "quality-audits", "compliance-docs"],
   quality_auditor: ["quality-audits", "compliance-docs"],
   quality_operator: ["quality-controls", "nonconformities", "corrective-actions"],

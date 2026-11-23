@@ -17,7 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(fn (Request $request, $e) => $request->is('api/*') || $request->expectsJson());
         $exceptions->render(function (QueryException $e, Request $request) {
-            if (in_array($e->getCode(), ['23000', '23503', '23505', '23514'])) {
+            if (in_array($e->getCode(), ['23000', '23503', '23505', '23514', '23P01'])) {
                 return response()->json(['message' => 'Opération impossible : référence utilisée, doublon ou contrainte métier.'], 409);
             }
         });
