@@ -45,6 +45,7 @@ import DomainWorkspace, { domainViews } from "@/components/DomainWorkspace";
 import IntegrationsWorkspace from "@/components/IntegrationsWorkspace";
 import SalesCommerceWorkspace, { salesCommerceViews } from "@/components/SalesCommerceWorkspace";
 import PilotageWorkspace from "@/components/PilotageWorkspace";
+import BiReportingWorkspace from "@/components/BiReportingWorkspace";
 import PurchasingWorkspace from "@/components/PurchasingWorkspace";
 import HotelHousekeepingWorkspace from "@/components/HotelHousekeepingWorkspace";
 import HotelMinibarWorkspace from "@/components/HotelMinibarWorkspace";
@@ -578,6 +579,8 @@ export default function Workspace() {
             <PilotageWorkspace key={view + "-" + user.active_company_id} view={view} user={user} />
           ) : ["ai-assistant", "ai-search", "ai-anomalies", "ai-forecasts", "ai-suggestions"].includes(view) ? (
             <AiWorkspace key={view+"-"+user.active_company_id} view={view} activeCompanyId={user.active_company_id ?? null} />
+          ) : ["analytics-sales", "analytics-finance", "analytics-stock", "analytics-suppliers", "analytics-custom", "analytics-exports"].includes(view) ? (
+            <BiReportingWorkspace key={view+"-"+user.active_company_id} view={view as "analytics-sales" | "analytics-finance" | "analytics-stock" | "analytics-suppliers" | "analytics-custom" | "analytics-exports"} activeCompanyId={user.active_company_id ?? null} />
           ) : view === "support-incidents" ? (
             <SupportIncidents canDiagnose={["admin", "support_n3"].includes(user.role.name)} />
           ) : (view === "hotel-folios" || view === "hotel-channel" || view === "hotel-night-audit") ? (

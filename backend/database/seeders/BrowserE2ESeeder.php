@@ -56,6 +56,11 @@ final class BrowserE2ESeeder extends Seeder
             ['name'=>'Recette Ventes M03','password'=>$password,'role_id'=>$admin->id],
         );
         $salesUser->companies()->syncWithoutDetaching([$tenant->id=>['role_id'=>$admin->id]]);
+        $biUser = User::firstOrCreate(
+            ['email' => 'v5-browser-e2e-bi@atlas.example'],
+            ['name' => 'ATLAS V5 · Recette BI fictive', 'password' => $password, 'role_id' => $admin->id],
+        );
+        $biUser->companies()->syncWithoutDetaching([$tenant->id => ['role_id' => $admin->id]]);
         $this->command?->info('Comptes isolés de recette navigateur activés.');
     }
 }

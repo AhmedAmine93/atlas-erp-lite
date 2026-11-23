@@ -206,12 +206,12 @@ export const navigationSections: NavigationSection[] = [
     label: "BI & Reporting",
     icon: TrendingUp,
     items: [
-      { id: "analytics-sales", label: "Rapports commerciaux" },
-      { id: "analytics-finance", label: "Analyse financière" },
-      { id: "analytics-stock", label: "Analyse des stocks" },
-      { id: "analytics-suppliers", label: "Performance fournisseurs" },
-      { id: "analytics-custom", label: "Rapports personnalisés" },
-      { id: "analytics-exports", label: "Exports de données" },
+      { id: "analytics-sales", label: "Rapports commerciaux", ready: true },
+      { id: "analytics-finance", label: "Analyse financière", ready: true },
+      { id: "analytics-stock", label: "Analyse des stocks", ready: true },
+      { id: "analytics-suppliers", label: "Performance fournisseurs", ready: true },
+      { id: "analytics-custom", label: "Rapports personnalisés", ready: true },
+      { id: "analytics-exports", label: "Exports de données", ready: true },
     ],
   },
   {
