@@ -50,9 +50,9 @@ class InvoiceService
         }, 3);
     }
 
-    public function transition(int $id, string $status): Invoice
+    public function transition(int $id, string $status, ?string $dueAt = null): Invoice
     {
-        return DB::transaction(function () use ($id, $status) {
+        return DB::transaction(function () use ($id, $status, $dueAt) {
             $invoice = Invoice::lockForUpdate()->findOrFail($id);
             $allowed = ['draft' => ['issued', 'cancelled'], 'issued' => ['paid', 'cancelled'], 'paid' => [], 'cancelled' => []];
             abort_unless(in_array($status, $allowed[$invoice->status]), 409, 'Transition de facture interdite.');
@@ -60,6 +60,7 @@ class InvoiceService
             if ($status === 'issued') {
                 $changes['number'] = DocumentNumber::next('FAC');
                 $changes['issued_at'] = now();
+                if ($dueAt !== null) $changes['due_at'] = $dueAt;
             }
             if ($status === 'paid') {
                 $changes['paid_at'] = now();

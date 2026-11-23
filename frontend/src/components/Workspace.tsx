@@ -46,6 +46,7 @@ import MaintenanceWorkspace from "@/components/MaintenanceWorkspace";
 import IntegrationsWorkspace from "@/components/IntegrationsWorkspace";
 import SalesCommerceWorkspace, { salesCommerceViews } from "@/components/SalesCommerceWorkspace";
 import PilotageWorkspace from "@/components/PilotageWorkspace";
+import FinanceWorkspace from "@/components/FinanceWorkspace";
 import BiReportingWorkspace from "@/components/BiReportingWorkspace";
 import PurchasingWorkspace from "@/components/PurchasingWorkspace";
 import HotelHousekeepingWorkspace from "@/components/HotelHousekeepingWorkspace";
@@ -586,6 +587,8 @@ export default function Workspace() {
             <BiReportingWorkspace key={view+"-"+user.active_company_id} view={view as "analytics-sales" | "analytics-finance" | "analytics-stock" | "analytics-suppliers" | "analytics-custom" | "analytics-exports"} activeCompanyId={user.active_company_id ?? null} />
           ) : qualityViews.has(view) ? (
             <QualityWorkspace key={view+"-"+user.active_company_id} view={view as "quality-controls" | "nonconformities" | "corrective-actions" | "quality-audits" | "compliance-docs"} user={user} />
+          ) : ["credit-notes","collections","payment-reminders","expenses","budgets","accounting-exports"].includes(view) ? (
+            <FinanceWorkspace key={"finance-"+view+"-"+user.active_company_id} view={view} activeCompanyId={user.active_company_id ?? null} canWrite={user.role.name === "admin"} />
           ) : view === "support-incidents" ? (
             <SupportIncidents canDiagnose={["admin", "support_n3"].includes(user.role.name)} />
           ) : (view === "hotel-folios" || view === "hotel-channel" || view === "hotel-night-audit") ? (
@@ -2043,7 +2046,7 @@ function Detail({
             className="button primary"
             disabled={busy}
             onClick={() =>
-              action(`invoices/${row.id}`, "PATCH", { status: "issued" })
+              action(`invoices/${row.id}`, "PATCH", (() => { const dueAt = window.prompt("Date d’échéance (AAAA-MM-JJ), laisser vide si non définie"); return dueAt?.trim() ? { status: "issued", due_at: dueAt.trim() } : { status: "issued" }; })())
             }
           >
             Émettre la facture

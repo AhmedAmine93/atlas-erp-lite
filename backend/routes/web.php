@@ -10,6 +10,7 @@ use App\Http\Controllers\PilotageController;
 use App\Http\Controllers\PilotageManagementController;
 use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\MetricsController;
 use App\Http\Controllers\BiReportingController;
 use App\Http\Controllers\OrganizationController;
@@ -334,6 +335,39 @@ Route::prefix('api')->group(function () {
         Route::get('{salesKind}/{id}', [SalesController::class, 'show'])->whereIn('salesKind', ['quotes', 'orders'])->whereNumber('id');
         Route::post('quotes/{id}/convert', [SalesController::class, 'convert'])->whereNumber('id');
         Route::post('orders/{id}/validate', [SalesController::class, 'validateOrder'])->whereNumber('id');
+        // M06: independent company-scoped financial workflows.
+        Route::get('finance/invoice-balances', [FinanceController::class,'balances']);
+        Route::get('finance/invoices/{id}/balance', [FinanceController::class,'invoiceBalance'])->whereNumber('id');
+        Route::get('finance/reminder-policy', [FinanceController::class,'policy']);
+        Route::put('finance/reminder-policy', [FinanceController::class,'setPolicy']);
+        Route::get('finance/budgets/{id}/summary', [FinanceController::class,'budgetSummary'])->whereNumber('id');
+        Route::get('finance/entries/{id}/lines', [FinanceController::class,'entryLines'])->whereNumber('id');
+        Route::get('finance/accounting-exports/{id}/download', [FinanceController::class,'download'])->whereNumber('id');
+        Route::post('finance/credit-notes', [FinanceController::class,'credit']);
+        Route::post('finance/collections', [FinanceController::class,'receipt']);
+        Route::post('finance/collections/{id}/allocate', [FinanceController::class,'allocate'])->whereNumber('id');
+        Route::post('finance/disputes', [FinanceController::class,'dispute']);
+        Route::post('finance/disputes/{id}/decision', [FinanceController::class,'decideDispute'])->whereNumber('id');
+        Route::post('finance/payment-reminders', [FinanceController::class,'reminder']);
+        Route::post('finance/cost-centers', [FinanceController::class,'costCenter']);
+        Route::post('finance/expenses', [FinanceController::class,'expense']);
+        Route::post('finance/expenses/{id}/decision', [FinanceController::class,'decideExpense'])->whereNumber('id');
+        Route::post('finance/budgets', [FinanceController::class,'budget']);
+        Route::post('finance/budgets/{id}/approve', [FinanceController::class,'approveBudget'])->whereNumber('id');
+        Route::post('finance/budgets/{id}/movements', [FinanceController::class,'budgetMovement'])->whereNumber('id');
+        Route::post('finance/accounts', [FinanceController::class,'createAccount']);
+        Route::post('finance/journals', [FinanceController::class,'createJournal']);
+        Route::post('finance/periods', [FinanceController::class,'createPeriod']);
+        Route::post('finance/periods/{id}/close', [FinanceController::class,'closePeriod'])->whereNumber('id');
+        Route::post('finance/entries', [FinanceController::class,'entry']);
+        Route::post('finance/entries/{id}/post', [FinanceController::class,'postEntry'])->whereNumber('id');
+        Route::post('finance/tax-rates', [FinanceController::class,'taxRate']);
+        Route::post('finance/fx-rates', [FinanceController::class,'fxRate']);
+        Route::post('finance/accounting-exports', [FinanceController::class,'export']);
+        Route::get('finance/{kind}', [FinanceController::class,'index'])
+            ->whereIn('kind',['credit-notes','collections','allocations','payment-reminders','disputes',
+                'expenses','cost-centers','budgets','budget-movements','accounts','periods','journals',
+                'entries','tax-rates','fx-rates','accounting-exports']);
         Route::get('invoices', [InvoiceController::class, 'index']);
         Route::post('invoices', [InvoiceController::class, 'store']);
         Route::get('invoices/{id}', [InvoiceController::class, 'show'])->whereNumber('id');
