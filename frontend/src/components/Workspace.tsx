@@ -42,6 +42,7 @@ import { nav, navigationSections, type View } from "@/lib/navigation";
 import { canEditWorkspaceView, canOpenWorkspaceView, parseWorkspacePath, workspaceHref, type WorkspaceRoute } from "@/lib/workspaceRoutes";
 import OrganizationWorkspace from "@/components/OrganizationWorkspace";
 import DomainWorkspace, { domainViews } from "@/components/DomainWorkspace";
+import MaintenanceWorkspace from "@/components/MaintenanceWorkspace";
 import IntegrationsWorkspace from "@/components/IntegrationsWorkspace";
 import SalesCommerceWorkspace, { salesCommerceViews } from "@/components/SalesCommerceWorkspace";
 import PilotageWorkspace from "@/components/PilotageWorkspace";
@@ -603,6 +604,11 @@ export default function Workspace() {
             <PurchasingWorkspace key={view+"-"+user.active_company_id} view={view} activeCompanyId={user.active_company_id ?? null} />
           ) : view.startsWith("integrations-") ? (
             <IntegrationsWorkspace key={view+"-"+user.active_company_id} view={view} />
+          ) : view.startsWith("maintenance-") ? (
+            <div key={view+"-"+user.active_company_id}>
+              {domainViews.has(view) && <DomainWorkspace view={view} activeCompanyId={user.active_company_id ?? null} />}
+              <MaintenanceWorkspace view={view} activeCompanyId={user.active_company_id ?? null} />
+            </div>
           ) : domainViews.has(view) ? (
             <DomainWorkspace key={view+"-"+user.active_company_id} view={view} activeCompanyId={user.active_company_id ?? null} />
           ) : salesCommerceViews.has(view as any) && !["quotes","orders"].includes(view) ? (

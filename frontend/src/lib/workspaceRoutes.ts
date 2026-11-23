@@ -52,7 +52,7 @@ export function canOpenWorkspaceView(view: View, role: Role["name"]): boolean {
   if (view === "alerts-dashboard")
     return ["admin", "commercial", "stock", "reader"].includes(role);
   if (view.startsWith("integrations-")) return role === "admin";
-  if (["purchase-requests", "supplier-quotes", "purchase-orders", "purchase-receipts", "supplier-invoices", "maintenance-sites", "maintenance-assets", "maintenance-requests", "maintenance-workorders", "hotel-properties", "hotel-rooms", "hotel-bookings", "hotel-checkin", "hotel-minibar", "hotel-availability", "hotel-housekeeping", "hotel-folios", "hotel-channel", "hotel-night-audit", "data-sources", "data-batches"].includes(view)) return role === "admin";
+  if (["purchase-requests", "maintenance-mobile", "maintenance-contracts", "maintenance-spares", "maintenance-preventive", "maintenance-planning", "maintenance-dashboard", "supplier-quotes", "purchase-orders", "purchase-receipts", "supplier-invoices", "maintenance-sites", "maintenance-assets", "maintenance-requests", "maintenance-workorders", "hotel-properties", "hotel-rooms", "hotel-bookings", "hotel-checkin", "hotel-minibar", "hotel-availability", "hotel-housekeeping", "hotel-folios", "hotel-channel", "hotel-night-audit", "data-sources", "data-batches"].includes(view)) return role === "admin";
   if (["quality-controls", "nonconformities", "corrective-actions", "quality-audits", "compliance-docs"].includes(view)) return ["admin", "quality_manager", "quality_auditor", "quality_operator"].includes(role);
   if (["users", "audit-logs", "admin-companies"].includes(view)) return role === "admin";
   if (view === "support-incidents") return ["admin", "support_n1", "support_n2", "support_n3", "support_manager", "support_cab"].includes(role);
