@@ -51,6 +51,7 @@ import HotelMinibarWorkspace from "@/components/HotelMinibarWorkspace";
 import HotelAvailabilityWorkspace from "@/components/HotelAvailabilityWorkspace";
 import HotelOperationsWorkspace from "@/components/HotelOperationsWorkspace";
 import SupportIncidents from "@/components/SupportIncidents";
+import AiWorkspace from "@/components/AiWorkspace";
 import SupportITSM from "@/components/SupportITSM";
 import Login from "@/components/auth/Login";
 import WorkspaceSidebar from "@/components/layout/WorkspaceSidebar";
@@ -575,6 +576,8 @@ export default function Workspace() {
             </>
           ) : ["direction-dashboard", "sales-dashboard", "finance-dashboard", "logistics-dashboard", "alerts-dashboard"].includes(view) ? (
             <PilotageWorkspace key={view + "-" + user.active_company_id} view={view} user={user} />
+          ) : ["ai-assistant", "ai-search", "ai-anomalies", "ai-forecasts", "ai-suggestions"].includes(view) ? (
+            <AiWorkspace key={view+"-"+user.active_company_id} view={view} activeCompanyId={user.active_company_id ?? null} />
           ) : view === "support-incidents" ? (
             <SupportIncidents canDiagnose={["admin", "support_n3"].includes(user.role.name)} />
           ) : (view === "hotel-folios" || view === "hotel-channel" || view === "hotel-night-audit") ? (
