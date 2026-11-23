@@ -41,6 +41,9 @@ import { api, send, all, fetchTenantBlob, setVerifiedCompanyContext, resetTenant
 import { nav, navigationSections, type View } from "@/lib/navigation";
 import { canEditWorkspaceView, canOpenWorkspaceView, parseWorkspacePath, workspaceHref, type WorkspaceRoute } from "@/lib/workspaceRoutes";
 import OrganizationWorkspace from "@/components/OrganizationWorkspace";
+import AdministrationWorkspace, { adminViews } from "@/components/AdministrationWorkspace";
+import AdminMembersWorkspace from "@/components/AdminMembersWorkspace";
+import AdminAuditWorkspace from "@/components/AdminAuditWorkspace";
 import DomainWorkspace, { domainViews } from "@/components/DomainWorkspace";
 import InventoryWarehouseWorkspace from "@/components/InventoryWarehouseWorkspace";
 import InventoryOperationsWorkspace from "@/components/InventoryOperationsWorkspace";
@@ -538,6 +541,11 @@ export default function Workspace() {
                 "audit-logs",
                 "invoices",
                 "admin-companies",
+                "admin-roles",
+                "admin-settings",
+                "admin-documents",
+                "admin-security",
+                "users",
                 "support-incidents",
                 "quality-controls", "nonconformities", "corrective-actions", "quality-audits", "compliance-docs",
               ].includes(view) && !view.startsWith("hr-") && !domainViews.has(view) && (!salesCommerceViews.has(view as any) || ["quotes", "orders"].includes(view)) && (
@@ -627,6 +635,12 @@ export default function Workspace() {
             <DomainWorkspace key={view+"-"+user.active_company_id} view={view} activeCompanyId={user.active_company_id ?? null} />
           ) : salesCommerceViews.has(view as any) && !["quotes","orders"].includes(view) ? (
             <SalesCommerceWorkspace key={view+"-"+user.active_company_id} view={view as "deliveries"|"sales-contracts"|"sales-returns"|"pricing"} activeCompanyId={user.active_company_id ?? null} canWrite={can(view)} canApprove={user.role.name === "admin"} />
+          ) : view === "audit-logs" ? (
+            <AdminAuditWorkspace key={"audit-"+user.active_company_id} activeCompanyId={user.active_company_id ?? null}/>
+          ) : view === "users" ? (
+            <AdminMembersWorkspace key={"users-"+user.active_company_id} activeCompanyId={user.active_company_id ?? null}/>
+          ) : adminViews.includes(view) ? (
+            <AdministrationWorkspace key={view+"-"+user.active_company_id} view={view} activeCompanyId={user.active_company_id ?? null} />
           ) : view === "admin-companies" ? (
             <OrganizationWorkspace
               activeCompanyId={user.active_company_id ?? null}
