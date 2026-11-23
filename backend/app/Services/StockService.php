@@ -23,7 +23,7 @@ class StockService
     }
 
     // Caller holds product lock and transaction; shared by orders and manual corrections.
-    public function move(Product $product, int $quantity, string $reason, ?int $orderId = null): void
+    public function move(Product $product, int $quantity, string $reason, ?int $orderId = null, bool $consumeAllocated = true): void
     {
         $balance = $product->stock + $quantity;
         // All stock-consuming paths, including legacy order validation and manual
@@ -38,6 +38,11 @@ class StockService
         }
         if ($balance < $reserved || $balance > 100000000) {
             throw ValidationException::withMessages(['stock' => 'Stock insuffisant ou capacité dépassée : '.$product->name]);
+        }
+        if ($quantity < 0 && $consumeAllocated) {
+            // Shared V5 reservation check remains enforced above.
+            // Consume eligible allocated stock only through the M05 service.
+            app(InventoryStockService::class)->consumeForLegacyMove($product, -$quantity, $reason);
         }
         $product->update(['stock' => $balance]);
         StockMovement::create(['product_id' => $product->id, 'quantity' => $quantity, 'balance_after' => $balance,
