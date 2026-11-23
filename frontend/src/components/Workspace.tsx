@@ -52,6 +52,7 @@ import HotelMinibarWorkspace from "@/components/HotelMinibarWorkspace";
 import HotelAvailabilityWorkspace from "@/components/HotelAvailabilityWorkspace";
 import HotelOperationsWorkspace from "@/components/HotelOperationsWorkspace";
 import SupportIncidents from "@/components/SupportIncidents";
+import QualityWorkspace, { qualityViews } from "@/components/QualityWorkspace";
 import AiWorkspace from "@/components/AiWorkspace";
 import SupportITSM from "@/components/SupportITSM";
 import Login from "@/components/auth/Login";
@@ -531,6 +532,7 @@ export default function Workspace() {
                 "invoices",
                 "admin-companies",
                 "support-incidents",
+                "quality-controls", "nonconformities", "corrective-actions", "quality-audits", "compliance-docs",
               ].includes(view) && !domainViews.has(view) && (!salesCommerceViews.has(view as any) || ["quotes", "orders"].includes(view)) && (
                 <button
                   className="button primary"
@@ -581,6 +583,8 @@ export default function Workspace() {
             <AiWorkspace key={view+"-"+user.active_company_id} view={view} activeCompanyId={user.active_company_id ?? null} />
           ) : ["analytics-sales", "analytics-finance", "analytics-stock", "analytics-suppliers", "analytics-custom", "analytics-exports"].includes(view) ? (
             <BiReportingWorkspace key={view+"-"+user.active_company_id} view={view as "analytics-sales" | "analytics-finance" | "analytics-stock" | "analytics-suppliers" | "analytics-custom" | "analytics-exports"} activeCompanyId={user.active_company_id ?? null} />
+          ) : qualityViews.has(view) ? (
+            <QualityWorkspace key={view+"-"+user.active_company_id} view={view as "quality-controls" | "nonconformities" | "corrective-actions" | "quality-audits" | "compliance-docs"} user={user} />
           ) : view === "support-incidents" ? (
             <SupportIncidents canDiagnose={["admin", "support_n3"].includes(user.role.name)} />
           ) : (view === "hotel-folios" || view === "hotel-channel" || view === "hotel-night-audit") ? (

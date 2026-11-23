@@ -194,11 +194,11 @@ export const navigationSections: NavigationSection[] = [
     label: "Qualité & Conformité",
     icon: ShieldCheck,
     items: [
-      { id: "quality-controls", label: "Contrôles qualité" },
-      { id: "nonconformities", label: "Non-conformités" },
-      { id: "corrective-actions", label: "Actions correctives" },
-      { id: "quality-audits", label: "Audits qualité" },
-      { id: "compliance-docs", label: "Documents et procédures" },
+      { id: "quality-controls", label: "Contrôles qualité", ready: true },
+      { id: "nonconformities", label: "Non-conformités", ready: true },
+      { id: "corrective-actions", label: "Actions correctives", ready: true },
+      { id: "quality-audits", label: "Audits qualité", ready: true },
+      { id: "compliance-docs", label: "Documents et procédures", ready: true },
     ],
   },
   {

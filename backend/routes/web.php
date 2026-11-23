@@ -355,6 +355,33 @@ Route::prefix('api')->group(function () {
         Route::post('support/incidents/{id}/comments', [SupportIncidentController::class, 'comment'])->whereNumber('id');
         Route::post('support/incidents/{id}/escalate', [SupportIncidentController::class, 'escalate'])->whereNumber('id');
         Route::post('support/incidents/{id}/reopen', [SupportIncidentController::class, 'reopen'])->whereNumber('id');
+        // M12 quality routes. Include within authenticated and tenant-bound /api group.
+        Route::prefix('quality')->group(function () {
+            Route::get('metrics', [\App\Http\Controllers\QualityController::class, 'metrics']);
+            Route::get('users', [\App\Http\Controllers\QualityController::class, 'users']);
+            Route::get('{module}', [\App\Http\Controllers\QualityController::class, 'index'])
+                ->whereIn('module', ['controls','nonconformities','actions','audits','documents']);
+            Route::get('{module}/{id}', [\App\Http\Controllers\QualityController::class, 'detail'])
+                ->whereIn('module', ['controls','nonconformities','actions','audits','documents'])->whereNumber('id');
+            Route::post('controls', [\App\Http\Controllers\QualityController::class, 'createPlan']);
+            Route::post('controls/{planId}/checks', [\App\Http\Controllers\QualityController::class, 'executeCheck'])->whereNumber('planId');
+            Route::get('controls/{planId}/checks', [\App\Http\Controllers\QualityController::class, 'checks'])->whereNumber('planId');
+            Route::post('nonconformities', [\App\Http\Controllers\QualityController::class, 'createNonconformity']);
+            Route::post('nonconformities/{id}/transition', [\App\Http\Controllers\QualityController::class, 'transitionNonconformity'])->whereNumber('id');
+            Route::post('nonconformities/{ncId}/actions', [\App\Http\Controllers\QualityController::class, 'createAction'])->whereNumber('ncId');
+            Route::post('actions/{id}/transition', [\App\Http\Controllers\QualityController::class, 'updateAction'])->whereNumber('id');
+            Route::post('actions/escalate-overdue', [\App\Http\Controllers\QualityController::class, 'escalateOverdue']);
+            Route::post('audits', [\App\Http\Controllers\QualityController::class, 'createAudit']);
+            Route::post('audits/{auditId}/findings', [\App\Http\Controllers\QualityController::class, 'addFinding'])->whereNumber('auditId');
+            Route::get('audits/{auditId}/findings', [\App\Http\Controllers\QualityController::class, 'findings'])->whereNumber('auditId');
+            Route::post('audits/{id}/transition', [\App\Http\Controllers\QualityController::class, 'transitionAudit'])->whereNumber('id');
+            Route::post('documents', [\App\Http\Controllers\QualityController::class, 'createDocument']);
+            Route::post('documents/{documentId}/versions', [\App\Http\Controllers\QualityController::class, 'reviseDocument'])->whereNumber('documentId');
+            Route::get('documents/{docId}/versions', [\App\Http\Controllers\QualityController::class, 'versions'])->whereNumber('docId');
+            Route::post('versions/{versionId}/transition', [\App\Http\Controllers\QualityController::class, 'transitionDocument'])->whereNumber('versionId');
+            Route::post('versions/{versionId}/acknowledge', [\App\Http\Controllers\QualityController::class, 'acknowledgeDocument'])->whereNumber('versionId');
+            Route::get('versions/{versionId}/receipts', [\App\Http\Controllers\QualityController::class, 'receiptList'])->whereNumber('versionId');
+        });
         Route::get('companies', [OrganizationController::class, 'companies']);
         Route::post('companies', [OrganizationController::class, 'saveCompany']);
         Route::put('companies/{id}', [OrganizationController::class, 'saveCompany'])->whereNumber('id');
